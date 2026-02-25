@@ -8,6 +8,7 @@ members = [
   "crates/nexis-cli",
   "crates/nexis-vector",
   "crates/nexis-context",
+  "crates/nexis-federation",
 ]
 resolver = "2"
 
@@ -94,6 +95,7 @@ nexis-mcp = { path = "crates/nexis-mcp" }
 nexis-runtime = { path = "crates/nexis-runtime" }
 nexis-vector = { path = "crates/nexis-vector" }
 nexis-context = { path = "crates/nexis-context" }
+nexis-federation = { path = "crates/nexis-federation" }
 
 # Release profile
 [profile.release]

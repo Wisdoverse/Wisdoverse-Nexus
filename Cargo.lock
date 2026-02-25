@@ -1965,6 +1965,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "nexis-federation"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "hex",
+ "hmac",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-test",
+ "tracing",
+]
+
+[[package]]
 name = "nexis-gateway"
 version = "0.1.0"
 dependencies = [

@@ -1,0 +1,23 @@
+[package]
+name = "nexis-federation"
+description = "Nexis federation protocol and security primitives"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+hmac = "0.12"
+sha2 = "0.10"
+hex = { workspace = true }
+
+[dev-dependencies]
+tokio-test = { workspace = true }
