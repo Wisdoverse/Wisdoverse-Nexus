@@ -173,6 +173,28 @@ jobs:
         run: |
           grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "*cargo*" -o lcov.info
 
+      - name: Enforce coverage threshold (80%+)
+        run: |
+          python - <<'PY'
+          import re
+          total = 0
+          covered = 0
+          with open("lcov.info", "r", encoding="utf-8") as f:
+              for line in f:
+                  if line.startswith("DA:"):
+                      _, data = line.strip().split(":", 1)
+                      lineno, hits = data.split(",", 1)
+                      total += 1
+                      if int(hits) > 0:
+                          covered += 1
+          if total == 0:
+              raise SystemExit("No coverage lines found in lcov.info")
+          ratio = covered / total * 100
+          print(f"Line coverage: {ratio:.2f}% ({covered}/{total})")
+          if ratio < 80.0:
+              raise SystemExit(f"Coverage threshold not met: {ratio:.2f}% < 80.00%")
+          PY
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:

@@ -73,3 +73,11 @@ reqwest = { workspace = true }
 [[bench]]
 name = "routing"
 harness = false
+
+[[bench]]
+name = "message_throughput"
+harness = false
+
+[[bench]]
+name = "websocket_connections"
+harness = false

@@ -53,6 +53,7 @@ impl AppState {
 }
 
 type SharedState = AppState;
+const MAX_MESSAGE_TEXT_LEN: usize = 32 * 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Room {
@@ -353,6 +354,15 @@ async fn send_message(
             StatusCode::BAD_REQUEST,
             Json(ErrorResponse::bad_request(
                 "roomId, sender, and text are required",
+            )),
+        )
+            .into_response();
+    }
+    if payload.text.len() > MAX_MESSAGE_TEXT_LEN {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse::bad_request(
+                "text exceeds maximum length of 32768 characters",
             )),
         )
             .into_response();
