@@ -13,6 +13,7 @@ pub mod connection;
 pub mod db;
 pub mod indexing;
 pub mod metrics;
+pub mod observability;
 pub mod router;
 pub mod search;
 pub mod server;

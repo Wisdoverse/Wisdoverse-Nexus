@@ -6,22 +6,16 @@ use axum::Router;
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use nexis_gateway::router;
+use nexis_gateway::{init_metrics, observability, router};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Initialize tracing
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG")
-                .unwrap_or_else(|_| "nexis_gateway=debug,tower_http=debug".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    // Initialize tracing + export config
+    observability::init_tracing()?;
 
     tracing::info!("Starting Nexus Gateway v{}", env!("CARGO_PKG_VERSION"));
+    init_metrics();
 
     // Build router
     let app = Router::new()

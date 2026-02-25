@@ -3,7 +3,8 @@
 use axum::{
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{HeaderValue, Request, StatusCode},
+    middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
@@ -11,10 +12,17 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::{mpsc, RwLock, Semaphore};
+use tracing::Instrument;
 use uuid::Uuid;
 
 use crate::auth::AuthenticatedUser;
+use crate::metrics::{
+    export as export_metrics, HTTP_LATENCY, HTTP_REQUESTS_TOTAL, HTTP_RESPONSES, MESSAGES_SENT,
+    OPERATION_ERRORS_TOTAL, OPERATION_LATENCY, OPERATION_THROUGHPUT_TOTAL, ROOMS_ACTIVE,
+    ROOMS_CREATED_TOTAL,
+};
 use crate::search::{SearchError, SearchRequest, SearchService};
 
 #[cfg(feature = "multi-tenant")]
@@ -261,12 +269,14 @@ pub fn build_routes() -> Router {
 
     Router::new()
         .route("/health", get(health_check))
+        .route("/metrics", get(metrics_handler))
         .route("/ws", get(websocket_handler))
         .route("/v1/rooms", get(list_rooms).post(create_room))
         .route("/v1/rooms/:id", get(get_room).delete(delete_room))
         .route("/v1/rooms/:id/invite", post(invite_member))
         .route("/v1/messages", post(send_message))
         .route("/v1/search", get(search_messages_get).post(search_messages))
+        .layer(middleware::from_fn(correlation_id_middleware))
         .with_state(state)
 }
 
@@ -276,12 +286,14 @@ pub fn build_routes_with_search(search_service: Arc<dyn SearchService>) -> Route
 
     Router::new()
         .route("/health", get(health_check))
+        .route("/metrics", get(metrics_handler))
         .route("/ws", get(websocket_handler))
         .route("/v1/rooms", get(list_rooms).post(create_room))
         .route("/v1/rooms/:id", get(get_room).delete(delete_room))
         .route("/v1/rooms/:id/invite", post(invite_member))
         .route("/v1/messages", post(send_message))
         .route("/v1/search", get(search_messages_get).post(search_messages))
+        .layer(middleware::from_fn(correlation_id_middleware))
         .with_state(state)
 }
 
@@ -290,17 +302,95 @@ async fn health_check() -> &'static str {
     "OK"
 }
 
+async fn metrics_handler() -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        [("content-type", "text/plain; version=0.0.4; charset=utf-8")],
+        export_metrics(),
+    )
+}
+
+fn record_operation_success(operation: &str, start: Instant) {
+    OPERATION_THROUGHPUT_TOTAL
+        .with_label_values(&[operation])
+        .inc();
+    OPERATION_LATENCY
+        .with_label_values(&[operation])
+        .observe(start.elapsed().as_secs_f64());
+}
+
+fn record_operation_error(operation: &str, error_type: &str, start: Instant) {
+    OPERATION_ERRORS_TOTAL
+        .with_label_values(&[operation, error_type])
+        .inc();
+    OPERATION_LATENCY
+        .with_label_values(&[operation])
+        .observe(start.elapsed().as_secs_f64());
+}
+
+async fn correlation_id_middleware(request: Request<axum::body::Body>, next: Next) -> Response {
+    let started = Instant::now();
+    let method = request.method().to_string();
+    let path = request.uri().path().to_string();
+
+    let correlation_id = request
+        .headers()
+        .get("x-correlation-id")
+        .and_then(|v| v.to_str().ok())
+        .map_or_else(|| Uuid::new_v4().to_string(), ToString::to_string);
+
+    let span = tracing::info_span!(
+        "gateway.http.request",
+        correlation_id = %correlation_id,
+        method = %method,
+        path = %path
+    );
+    let mut response = next.run(request).instrument(span).await;
+    response.headers_mut().insert(
+        "x-correlation-id",
+        HeaderValue::from_str(&correlation_id)
+            .unwrap_or_else(|_| HeaderValue::from_static("invalid-correlation-id")),
+    );
+
+    let status = response.status().as_u16().to_string();
+    HTTP_REQUESTS_TOTAL
+        .with_label_values(&[&method, &path])
+        .inc();
+    HTTP_RESPONSES
+        .with_label_values(&[&method, &path, &status])
+        .inc();
+    HTTP_LATENCY
+        .with_label_values(&[&method, &path])
+        .observe(started.elapsed().as_secs_f64());
+
+    if response.status().is_server_error() {
+        OPERATION_ERRORS_TOTAL
+            .with_label_values(&["http_request", "5xx"])
+            .inc();
+    }
+
+    response
+}
+
 /// WebSocket handler
 async fn websocket_handler(ws: WebSocketUpgrade) -> Response {
     ws.on_upgrade(handle_socket)
 }
 
+#[tracing::instrument(
+    name = "gateway.create_room",
+    skip(state, _user, payload),
+    fields(room_name = %payload.name)
+)]
 async fn create_room(
     State(state): State<SharedState>,
     _user: AuthenticatedUser,
     Json(payload): Json<CreateRoomRequest>,
 ) -> impl IntoResponse {
+    let started = Instant::now();
+    let operation = "create_room";
     if payload.name.trim().is_empty() {
+        record_operation_error(operation, "validation", started);
         return (
             StatusCode::BAD_REQUEST,
             Json(ErrorResponse::bad_request("room name cannot be empty")),
@@ -328,6 +418,7 @@ async fn create_room(
     };
 
     let Ok(_permit) = state.write_gate.clone().acquire_owned().await else {
+        record_operation_error(operation, "unavailable", started);
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(ErrorResponse::service_unavailable("service unavailable")),
@@ -337,19 +428,30 @@ async fn create_room(
 
     let mut rooms = state.rooms.write().await;
     rooms.insert(room.id.clone(), room);
+    ROOMS_CREATED_TOTAL.inc();
+    ROOMS_ACTIVE.set(rooms.len() as f64);
+    record_operation_success(operation, started);
 
     (StatusCode::CREATED, Json(response)).into_response()
 }
 
+#[tracing::instrument(
+    name = "gateway.send_message",
+    skip(state, _user, payload),
+    fields(room_id = %payload.room_id, sender = %payload.sender)
+)]
 async fn send_message(
     State(state): State<SharedState>,
     _user: AuthenticatedUser,
     Json(payload): Json<SendMessageRequest>,
 ) -> impl IntoResponse {
+    let started = Instant::now();
+    let operation = "send_message";
     if payload.room_id.trim().is_empty()
         || payload.sender.trim().is_empty()
         || payload.text.trim().is_empty()
     {
+        record_operation_error(operation, "validation", started);
         return (
             StatusCode::BAD_REQUEST,
             Json(ErrorResponse::bad_request(
@@ -359,6 +461,7 @@ async fn send_message(
             .into_response();
     }
     if payload.text.len() > MAX_MESSAGE_TEXT_LEN {
+        record_operation_error(operation, "validation", started);
         return (
             StatusCode::BAD_REQUEST,
             Json(ErrorResponse::bad_request(
@@ -370,6 +473,7 @@ async fn send_message(
 
     let rooms = state.rooms.read().await;
     if !rooms.contains_key(&payload.room_id) {
+        record_operation_error(operation, "room_not_found", started);
         return (
             StatusCode::NOT_FOUND,
             Json(ErrorResponse::not_found("room not found")),
@@ -389,6 +493,7 @@ async fn send_message(
     };
 
     let Ok(_permit) = state.write_gate.clone().acquire_owned().await else {
+        record_operation_error(operation, "unavailable", started);
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(ErrorResponse::service_unavailable("service unavailable")),
@@ -398,10 +503,17 @@ async fn send_message(
 
     let mut messages = state.room_messages.write().await;
     messages.entry(payload.room_id).or_default().push(message);
+    MESSAGES_SENT.inc();
+    record_operation_success(operation, started);
 
     (StatusCode::CREATED, Json(response)).into_response()
 }
 
+#[tracing::instrument(
+    name = "gateway.get_room",
+    skip(state, _user),
+    fields(room_id = %id)
+)]
 async fn get_room(
     State(state): State<SharedState>,
     _user: AuthenticatedUser,
@@ -443,6 +555,11 @@ async fn get_room(
     (StatusCode::OK, Json(response)).into_response()
 }
 
+#[tracing::instrument(
+    name = "gateway.invite_member",
+    skip(state, _user, payload),
+    fields(room_id = %id, member_id = %payload.member_id)
+)]
 async fn invite_member(
     State(state): State<SharedState>,
     _user: AuthenticatedUser,
@@ -490,6 +607,11 @@ async fn invite_member(
     (StatusCode::OK, Json(response)).into_response()
 }
 
+#[tracing::instrument(
+    name = "gateway.search_messages.post",
+    skip(state, _user, payload),
+    fields(limit = payload.limit)
+)]
 async fn search_messages(
     State(state): State<SharedState>,
     _user: AuthenticatedUser,
@@ -557,6 +679,11 @@ async fn search_messages(
     }
 }
 
+#[tracing::instrument(
+    name = "gateway.search_messages.get",
+    skip(state, _user, params),
+    fields(limit = params.limit)
+)]
 async fn search_messages_get(
     State(state): State<SharedState>,
     _user: AuthenticatedUser,
@@ -624,6 +751,11 @@ async fn search_messages_get(
     }
 }
 
+#[tracing::instrument(
+    name = "gateway.list_rooms",
+    skip(state, _user, query),
+    fields(limit = ?query.limit, offset = ?query.offset)
+)]
 async fn list_rooms(
     State(state): State<SharedState>,
     _user: AuthenticatedUser,
@@ -660,6 +792,11 @@ async fn list_rooms(
     (StatusCode::OK, Json(response)).into_response()
 }
 
+#[tracing::instrument(
+    name = "gateway.delete_room",
+    skip(state, _user),
+    fields(room_id = %id)
+)]
 async fn delete_room(
     State(state): State<SharedState>,
     _user: AuthenticatedUser,
@@ -756,9 +893,52 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn metrics_endpoint_returns_prometheus_payload() {
+        ROOMS_CREATED_TOTAL.inc();
+        let app = build_routes();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/metrics")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload = String::from_utf8(body.to_vec()).unwrap();
+        assert!(payload.contains("nexis_rooms_created_total"));
+    }
+
+    #[tokio::test]
+    async fn response_contains_correlation_id_header() {
+        let app = build_routes();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(response.headers().contains_key("x-correlation-id"));
+    }
+
+    #[tokio::test]
     async fn create_room_returns_201_and_room_identity() {
         use crate::auth::JwtConfig;
         let token = JwtConfig::test_token("test-user");
+        let before_rooms_created = ROOMS_CREATED_TOTAL.get();
+        let before_throughput = OPERATION_THROUGHPUT_TOTAL
+            .with_label_values(&["create_room"])
+            .get();
 
         let app = build_routes();
         let response = app
@@ -787,6 +967,49 @@ mod tests {
         let payload: Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(payload["name"], "general");
         assert!(payload["id"].as_str().unwrap().starts_with("room_"));
+        assert!(ROOMS_CREATED_TOTAL.get() > before_rooms_created);
+        assert!(
+            OPERATION_THROUGHPUT_TOTAL
+                .with_label_values(&["create_room"])
+                .get()
+                > before_throughput
+        );
+    }
+
+    #[tokio::test]
+    async fn create_room_validation_error_records_metric() {
+        use crate::auth::JwtConfig;
+        let token = JwtConfig::test_token("test-user");
+        let before_errors = OPERATION_ERRORS_TOTAL
+            .with_label_values(&["create_room", "validation"])
+            .get();
+
+        let app = build_routes();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/rooms")
+                    .header("content-type", "application/json")
+                    .header("authorization", format!("Bearer {}", token))
+                    .body(Body::from(
+                        json!({
+                            "name": "   "
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert!(
+            OPERATION_ERRORS_TOTAL
+                .with_label_values(&["create_room", "validation"])
+                .get()
+                > before_errors
+        );
     }
 
     #[tokio::test]

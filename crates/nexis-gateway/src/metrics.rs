@@ -87,9 +87,29 @@ lazy_static! {
     pub static ref ROOMS_ACTIVE: Gauge =
         register_gauge!("nexis_rooms_active", "Number of active rooms").unwrap();
 
+    /// Total rooms created (business KPI)
+    pub static ref ROOMS_CREATED_TOTAL: Counter =
+        register_counter!("nexis_rooms_created_total", "Total number of rooms created").unwrap();
+
     /// Room members
     pub static ref ROOM_MEMBERS: GaugeVec =
         register_gauge_vec!("nexis_room_members", "Number of members per room", &["room_id"]).unwrap();
+
+    /// Business operation throughput (events per operation)
+    pub static ref OPERATION_THROUGHPUT_TOTAL: CounterVec =
+        register_counter_vec!("nexis_operation_throughput_total", "Operation throughput by operation", &["operation"]).unwrap();
+
+    /// Business operation latency
+    pub static ref OPERATION_LATENCY: HistogramVec = register_histogram_vec!(
+        "nexis_operation_latency_seconds",
+        "Operation latency in seconds",
+        &["operation"],
+        vec![0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5]
+    ).unwrap();
+
+    /// Business operation errors
+    pub static ref OPERATION_ERRORS_TOTAL: CounterVec =
+        register_counter_vec!("nexis_operation_errors_total", "Operation errors by operation and type", &["operation", "error_type"]).unwrap();
 
     // ============================================================================
     // HTTP Metrics
@@ -150,10 +170,16 @@ mod tests {
         // Increment some counters
         MESSAGES_RECEIVED.inc();
         CONNECTIONS_TOTAL.inc();
+        ROOMS_CREATED_TOTAL.inc();
+        OPERATION_THROUGHPUT_TOTAL
+            .with_label_values(&["create_room"])
+            .inc();
 
         // Export should not panic
         let exported = export();
         assert!(exported.contains("nexis_messages_received_total"));
         assert!(exported.contains("nexis_connections_total"));
+        assert!(exported.contains("nexis_rooms_created_total"));
+        assert!(exported.contains("nexis_operation_throughput_total"));
     }
 }

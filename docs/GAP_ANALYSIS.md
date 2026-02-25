@@ -156,17 +156,18 @@
 
 | 项目 | 状态 | 说明 |
 |------|------|------|
-| 日志规范 | ✅ | tracing + JSON |
+| 日志规范 | ✅ | 结构化 JSON 日志 + 可配置级别 |
 | 健康检查 | ✅ | /health endpoint |
+| Metrics | ✅ | Prometheus 指标 + `/metrics` 导出 |
+| Dashboard | ✅ | Grafana dashboard JSON（系统概览 + 性能） |
+| 告警规则 | ✅ | 错误率/延迟告警规则（Prometheus） |
+| Distributed Tracing | ✅ | tracing 初始化 + 关键路径 spans + 导出配置 |
+| Correlation ID | ✅ | `x-correlation-id` 中间件注入与透传 |
 
 ### ❌ 需补充
 
 | 项目 | 优先级 | 工作量 | 说明 |
 |------|--------|--------|------|
-| Metrics | P0 | 1d | Prometheus |
-| Dashboard | P1 | 4h | Grafana |
-| 告警规则 | P1 | 2h | AlertManager |
-| Distributed Tracing | P2 | 1d | Jaeger/OTel |
 | SLO/SLI 定义 | P2 | 2h | 可靠性目标 |
 
 ---
@@ -191,17 +192,17 @@
 9. **E2E 测试框架** - 1d
 10. **SBOM 生成** - 1h
 11. **License 检查** - 1h
-12. **Prometheus Metrics** - 1d
+12. **SLO/SLI 定义** - 2h
 
 **总工作量：3.5d**
 
 ### P2 - 中期完成（1月内）
 
-13. **Grafana Dashboard** - 4h
+13. **Grafana 告警路由联动（Pager/IM）** - 2h
 14. **ADR 记录** - 2h
 15. **Runbook** - 4h
 16. **变异测试** - 2h
-17. **Distributed Tracing** - 1d
+17. **Tracing 后端落盘与采样策略优化** - 4h
 
 **总工作量：2.5d**
 
