@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROFILE_DIR="$ROOT_DIR/target/coverage/profraw"
 REPORT_DIR="$ROOT_DIR/target/coverage/report"
 LCOV_FILE="$ROOT_DIR/target/coverage/lcov.info"
+THRESHOLD="${COVERAGE_THRESHOLD:-80}"
 
 if ! command -v grcov >/dev/null 2>&1; then
   echo "grcov is not installed. Install with: cargo install grcov"
@@ -47,3 +48,27 @@ grcov "$ROOT_DIR" \
 echo "Coverage report generated:"
 echo "  HTML: $REPORT_DIR/index.html"
 echo "  LCOV: $LCOV_FILE"
+
+THRESHOLD="$THRESHOLD" LCOV_FILE="$LCOV_FILE" python - <<'PY'
+import os
+
+threshold = float(os.environ.get("THRESHOLD", "80"))
+total = 0
+covered = 0
+with open(os.environ["LCOV_FILE"], "r", encoding="utf-8") as f:
+    for line in f:
+        if line.startswith("DA:"):
+            total += 1
+            _, data = line.strip().split(":", 1)
+            _, hits = data.split(",", 1)
+            if int(hits) > 0:
+                covered += 1
+
+if total == 0:
+    raise SystemExit("No coverage lines found in lcov report")
+
+ratio = covered / total * 100
+print(f"Line coverage: {ratio:.2f}% ({covered}/{total})")
+if ratio < threshold:
+    raise SystemExit(f"Coverage threshold not met: {ratio:.2f}% < {threshold:.2f}%")
+PY

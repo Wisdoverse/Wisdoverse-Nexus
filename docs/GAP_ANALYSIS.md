@@ -19,6 +19,17 @@
 
 **综合得分：86/100** (从 61 → 77 → 82 → 86)
 
+## 2026-02-26 95分冲刺进展
+
+| 子任务 | 状态 | 结果 |
+|------|------|------|
+| 1. Dependabot 警告 | ✅ | `.github/dependabot.yml` 新增 `apps/web`、`apps/mobile`、`apps/web/e2e` 的 npm 安全更新策略与分组规则，覆盖前端依赖告警修复路径 |
+| 2. 覆盖率 80%+ | ⚠️ | `scripts/coverage.sh` 新增阈值校验（默认 80%）；当前环境缺少 `grcov` 且不可联网安装，无法本地生成覆盖率报告，CI 覆盖率 job 已启用 80% 强校验 |
+| 3. API 文档自动化 | ✅ | 网关新增 `/openapi.json` 与 `/docs`（Swagger UI）路由，OpenAPI 文档随代码发布 |
+| 4. 性能优化 | ✅ | 语义搜索新增 query embedding 缓存（容量可配置）；数据库 schema 初始化新增关键索引（rooms/messages/members） |
+
+> 注：当前执行环境无法访问外部漏洞数据库（`npm audit` / `cargo audit` 在线源不可达），因此本轮先完成 Dependabot 自动化补强，并在可联网环境中复核具体 2 条 moderate 告警细节。
+
 ## 2026-02-25 测试质量优化进展（任务 1）
 
 | 子任务 | 状态 | 结果 |

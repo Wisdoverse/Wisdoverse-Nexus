@@ -1,0 +1,109 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Nexis Gateway API",
+    "version": "0.1.0",
+    "description": "Control plane API for room management, messaging, and semantic search."
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "Gateway is healthy"
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "summary": "Prometheus metrics",
+        "responses": {
+          "200": {
+            "description": "Metrics payload"
+          }
+        }
+      }
+    },
+    "/v1/rooms": {
+      "get": {
+        "summary": "List rooms",
+        "responses": {
+          "200": {
+            "description": "Room list"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create room",
+        "responses": {
+          "201": {
+            "description": "Room created"
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/v1/rooms/{id}": {
+      "get": {
+        "summary": "Get room details",
+        "responses": {
+          "200": {
+            "description": "Room details"
+          },
+          "404": {
+            "description": "Room not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete room",
+        "responses": {
+          "204": {
+            "description": "Room deleted"
+          },
+          "404": {
+            "description": "Room not found"
+          }
+        }
+      }
+    },
+    "/v1/messages": {
+      "post": {
+        "summary": "Send message",
+        "responses": {
+          "201": {
+            "description": "Message created"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "404": {
+            "description": "Room not found"
+          }
+        }
+      }
+    },
+    "/v1/search": {
+      "get": {
+        "summary": "Search messages (query params)",
+        "responses": {
+          "200": {
+            "description": "Search response"
+          }
+        }
+      },
+      "post": {
+        "summary": "Search messages (JSON body)",
+        "responses": {
+          "200": {
+            "description": "Search response"
+          }
+        }
+      }
+    }
+  }
+}

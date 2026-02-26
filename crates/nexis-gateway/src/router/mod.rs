@@ -5,7 +5,7 @@ use axum::{
     extract::{Path, Query, State},
     http::{HeaderValue, Request, StatusCode},
     middleware::{self, Next},
-    response::{IntoResponse, Response},
+    response::{Html, IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
@@ -62,6 +62,7 @@ impl AppState {
 
 type SharedState = AppState;
 const MAX_MESSAGE_TEXT_LEN: usize = 32 * 1024;
+const OPENAPI_JSON: &str = include_str!("openapi.json");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Room {
@@ -270,6 +271,8 @@ pub fn build_routes() -> Router {
     Router::new()
         .route("/health", get(health_check))
         .route("/metrics", get(metrics_handler))
+        .route("/openapi.json", get(openapi_json))
+        .route("/docs", get(swagger_ui))
         .route("/ws", get(websocket_handler))
         .route("/v1/rooms", get(list_rooms).post(create_room))
         .route("/v1/rooms/:id", get(get_room).delete(delete_room))
@@ -287,6 +290,8 @@ pub fn build_routes_with_search(search_service: Arc<dyn SearchService>) -> Route
     Router::new()
         .route("/health", get(health_check))
         .route("/metrics", get(metrics_handler))
+        .route("/openapi.json", get(openapi_json))
+        .route("/docs", get(swagger_ui))
         .route("/ws", get(websocket_handler))
         .route("/v1/rooms", get(list_rooms).post(create_room))
         .route("/v1/rooms/:id", get(get_room).delete(delete_room))
@@ -308,6 +313,41 @@ async fn metrics_handler() -> impl IntoResponse {
         [("content-type", "text/plain; version=0.0.4; charset=utf-8")],
         export_metrics(),
     )
+}
+
+async fn openapi_json() -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        [("content-type", "application/json; charset=utf-8")],
+        OPENAPI_JSON,
+    )
+}
+
+async fn swagger_ui() -> impl IntoResponse {
+    const SWAGGER_HTML: &str = r##"<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nexis Gateway API Docs</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+  </head>
+  <body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script>
+      window.ui = SwaggerUIBundle({
+        url: "/openapi.json",
+        dom_id: "#swagger-ui",
+        deepLinking: true,
+        docExpansion: "list"
+      });
+    </script>
+  </body>
+</html>
+"##;
+
+    Html(SWAGGER_HTML)
 }
 
 fn record_operation_success(operation: &str, start: Instant) {
@@ -890,6 +930,51 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn openapi_endpoint_returns_json() {
+        let app = build_routes();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/openapi.json")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let content_type = response
+            .headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        assert!(content_type.starts_with("application/json"));
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(payload["openapi"], "3.0.3");
+    }
+
+    #[tokio::test]
+    async fn docs_endpoint_returns_swagger_html() {
+        let app = build_routes();
+        let response = app
+            .oneshot(Request::builder().uri("/docs").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let html = String::from_utf8(body.to_vec()).unwrap();
+        assert!(html.contains("SwaggerUIBundle"));
+        assert!(html.contains("/openapi.json"));
     }
 
     #[tokio::test]

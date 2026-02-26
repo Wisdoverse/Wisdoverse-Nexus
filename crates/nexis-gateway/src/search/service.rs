@@ -4,7 +4,9 @@ use async_trait::async_trait;
 use nexis_runtime::{EmbeddingProvider, EmbeddingRequest};
 use nexis_vector::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
+use std::sync::Mutex;
 use tracing::debug;
 use uuid::Uuid;
 
@@ -146,6 +148,7 @@ pub struct SemanticSearchService {
     vector_store: Arc<dyn VectorStore>,
     embedding_provider: Arc<dyn EmbeddingProvider>,
     default_limit: usize,
+    query_embedding_cache: Mutex<QueryEmbeddingCache>,
 }
 
 impl SemanticSearchService {
@@ -158,6 +161,7 @@ impl SemanticSearchService {
             vector_store,
             embedding_provider,
             default_limit: 10,
+            query_embedding_cache: Mutex::new(QueryEmbeddingCache::new(256)),
         }
     }
 
@@ -167,15 +171,80 @@ impl SemanticSearchService {
         self
     }
 
+    /// Set maximum number of cached query embeddings.
+    pub fn with_cache_capacity(mut self, capacity: usize) -> Self {
+        let capped = capacity.max(1);
+        self.query_embedding_cache = Mutex::new(QueryEmbeddingCache::new(capped));
+        self
+    }
+
     async fn generate_embedding(&self, text: &str) -> Result<Vec<f32>, SearchError> {
+        let cache_key = normalize_query(text);
+        if let Some(cached) = self
+            .query_embedding_cache
+            .lock()
+            .expect("embedding cache mutex poisoned")
+            .get(&cache_key)
+        {
+            return Ok(cached);
+        }
+
         let req = EmbeddingRequest::new(text);
         let response = self
             .embedding_provider
             .embed(req)
             .await
             .map_err(|e| SearchError::EmbeddingError(e.to_string()))?;
-        Ok(response.embedding)
+        let embedding = response.embedding;
+        self.query_embedding_cache
+            .lock()
+            .expect("embedding cache mutex poisoned")
+            .insert(cache_key, embedding.clone());
+        Ok(embedding)
     }
+}
+
+#[derive(Debug)]
+struct QueryEmbeddingCache {
+    map: HashMap<String, Vec<f32>>,
+    order: VecDeque<String>,
+    capacity: usize,
+}
+
+impl QueryEmbeddingCache {
+    fn new(capacity: usize) -> Self {
+        Self {
+            map: HashMap::new(),
+            order: VecDeque::new(),
+            capacity: capacity.max(1),
+        }
+    }
+
+    fn get(&self, key: &str) -> Option<Vec<f32>> {
+        self.map.get(key).cloned()
+    }
+
+    fn insert(&mut self, key: String, value: Vec<f32>) {
+        if self.map.contains_key(&key) {
+            self.map.insert(key, value);
+            return;
+        }
+
+        if self.map.len() >= self.capacity {
+            while let Some(oldest) = self.order.pop_front() {
+                if self.map.remove(&oldest).is_some() {
+                    break;
+                }
+            }
+        }
+
+        self.order.push_back(key.clone());
+        self.map.insert(key, value);
+    }
+}
+
+fn normalize_query(text: &str) -> String {
+    text.trim().to_ascii_lowercase()
 }
 
 #[async_trait]
@@ -239,8 +308,13 @@ impl SearchService for SemanticSearchService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nexis_runtime::MockEmbeddingProvider;
+    use async_trait::async_trait;
+    use nexis_runtime::{
+        BatchEmbeddingRequest, BatchEmbeddingResponse, EmbeddingProvider, EmbeddingRequest,
+        EmbeddingResponse, MockEmbeddingProvider, ProviderError,
+    };
     use nexis_vector::InMemoryVectorStore;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     fn create_test_service() -> SemanticSearchService {
         let store = Arc::new(InMemoryVectorStore::new(128));
@@ -288,5 +362,73 @@ mod tests {
 
         let response = service.search_in_room("test", room_id, 10).await.unwrap();
         assert_eq!(response.total, 0);
+    }
+
+    #[derive(Debug)]
+    struct CountingEmbeddingProvider {
+        calls: AtomicUsize,
+        dimension: usize,
+    }
+
+    impl CountingEmbeddingProvider {
+        fn new(dimension: usize) -> Self {
+            Self {
+                calls: AtomicUsize::new(0),
+                dimension,
+            }
+        }
+
+        fn calls(&self) -> usize {
+            self.calls.load(Ordering::SeqCst)
+        }
+    }
+
+    #[async_trait]
+    impl EmbeddingProvider for CountingEmbeddingProvider {
+        fn name(&self) -> &'static str {
+            "counting-mock"
+        }
+
+        fn dimension(&self) -> usize {
+            self.dimension
+        }
+
+        async fn embed(&self, _req: EmbeddingRequest) -> Result<EmbeddingResponse, ProviderError> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            Ok(EmbeddingResponse::new(
+                vec![0.1; self.dimension],
+                "counting-model",
+            ))
+        }
+
+        async fn embed_batch(
+            &self,
+            req: BatchEmbeddingRequest,
+        ) -> Result<BatchEmbeddingResponse, ProviderError> {
+            let embeddings = req
+                .texts
+                .iter()
+                .map(|_| vec![0.1; self.dimension])
+                .collect::<Vec<_>>();
+            Ok(BatchEmbeddingResponse {
+                embeddings,
+                model: "counting-model".to_string(),
+                dimension: self.dimension,
+                usage: None,
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn search_uses_cached_embedding_for_repeated_query() {
+        let store = Arc::new(InMemoryVectorStore::new(128));
+        let embedding = Arc::new(CountingEmbeddingProvider::new(128));
+        let service = SemanticSearchService::new(store, embedding.clone()).with_cache_capacity(8);
+
+        let request = SearchRequest::new("What is Nexis?").with_limit(5);
+        service.search(request.clone()).await.unwrap();
+        service.search(request).await.unwrap();
+
+        assert_eq!(embedding.calls(), 1);
     }
 }

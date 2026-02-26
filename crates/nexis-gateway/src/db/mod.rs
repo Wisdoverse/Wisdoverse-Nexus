@@ -52,6 +52,18 @@ CREATE TABLE IF NOT EXISTS members (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );"#;
 
+/// Index for room listing by creation time.
+pub const ROOMS_CREATED_AT_INDEX: &str = r#"
+CREATE INDEX IF NOT EXISTS idx_rooms_created_at ON rooms(created_at);"#;
+
+/// Composite index for room message lookups ordered by creation time.
+pub const MESSAGES_ROOM_CREATED_AT_INDEX: &str = r#"
+CREATE INDEX IF NOT EXISTS idx_messages_room_created_at ON messages(room_id, created_at);"#;
+
+/// Unique lookup index for members by email.
+pub const MEMBERS_EMAIL_INDEX: &str = r#"
+CREATE INDEX IF NOT EXISTS idx_members_email ON members(email);"#;
+
 /// Error type returned by repository operations.
 #[derive(Debug, Error)]
 pub enum RepositoryError {
@@ -135,6 +147,11 @@ pub async fn initialize_schema(pool: &DatabasePool) -> Result<(), RepositoryErro
     sqlx::query(ROOMS_TABLE_SCHEMA).execute(pool).await?;
     sqlx::query(MESSAGES_TABLE_SCHEMA).execute(pool).await?;
     sqlx::query(MEMBERS_TABLE_SCHEMA).execute(pool).await?;
+    sqlx::query(ROOMS_CREATED_AT_INDEX).execute(pool).await?;
+    sqlx::query(MESSAGES_ROOM_CREATED_AT_INDEX)
+        .execute(pool)
+        .await?;
+    sqlx::query(MEMBERS_EMAIL_INDEX).execute(pool).await?;
     Ok(())
 }
 
