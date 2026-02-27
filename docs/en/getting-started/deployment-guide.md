@@ -67,4 +67,4 @@ server {
 
 ## Monitoring
 
-See [Security](../security/) for security hardening.
+See [Security](../architecture/security/overview.md) for security hardening.

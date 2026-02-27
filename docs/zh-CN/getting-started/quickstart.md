@@ -156,8 +156,8 @@ ws.onmessage = (event) => {
 
 ## 下一步
 
-- 阅读 [架构文档](../plans/2026-02-14-nexis-architecture-design.md)
-- 了解 [NIP 协议](../../protocol/)
+- 阅读 [架构文档](../architecture/tenant-model.md)
+- 了解 [NIP 协议](../../../protocol/nexis-id.md)
 - 加入我们的 [Discord](https://discord.gg/VMPC28gyQB)
 
 ## 故障排除

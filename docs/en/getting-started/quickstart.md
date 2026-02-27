@@ -156,8 +156,8 @@ ws.onmessage = (event) => {
 
 ## Next Steps
 
-- Read the [Architecture Documentation](../plans/2026-02-14-nexis-architecture-design.md)
-- Learn about [NIP Protocols](../../protocol/)
+- Read the [Architecture Documentation](../architecture/tenant-model.md)
+- Learn about [NIP Protocols](../../../protocol/nexis-id.md)
 - Join our [Discord](https://discord.gg/VMPC28gyQB)
 
 ## Troubleshooting

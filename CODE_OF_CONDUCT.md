@@ -1,16 +1,5 @@
 # Contributor Covenant Code of Conduct
 
-## Table of Contents / 目录
-
-- [Our Pledge](#our-pledge)
-- [Our Standards](#our-standards)
-- [Enforcement Responsibilities](#enforcement-responsibilities)
-- [Scope](#scope)
-- [Enforcement](#enforcement)
-- [Enforcement Guidelines](#enforcement-guidelines)
-- [Attribution](#attribution)
-- [中文说明（非规范原文）](#中文说明非规范原文)
-
 ## Our Pledge
 
 We as members, contributors, and leaders pledge to make participation in our
@@ -32,20 +21,17 @@ community include:
 - Being respectful of differing opinions, viewpoints, and experiences
 - Giving and gracefully accepting constructive feedback
 - Accepting responsibility and apologizing to those affected by our mistakes,
-and learning from the experience
-- Focusing on what is best not just for us as individuals, but for the overall
-community
+  and learning from the experience
+- Focusing on what is best for the overall community
 
 Examples of unacceptable behavior include:
 
-- The use of sexualized language or imagery, and sexual attention or
-advances of any kind
+- The use of sexualized language or imagery, and sexual attention or advances
 - Trolling, insulting or derogatory comments, and personal or political attacks
 - Public or private harassment
-- Publishing others' private information, such as a physical or email
-address, without their explicit permission
-- Other conduct which could reasonably be considered inappropriate in a
-professional setting
+- Publishing others' private information without explicit permission
+- Other conduct that could reasonably be considered inappropriate in a
+  professional setting
 
 ## Enforcement Responsibilities
 
@@ -56,106 +42,57 @@ or harmful.
 
 Community leaders have the right and responsibility to remove, edit, or reject
 comments, commits, code, wiki edits, issues, and other contributions that are
-not aligned to this Code of Conduct, and will communicate reasons for moderation
-decisions when appropriate.
+not aligned with this Code of Conduct.
 
 ## Scope
 
 This Code of Conduct applies within all community spaces, and also applies when
 an individual is officially representing the community in public spaces.
-Examples of representing our community include using an official e-mail address,
-posting via an official social media account, or acting as an appointed
-representative at an online or offline event.
 
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement at:
+reported to:
 
-- conduct@nexis.ai
-- security@nexis.ai (security-related abuse only)
+- `conduct@nexis.ai`
+- `security@nexis.ai` (security-related abuse only)
 
 All complaints will be reviewed and investigated promptly and fairly.
-
-All community leaders are obligated to respect the privacy and security of the
-reporter of any incident.
 
 ## Enforcement Guidelines
 
 Community leaders will follow these Community Impact Guidelines in determining
-the consequences for any action they deem in violation of this Code of Conduct:
+the consequences for violations.
 
 ### 1. Correction
 
-**Community Impact**: Use of inappropriate language or other behavior deemed
-unprofessional or unwelcome in the community.
+**Community Impact**: Inappropriate language or other unprofessional behavior.
 
-**Consequence**: A private, written warning from community leaders, providing
-clarity around the nature of the violation and an explanation of why the
-behavior was inappropriate. A public apology may be requested.
+**Consequence**: A private written warning from community leaders.
 
 ### 2. Warning
 
-**Community Impact**: A violation through a single incident or series
-of actions.
+**Community Impact**: A violation through a single incident or series of actions.
 
-**Consequence**: A warning with consequences for continued behavior. No
-interaction with the people involved, including unsolicited interaction with
-those enforcing the Code of Conduct, for a specified period of time. This
-includes avoiding interactions in community spaces as well as external channels
-like social media. Violating these terms may lead to a temporary or
-permanent ban.
+**Consequence**: A warning with consequences for continued behavior.
 
 ### 3. Temporary Ban
 
-**Community Impact**: A serious violation of community standards, including
-sustained inappropriate behavior.
+**Community Impact**: A serious violation of community standards.
 
-**Consequence**: A temporary ban from any sort of interaction or public
-communication with the community for a specified period of time. No public or
-private interaction with the people involved, including unsolicited interaction
-with those enforcing the Code of Conduct, is allowed during this period.
-Violating these terms may lead to a permanent ban.
+**Consequence**: A temporary ban from interaction with the community.
 
 ### 4. Permanent Ban
 
-**Community Impact**: Demonstrating a pattern of violation of community
-standards, including sustained inappropriate behavior, harassment of an
-individual, or aggression toward or disparagement of classes of individuals.
+**Community Impact**: A pattern of violations or sustained harassment.
 
-**Consequence**: A permanent ban from any sort of public interaction within
-the community.
+**Consequence**: A permanent ban from public interaction within the community.
 
 ## Attribution
 
 This Code of Conduct is adapted from the [Contributor Covenant][homepage],
-version 2.1, available at
-https://www.contributor-covenant.org/version/2/1/code_of_conduct.html.
+version 2.1:
 
-Community Impact Guidelines were inspired by [Mozilla's code of conduct
-enforcement ladder](https://github.com/mozilla/diversity).
-
-For answers to common questions about this code of conduct, see the FAQ at
-https://www.contributor-covenant.org/faq.
+https://www.contributor-covenant.org/version/2/1/code_of_conduct.html
 
 [homepage]: https://www.contributor-covenant.org
-
----
-
-## 中文说明（非规范原文）
-
-### 我们的承诺
-
-我们致力于打造一个开放、包容、专业、无骚扰的社区环境。任何形式的人身攻击、骚扰、歧视、恶意羞辱都不被接受。
-
-### 行为边界
-
-- 鼓励：尊重、建设性反馈、协作解决问题。
-- 禁止：辱骂、歧视、跟踪骚扰、泄露他人隐私、重复挑衅。
-
-### 举报渠道
-
-- 行为问题：`conduct@nexis.ai`
-- 安全相关滥用：`security@nexis.ai`
-
-我们会在合理时间内处理举报，并保护举报人的隐私安全。
