@@ -39,7 +39,7 @@ impl AgentId {
 
 impl Default for AgentId {
     fn default() -> Self {
-        Self::parse("default", "default", Uuid::new_v4().to_string())
+        Self::parse("default", "default", &Uuid::new_v4().to_string())
     }
 }
 

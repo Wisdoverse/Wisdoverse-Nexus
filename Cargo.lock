@@ -1910,6 +1910,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "nexis-a2a"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "futures",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-test",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "nexis-cli"
 version = "0.1.0"
 dependencies = [

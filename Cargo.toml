@@ -2,6 +2,7 @@
 members = [
   "crates/nexis-core",
   "crates/nexis-protocol",
+  "crates/nexis-a2a",
   "crates/nexis-mcp",
   "crates/nexis-gateway",
   "crates/nexis-runtime",

@@ -14,11 +14,11 @@ pub mod error;
 
 pub use agent::{AgentCapabilities, AgentId, AgentIdentity, AgentProfile, Capability};
 pub use collaboration::{
-    CollaborationMode, CollaborationRole, FanInResult, FanOutTask, HandoffRequest,
-    HandoffResponse, Task, TaskState,
+    CollaborationMode, CollaborationRole, FanInResult, FanOutTask, HandoffRequest, HandoffResponse,
+    Task, TaskState,
 };
 pub use communication::{
-    Envelope, Message, MessageId, MessageType, Payload, AuthContext, ErrorInfo,
+    AuthContext, Envelope, ErrorInfo, Message, MessageId, MessageType, Payload,
 };
 pub use discovery::{AgentFilter, AgentRegistry, AgentStatus, DiscoveryQuery, DiscoveryResult};
 pub use error::{A2AError, A2AResult};
