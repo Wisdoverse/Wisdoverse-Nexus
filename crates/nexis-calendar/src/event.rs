@@ -1,6 +1,6 @@
 //! Calendar event domain models.
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, NaiveTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -35,4 +35,27 @@ pub struct CalendarEvent {
     pub attendees: Vec<EventAttendee>,
     pub source_type: Option<String>,
     pub source_ref_id: Option<Uuid>,
+}
+
+impl CalendarEvent {
+    /// Whether two events overlap.
+    pub fn overlaps_with(&self, other: &CalendarEvent) -> bool {
+        self.start_at < other.end_at && other.start_at < self.end_at
+    }
+
+    /// Event duration.
+    pub fn duration(&self) -> Duration {
+        self.end_at - self.start_at
+    }
+
+    /// True when event spans one or more full days and is aligned to midnight UTC.
+    pub fn is_all_day(&self) -> bool {
+        let duration_secs = self.duration().num_seconds();
+        let midnight = NaiveTime::MIN;
+
+        self.start_at.time() == midnight
+            && self.end_at.time() == midnight
+            && duration_secs > 0
+            && duration_secs % 86_400 == 0
+    }
 }
