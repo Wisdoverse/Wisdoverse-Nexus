@@ -12,9 +12,9 @@ create-missing = false
 [output.html]
 default-theme = "light"
 preferred-dark-theme = "navy"
-git-repository-url = "https://github.com/schorsch888/Nexis"
+git-repository-url = "https://github.com/gbrothersgroup/Nexis"
 git-repository-icon = "fa-github"
-edit-url-template = "https://github.com/schorsch888/Nexis/edit/main/docs-src/{path}"
+edit-url-template = "https://github.com/gbrothersgroup/Nexis/edit/main/docs-src/{path}"
 additional-css = [
   "theme/css/variables.css",
   "theme/css/general.css"

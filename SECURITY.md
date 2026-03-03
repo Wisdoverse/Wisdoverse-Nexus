@@ -13,7 +13,7 @@ Please do **not** report security vulnerabilities through public GitHub issues.
 Use one of the private channels below:
 
 - Email: `security@nexis.ai`
-- GitHub Security Advisory: <https://github.com/schorsch888/Nexis/security/advisories/new>
+- GitHub Security Advisory: <https://github.com/gbrothersgroup/Nexis/security/advisories/new>
 
 Recommended report content:
 

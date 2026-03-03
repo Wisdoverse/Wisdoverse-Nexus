@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![CI](https://img.shields.io/github/actions/workflow/status/schorsch888/Nexis/ci.yml?branch=main&label=ci)](https://github.com/schorsch888/Nexis/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/gbrothersgroup/Nexis/ci.yml?branch=main&label=ci)](https://github.com/gbrothersgroup/Nexis/actions)
 [![Security](https://img.shields.io/badge/security-policy-green)](SECURITY.md)
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
@@ -27,7 +27,7 @@ Nexis is an AI-native collaboration platform where human members and AI members 
 ## Quick Start
 
 ```bash
-git clone https://github.com/schorsch888/Nexis.git
+git clone https://github.com/gbrothersgroup/Nexis.git
 cd Nexis
 cargo build --workspace
 cargo run -p nexis-gateway

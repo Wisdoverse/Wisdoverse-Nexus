@@ -12,7 +12,7 @@
 ### 1. 克隆仓库
 
 ```bash
-git clone https://github.com/schorsch888/Nexis.git
+git clone https://github.com/gbrothersgroup/Nexis.git
 cd Nexis
 ```
 

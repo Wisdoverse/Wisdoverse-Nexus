@@ -10,7 +10,7 @@
 ## Docker Compose 快速部署
 
 ```bash
-git clone https://github.com/schorsch888/Nexis.git
+git clone https://github.com/gbrothersgroup/Nexis.git
 cd Nexis
 cp .env.example .env
 # 修改 .env 配置

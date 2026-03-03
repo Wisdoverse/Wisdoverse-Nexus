@@ -13,7 +13,7 @@ Thanks for your interest in contributing.
 ### Setup
 
 ```bash
-git clone https://github.com/schorsch888/Nexis.git
+git clone https://github.com/gbrothersgroup/Nexis.git
 cd Nexis
 cargo build --workspace
 cargo test --workspace

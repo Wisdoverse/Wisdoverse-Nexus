@@ -29,5 +29,5 @@ Tenant-aware boundaries are designed for strict data isolation and future enterp
 
 ## Related Docs
 
-- Existing model detail: [tenant-model.md](https://github.com/schorsch888/Nexis/blob/main/docs/en/architecture/tenant-model.md)
-- ADRs: [docs/adr](https://github.com/schorsch888/Nexis/tree/main/docs/adr)
+- Existing model detail: [tenant-model.md](https://github.com/gbrothersgroup/Nexis/blob/main/docs/en/architecture/tenant-model.md)
+- ADRs: [docs/adr](https://github.com/gbrothersgroup/Nexis/tree/main/docs/adr)

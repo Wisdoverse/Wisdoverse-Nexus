@@ -12,7 +12,7 @@ This guide will help you get Nexis up and running in minutes.
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/schorsch888/Nexis.git
+git clone https://github.com/gbrothersgroup/Nexis.git
 cd Nexis
 ```
 
