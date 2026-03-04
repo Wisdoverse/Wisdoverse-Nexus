@@ -1,0 +1,157 @@
+//! SFU types and in-memory room management.
+
+mod router;
+
+use std::collections::{HashMap, HashSet};
+
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+pub use router::{DefaultMediaRouter, MediaRouter};
+
+/// Runtime SFU configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SfuConfig {
+    pub max_participants: u16,
+    pub video_codec: String,
+    pub audio_codec: String,
+}
+
+/// Supported media tracks for publish/subscribe.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MediaTrack {
+    Audio,
+    Video,
+    ScreenShare,
+}
+
+/// In-memory SFU room state.
+#[derive(Debug, Clone)]
+pub struct SfuRoom {
+    config: SfuConfig,
+    participants: HashSet<Uuid>,
+    published_tracks: HashMap<(Uuid, MediaTrack), Vec<u8>>,
+    subscriptions: HashMap<Uuid, HashSet<MediaTrack>>,
+}
+
+impl SfuRoom {
+    pub fn new(config: SfuConfig) -> Self {
+        Self {
+            config,
+            participants: HashSet::new(),
+            published_tracks: HashMap::new(),
+            subscriptions: HashMap::new(),
+        }
+    }
+
+    pub fn config(&self) -> &SfuConfig {
+        &self.config
+    }
+
+    pub fn participants(&self) -> &HashSet<Uuid> {
+        &self.participants
+    }
+
+    pub fn join_room(&mut self) -> Uuid {
+        let participant_id = Uuid::new_v4();
+        self.participants.insert(participant_id);
+        participant_id
+    }
+
+    pub fn leave_room(&mut self, participant_id: Uuid) -> Uuid {
+        self.participants.remove(&participant_id);
+        self.subscriptions.remove(&participant_id);
+        self.published_tracks
+            .retain(|(publisher_id, _), _| publisher_id != &participant_id);
+        participant_id
+    }
+
+    pub fn publish_track(&mut self, participant_id: Uuid, track: MediaTrack, payload: Vec<u8>) {
+        if self.participants.contains(&participant_id) {
+            self.published_tracks
+                .insert((participant_id, track), payload);
+        }
+    }
+
+    pub fn subscribe_track(&mut self, participant_id: Uuid, track: MediaTrack) {
+        if self.participants.contains(&participant_id) {
+            self.subscriptions
+                .entry(participant_id)
+                .or_default()
+                .insert(track);
+        }
+    }
+
+    pub fn latest_payload(&self, participant_id: Uuid, track: MediaTrack) -> Option<Vec<u8>> {
+        self.published_tracks.get(&(participant_id, track)).cloned()
+    }
+
+    pub fn is_subscribed(&self, participant_id: Uuid, track: MediaTrack) -> bool {
+        self.subscriptions
+            .get(&participant_id)
+            .is_some_and(|tracks| tracks.contains(&track))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use uuid::Uuid;
+
+    use super::{MediaTrack, SfuConfig, SfuRoom};
+
+    #[test]
+    fn join_and_leave_room_returns_participant_id() {
+        let config = SfuConfig {
+            max_participants: 2,
+            video_codec: "vp9".to_owned(),
+            audio_codec: "opus".to_owned(),
+        };
+
+        let mut room = SfuRoom::new(config);
+        let participant_id = room.join_room();
+
+        assert!(room.participants().contains(&participant_id));
+
+        let left_id = room.leave_room(participant_id);
+
+        assert_eq!(left_id, participant_id);
+        assert!(!room.participants().contains(&participant_id));
+    }
+
+    #[test]
+    fn publish_and_subscribe_track_updates_state() {
+        let mut room = SfuRoom::new(SfuConfig {
+            max_participants: 4,
+            video_codec: "vp8".to_owned(),
+            audio_codec: "opus".to_owned(),
+        });
+
+        let publisher = room.join_room();
+        let subscriber = room.join_room();
+        let payload = vec![1_u8, 2_u8, 3_u8];
+
+        room.publish_track(publisher, MediaTrack::Video, payload.clone());
+        room.subscribe_track(subscriber, MediaTrack::Video);
+
+        assert_eq!(
+            room.latest_payload(publisher, MediaTrack::Video),
+            Some(payload)
+        );
+        assert!(room.is_subscribed(subscriber, MediaTrack::Video));
+    }
+
+    #[test]
+    fn join_room_generates_unique_ids() {
+        let mut room = SfuRoom::new(SfuConfig {
+            max_participants: 10,
+            video_codec: "h264".to_owned(),
+            audio_codec: "aac".to_owned(),
+        });
+
+        let id_a: Uuid = room.join_room();
+        let id_b: Uuid = room.join_room();
+
+        assert_ne!(id_a, id_b);
+    }
+}
