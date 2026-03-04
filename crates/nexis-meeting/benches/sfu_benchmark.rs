@@ -1,4 +1,4 @@
-use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
+use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use nexis_meeting::{MediaTrack, SfuConfig, SfuRoom};
 
 fn benchmark_join_leave_room(c: &mut Criterion) {

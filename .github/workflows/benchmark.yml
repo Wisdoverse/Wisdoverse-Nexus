@@ -55,10 +55,9 @@ jobs:
           output-file-path: benchmark-results.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: false
-          alert-threshold: '150%'
+          alert-threshold: '120%'
           comment-on-alert: true
-          fail-on-alert: false
-        continue-on-error: true
+          fail-on-alert: true
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4

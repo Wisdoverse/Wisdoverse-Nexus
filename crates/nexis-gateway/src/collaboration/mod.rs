@@ -3,7 +3,7 @@
 use axum::{
     extract::Path,
     http::StatusCode,
-    response::IntoResponse,
+    response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
@@ -12,6 +12,12 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::auth::AuthenticatedUser;
+
+const MAX_NAME_LEN: usize = 128;
+const MAX_TITLE_LEN: usize = 200;
+const MAX_IDENTIFIER_LEN: usize = 128;
+const MAX_CONTENT_LEN: usize = 100_000;
+const MAX_RATE_LIMIT_SUBJECT_LEN: usize = 64;
 
 #[derive(Debug, Clone, Deserialize)]
 struct CreateMeetingRoomRequest {
@@ -109,6 +115,136 @@ struct ConflictCheckResponse {
     has_conflicts: bool,
 }
 
+#[derive(Debug, Clone, Serialize)]
+struct CollaborationErrorResponse {
+    error: String,
+    code: &'static str,
+}
+
+impl CollaborationErrorResponse {
+    fn bad_request(message: impl Into<String>) -> Self {
+        Self {
+            error: message.into(),
+            code: "BAD_REQUEST",
+        }
+    }
+}
+
+/// Fixed-window rate-limit policy for collaboration operations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CollaborationRateLimitPolicy {
+    pub max_requests: u32,
+    pub window_seconds: u64,
+}
+
+impl CollaborationRateLimitPolicy {
+    /// Create a new rate-limit policy.
+    pub fn new(max_requests: u32, window_seconds: u64) -> Result<Self, String> {
+        if max_requests == 0 {
+            return Err("max_requests must be greater than 0".to_string());
+        }
+        if window_seconds == 0 {
+            return Err("window_seconds must be greater than 0".to_string());
+        }
+
+        Ok(Self {
+            max_requests,
+            window_seconds,
+        })
+    }
+
+    /// Return true when `request_count` exceeds the configured maximum.
+    pub const fn is_exceeded(self, request_count: u32) -> bool {
+        request_count > self.max_requests
+    }
+}
+
+/// Scope key used by collaboration endpoint throttling.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CollaborationRateLimitScope {
+    Meetings,
+    Documents,
+    Tasks,
+    Calendar,
+}
+
+/// Identity used for per-subject collaboration rate limiting.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CollaborationRateLimitKey {
+    pub scope: CollaborationRateLimitScope,
+    pub subject: String,
+}
+
+impl CollaborationRateLimitKey {
+    /// Build a validated scope+subject key.
+    pub fn new(
+        scope: CollaborationRateLimitScope,
+        subject: impl Into<String>,
+    ) -> Result<Self, String> {
+        let subject = validate_identifier("subject", &subject.into(), MAX_RATE_LIMIT_SUBJECT_LEN)?;
+        Ok(Self { scope, subject })
+    }
+}
+
+fn bad_request_response(message: impl Into<String>) -> Response {
+    (
+        StatusCode::BAD_REQUEST,
+        Json(CollaborationErrorResponse::bad_request(message)),
+    )
+        .into_response()
+}
+
+fn validate_required_text(field: &str, value: &str, max_len: usize) -> Result<String, Response> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err(bad_request_response(format!("{field} is required")));
+    }
+    if trimmed.len() > max_len {
+        return Err(bad_request_response(format!(
+            "{field} exceeds maximum length of {max_len} characters"
+        )));
+    }
+
+    Ok(trimmed.to_string())
+}
+
+fn validate_identifier(field: &str, value: &str, max_len: usize) -> Result<String, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err(format!("{field} is required"));
+    }
+    if trimmed.len() > max_len {
+        return Err(format!(
+            "{field} exceeds maximum length of {max_len} characters"
+        ));
+    }
+    if !trimmed
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
+    {
+        return Err(format!(
+            "{field} contains invalid characters; allowed: a-z, A-Z, 0-9, _ and -"
+        ));
+    }
+
+    Ok(trimmed.to_string())
+}
+
+fn validate_path_id(field: &str, value: &str) -> Result<String, Response> {
+    validate_identifier(field, value, MAX_IDENTIFIER_LEN).map_err(bad_request_response)
+}
+
+fn validate_time_window(starts_at: DateTime<Utc>, ends_at: DateTime<Utc>) -> Result<(), Response> {
+    if starts_at >= ends_at {
+        return Err(bad_request_response(
+            "starts_at must be earlier than ends_at",
+        ));
+    }
+
+    Ok(())
+}
+
 /// Build collaboration routes for meeting, document, task, and calendar features.
 pub fn routes<S>() -> Router<S>
 where
@@ -155,156 +291,211 @@ where
 async fn create_meeting_room(
     _user: AuthenticatedUser,
     Json(payload): Json<CreateMeetingRoomRequest>,
-) -> impl IntoResponse {
+) -> Response {
     let _domain_type_marker: Option<nexis_meeting::MeetingRoom> = None;
+    let name = match validate_required_text("name", &payload.name, MAX_NAME_LEN) {
+        Ok(name) => name,
+        Err(response) => return response,
+    };
 
     let response = CreateMeetingRoomResponse {
         room_id: format!("meeting_{}", Uuid::new_v4().simple()),
-        name: payload.name,
+        name,
     };
 
-    (StatusCode::CREATED, Json(response))
+    (StatusCode::CREATED, Json(response)).into_response()
 }
 
 async fn join_meeting_room(
     _user: AuthenticatedUser,
     Path(room_id): Path<String>,
     Json(payload): Json<MeetingParticipantRequest>,
-) -> impl IntoResponse {
+) -> Response {
     let _domain_type_marker: Option<nexis_meeting::Participant> = None;
-
-    let response = MeetingParticipantResponse {
-        room_id,
-        user_id: payload.user_id,
+    let room_id = match validate_path_id("room_id", &room_id) {
+        Ok(room_id) => room_id,
+        Err(response) => return response,
+    };
+    let user_id = match validate_identifier("user_id", &payload.user_id, MAX_IDENTIFIER_LEN) {
+        Ok(user_id) => user_id,
+        Err(message) => return bad_request_response(message),
     };
 
-    (StatusCode::OK, Json(response))
+    let response = MeetingParticipantResponse { room_id, user_id };
+
+    (StatusCode::OK, Json(response)).into_response()
 }
 
 async fn leave_meeting_room(
     _user: AuthenticatedUser,
     Path(room_id): Path<String>,
     Json(payload): Json<MeetingParticipantRequest>,
-) -> impl IntoResponse {
+) -> Response {
     let _domain_type_marker: Option<nexis_meeting::Participant> = None;
-
-    let response = MeetingParticipantResponse {
-        room_id,
-        user_id: payload.user_id,
+    let room_id = match validate_path_id("room_id", &room_id) {
+        Ok(room_id) => room_id,
+        Err(response) => return response,
+    };
+    let user_id = match validate_identifier("user_id", &payload.user_id, MAX_IDENTIFIER_LEN) {
+        Ok(user_id) => user_id,
+        Err(message) => return bad_request_response(message),
     };
 
-    (StatusCode::OK, Json(response))
+    let response = MeetingParticipantResponse { room_id, user_id };
+
+    (StatusCode::OK, Json(response)).into_response()
 }
 
 async fn create_document(
     _user: AuthenticatedUser,
     Json(payload): Json<CreateDocumentRequest>,
-) -> impl IntoResponse {
+) -> Response {
     let _domain_type_marker: Option<nexis_doc::Document> = None;
+    let title = match validate_required_text("title", &payload.title, MAX_TITLE_LEN) {
+        Ok(title) => title,
+        Err(response) => return response,
+    };
 
     let response = CreateDocumentResponse {
         document_id: format!("doc_{}", Uuid::new_v4().simple()),
-        title: payload.title,
+        title,
     };
 
-    (StatusCode::CREATED, Json(response))
+    (StatusCode::CREATED, Json(response)).into_response()
 }
 
 async fn sync_document(
     _user: AuthenticatedUser,
     Path(document_id): Path<String>,
     Json(payload): Json<SyncDocumentRequest>,
-) -> impl IntoResponse {
+) -> Response {
     let _domain_type_marker: Option<nexis_doc::CRDTOperation> = None;
+    let document_id = match validate_path_id("document_id", &document_id) {
+        Ok(document_id) => document_id,
+        Err(response) => return response,
+    };
+    let content = match validate_required_text("content", &payload.content, MAX_CONTENT_LEN) {
+        Ok(content) => content,
+        Err(response) => return response,
+    };
 
     let response = DocumentContentResponse {
         document_id,
-        content: payload.content,
+        content,
     };
 
-    (StatusCode::OK, Json(response))
+    (StatusCode::OK, Json(response)).into_response()
 }
 
 async fn get_document_content(
     _user: AuthenticatedUser,
     Path(document_id): Path<String>,
-) -> impl IntoResponse {
+) -> Response {
     let _domain_type_marker: Option<nexis_doc::DocSnapshot> = None;
+    let document_id = match validate_path_id("document_id", &document_id) {
+        Ok(document_id) => document_id,
+        Err(response) => return response,
+    };
 
     let response = DocumentContentResponse {
         document_id,
         content: String::new(),
     };
 
-    (StatusCode::OK, Json(response))
+    (StatusCode::OK, Json(response)).into_response()
 }
 
-async fn create_task(
-    _user: AuthenticatedUser,
-    Json(payload): Json<CreateTaskRequest>,
-) -> impl IntoResponse {
+async fn create_task(_user: AuthenticatedUser, Json(payload): Json<CreateTaskRequest>) -> Response {
     let _domain_type_marker: Option<nexis_task::Task> = None;
+    let title = match validate_required_text("title", &payload.title, MAX_TITLE_LEN) {
+        Ok(title) => title,
+        Err(response) => return response,
+    };
 
     let response = CreateTaskResponse {
         task_id: format!("task_{}", Uuid::new_v4().simple()),
-        title: payload.title,
+        title,
     };
 
-    (StatusCode::CREATED, Json(response))
+    (StatusCode::CREATED, Json(response)).into_response()
 }
 
 async fn assign_task(
     _user: AuthenticatedUser,
     Path(task_id): Path<String>,
     Json(payload): Json<AssignTaskRequest>,
-) -> impl IntoResponse {
+) -> Response {
     let _domain_type_marker: Option<nexis_task::Assignment> = None;
+    let task_id = match validate_path_id("task_id", &task_id) {
+        Ok(task_id) => task_id,
+        Err(response) => return response,
+    };
+    let assignee_id =
+        match validate_identifier("assignee_id", &payload.assignee_id, MAX_IDENTIFIER_LEN) {
+            Ok(assignee_id) => assignee_id,
+            Err(message) => return bad_request_response(message),
+        };
 
     let response = TaskAssignmentResponse {
         task_id,
-        assignee_id: payload.assignee_id,
+        assignee_id,
     };
 
-    (StatusCode::OK, Json(response))
+    (StatusCode::OK, Json(response)).into_response()
 }
 
-async fn complete_task(_user: AuthenticatedUser, Path(task_id): Path<String>) -> impl IntoResponse {
+async fn complete_task(_user: AuthenticatedUser, Path(task_id): Path<String>) -> Response {
     let _domain_type_marker: Option<nexis_task::TaskStatus> = None;
+    let task_id = match validate_path_id("task_id", &task_id) {
+        Ok(task_id) => task_id,
+        Err(response) => return response,
+    };
 
     let response = CompleteTaskResponse {
         task_id,
         status: "completed".to_string(),
     };
 
-    (StatusCode::OK, Json(response))
+    (StatusCode::OK, Json(response)).into_response()
 }
 
 async fn create_calendar_event(
     _user: AuthenticatedUser,
     Json(payload): Json<CreateCalendarEventRequest>,
-) -> impl IntoResponse {
+) -> Response {
     let _domain_type_marker: Option<nexis_calendar::CalendarEvent> = None;
+    let title = match validate_required_text("title", &payload.title, MAX_TITLE_LEN) {
+        Ok(title) => title,
+        Err(response) => return response,
+    };
+    if let Err(response) = validate_time_window(payload.starts_at, payload.ends_at) {
+        return response;
+    }
+    let time_range = nexis_calendar::TimeRange::new(payload.starts_at, payload.ends_at);
 
     let response = CreateCalendarEventResponse {
         event_id: format!("event_{}", Uuid::new_v4().simple()),
-        title: payload.title,
+        title,
     };
 
-    let _time_range = nexis_calendar::TimeRange::new(payload.starts_at, payload.ends_at);
+    let _time_range = time_range;
 
-    (StatusCode::CREATED, Json(response))
+    (StatusCode::CREATED, Json(response)).into_response()
 }
 
 async fn check_calendar_conflicts(
     _user: AuthenticatedUser,
     Json(payload): Json<ConflictCheckRequest>,
-) -> impl IntoResponse {
+) -> Response {
     let _domain_type_marker: Option<nexis_calendar::Conflict> = None;
+    if let Err(response) = validate_time_window(payload.starts_at, payload.ends_at) {
+        return response;
+    }
 
-    let has_conflicts = payload.starts_at >= payload.ends_at;
+    let has_conflicts = false;
     let response = ConflictCheckResponse { has_conflicts };
 
-    (StatusCode::OK, Json(response))
+    (StatusCode::OK, Json(response)).into_response()
 }
 
 #[cfg(test)]
@@ -373,5 +564,101 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn create_meeting_room_rejects_blank_name() {
+        let token = JwtConfig::test_token("collab-user");
+        let app = routes::<()>();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/collaboration/meetings/rooms")
+                    .header("content-type", "application/json")
+                    .header("authorization", format!("Bearer {}", token))
+                    .body(Body::from(
+                        json!({
+                            "name": "   "
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn join_meeting_room_rejects_invalid_room_id() {
+        let token = JwtConfig::test_token("collab-user");
+        let app = routes::<()>();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/collaboration/meetings/rooms/room$bad/join")
+                    .header("content-type", "application/json")
+                    .header("authorization", format!("Bearer {}", token))
+                    .body(Body::from(
+                        json!({
+                            "user_id": "user-123"
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn create_calendar_event_rejects_invalid_time_range() {
+        let token = JwtConfig::test_token("collab-user");
+        let app = routes::<()>();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/collaboration/calendar/events")
+                    .header("content-type", "application/json")
+                    .header("authorization", format!("Bearer {}", token))
+                    .body(Body::from(
+                        json!({
+                            "title": "Design review",
+                            "starts_at": "2026-03-04T11:00:00Z",
+                            "ends_at": "2026-03-04T10:00:00Z"
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn rate_limit_policy_detects_exceeded_requests() {
+        let policy = CollaborationRateLimitPolicy::new(100, 60).unwrap();
+
+        assert!(!policy.is_exceeded(100));
+        assert!(policy.is_exceeded(101));
+    }
+
+    #[test]
+    fn rate_limit_key_rejects_invalid_subject() {
+        let key =
+            CollaborationRateLimitKey::new(CollaborationRateLimitScope::Documents, "user$invalid");
+
+        assert!(key.is_err());
     }
 }

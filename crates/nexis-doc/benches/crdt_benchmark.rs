@@ -1,4 +1,4 @@
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use nexis_doc::CRDTDocument;
 
 fn benchmark_apply_update(c: &mut Criterion) {

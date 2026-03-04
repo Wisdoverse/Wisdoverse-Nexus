@@ -176,6 +176,7 @@ jobs:
       - name: Enforce coverage threshold (80%+)
         run: |
           python - <<'PY'
+          import json
           import re
           total = 0
           covered = 0
@@ -191,9 +192,44 @@ jobs:
               raise SystemExit("No coverage lines found in lcov.info")
           ratio = covered / total * 100
           print(f"Line coverage: {ratio:.2f}% ({covered}/{total})")
+          summary = {
+              "line_coverage_percent": round(ratio, 2),
+              "covered_lines": covered,
+              "total_lines": total,
+              "threshold_percent": 80.0,
+              "passed": ratio >= 80.0,
+          }
+          with open("coverage-summary.json", "w", encoding="utf-8") as out:
+              json.dump(summary, out, indent=2)
           if ratio < 80.0:
               raise SystemExit(f"Coverage threshold not met: {ratio:.2f}% < 80.00%")
           PY
+
+      - name: Publish coverage summary
+        run: |
+          python - <<'PY'
+          import json
+          with open("coverage-summary.json", "r", encoding="utf-8") as f:
+              data = json.load(f)
+          line = (
+              f"| {data['line_coverage_percent']:.2f}% | "
+              f"{data['covered_lines']} / {data['total_lines']} | "
+              f"{data['threshold_percent']:.2f}% |"
+          )
+          markdown = "\n".join(
+              [
+                  "## Coverage Report",
+                  "",
+                  "| Line Coverage | Covered / Total | Threshold |",
+                  "| --- | --- | --- |",
+                  line,
+              ]
+          )
+          with open("coverage-summary.md", "w", encoding="utf-8") as out:
+              out.write(markdown + "\n")
+          print(markdown)
+          PY
+          cat coverage-summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -203,6 +239,16 @@ jobs:
           verbose: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            lcov.info
+            coverage-summary.json
+            coverage-summary.md
+          retention-days: 30
 
   # ============================================================================
   # Container Security Scan
