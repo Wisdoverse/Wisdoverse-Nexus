@@ -6,7 +6,9 @@ use super::MediaTrack;
 
 /// Interface for forwarding media between participants.
 pub trait MediaRouter {
+    /// Compute recipient participants for media from `sender_id` on `track`.
     fn route_media(sender_id: Uuid, track: MediaTrack, participants: &[Uuid]) -> Vec<Uuid>;
+    /// React to a keyframe request from a participant for a specific track.
     fn handle_keyframe(participant_id: Uuid, track: MediaTrack);
 }
 

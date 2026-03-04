@@ -40,21 +40,34 @@ pub enum TaskSource {
 /// Task entity.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Task {
+    /// Task identifier.
     pub id: Uuid,
+    /// Owning tenant identifier.
     pub tenant_id: Uuid,
+    /// Human-readable short task summary.
     pub title: String,
+    /// Optional task details.
     pub description: Option<String>,
+    /// Current lifecycle status.
     pub status: TaskStatus,
+    /// Assigned member when available.
     pub assigned_to: Option<Uuid>,
+    /// Reason explaining why task is currently blocked.
     pub block_reason: Option<String>,
+    /// Relative importance of the task.
     pub priority: TaskPriority,
+    /// Origin channel that created this task.
     pub source: TaskSource,
+    /// Optional due date.
     pub due_at: Option<DateTime<Utc>>,
+    /// Creation timestamp.
     pub created_at: DateTime<Utc>,
+    /// Last mutation timestamp.
     pub updated_at: DateTime<Utc>,
 }
 
 impl Task {
+    /// Assign the task to a user and move it to `assigned`.
     pub fn assign_to(&mut self, user_id: Uuid) -> Result<TransitionResult, TransitionError> {
         let result = self.transition_to(TaskStatus::Assigned)?;
         self.assigned_to = Some(user_id);
@@ -62,18 +75,21 @@ impl Task {
         Ok(result)
     }
 
+    /// Start work by moving task to `in_progress`.
     pub fn start(&mut self) -> Result<TransitionResult, TransitionError> {
         let result = self.transition_to(TaskStatus::InProgress)?;
         self.block_reason = None;
         Ok(result)
     }
 
+    /// Mark the task as completed.
     pub fn complete(&mut self) -> Result<TransitionResult, TransitionError> {
         let result = self.transition_to(TaskStatus::Completed)?;
         self.block_reason = None;
         Ok(result)
     }
 
+    /// Move the task to `blocked` and record a non-empty reason.
     pub fn block(
         &mut self,
         reason: impl Into<String>,
@@ -88,6 +104,7 @@ impl Task {
         Ok(result)
     }
 
+    /// Cancel the task.
     pub fn cancel(&mut self) -> Result<TransitionResult, TransitionError> {
         let result = self.transition_to(TaskStatus::Cancelled)?;
         self.block_reason = None;

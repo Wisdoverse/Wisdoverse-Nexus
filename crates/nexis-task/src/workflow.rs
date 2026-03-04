@@ -6,31 +6,41 @@ use thiserror::Error;
 /// Side effects emitted by workflow transitions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransitionSideEffect {
+    /// Notify assignee and watchers that task ownership changed.
     NotifyAssignment,
+    /// Notify stakeholders that work is blocked.
     NotifyBlocked,
+    /// Notify stakeholders that work has completed.
     NotifyCompleted,
+    /// Notify stakeholders that work was cancelled.
     NotifyCancelled,
 }
 
 /// Result of applying a state transition.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TransitionResult {
+    /// Previous task status.
     pub from: TaskStatus,
+    /// New task status.
     pub to: TaskStatus,
+    /// Notification or integration side effects emitted by this transition.
     pub side_effects: Vec<TransitionSideEffect>,
 }
 
 /// Error returned for invalid transitions.
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum TransitionError {
+    /// Transition is not permitted by the workflow state machine.
     #[error("invalid task transition: {from:?} -> {to:?}")]
     InvalidTransition { from: TaskStatus, to: TaskStatus },
+    /// Block transition was requested without a meaningful reason.
     #[error("block reason cannot be empty")]
     InvalidBlockReason,
 }
 
 /// Task workflow contract.
 pub trait TaskWorkflow {
+    /// Validate and apply a transition from `from` to `to`.
     fn transition(
         &self,
         from: TaskStatus,

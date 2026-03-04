@@ -6,14 +6,19 @@ use std::collections::HashMap;
 /// Per-document synchronization metadata.
 #[derive(Debug, Clone, Default)]
 pub struct SyncState {
+    /// Last observed logical clock for this document.
     pub clock: Clock,
+    /// Size in bytes for the latest stored update payload.
     pub last_update_len: usize,
 }
 
 /// Basic sync abstraction for pushing/pulling document updates.
 pub trait DocumentSync {
+    /// Store a new update for a document.
     fn push_update(&mut self, doc_id: DocId, update: Vec<u8>);
+    /// Fetch the most recent update for a document.
     fn pull_update(&self, doc_id: DocId) -> Option<Vec<u8>>;
+    /// Read synchronization metadata for a document.
     fn state(&self, doc_id: DocId) -> Option<&SyncState>;
 }
 
@@ -25,6 +30,7 @@ pub struct InMemorySyncProvider {
 }
 
 impl InMemorySyncProvider {
+    /// Create a new empty in-memory provider.
     #[must_use]
     pub fn new() -> Self {
         Self::default()

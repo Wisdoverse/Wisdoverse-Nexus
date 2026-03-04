@@ -1,5 +1,6 @@
 //! Error types for calendar operations.
 
+use chrono::{DateTime, Utc};
 use thiserror::Error;
 
 /// Result type for calendar operations.
@@ -23,6 +24,21 @@ pub enum CalendarError {
     /// Reminder scheduling operation failed.
     #[error("Reminder error: {0}")]
     Reminder(String),
+
+    /// Event range is malformed (`start >= end`).
+    #[error("Invalid time range: start={start}, end={end}")]
+    InvalidTimeRange {
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    },
+
+    /// Recurrence configuration was rejected.
+    #[error("Invalid recurrence rule: {0}")]
+    InvalidRecurrence(String),
+
+    /// Catch-all for irrecoverable internal failures.
+    #[error("Internal calendar error: {0}")]
+    Internal(String),
 
     /// JSON serialization/deserialization error.
     #[error("Serialization error: {0}")]

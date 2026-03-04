@@ -12,8 +12,11 @@ pub use router::{DefaultMediaRouter, MediaRouter};
 /// Runtime SFU configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SfuConfig {
+    /// Hard cap used by callers when admitting participants.
     pub max_participants: u16,
+    /// Preferred video codec name (for example, `vp9`).
     pub video_codec: String,
+    /// Preferred audio codec name (for example, `opus`).
     pub audio_codec: String,
 }
 
@@ -36,6 +39,7 @@ pub struct SfuRoom {
 }
 
 impl SfuRoom {
+    /// Create a new in-memory SFU room with the provided runtime configuration.
     pub fn new(config: SfuConfig) -> Self {
         Self {
             config,
@@ -45,20 +49,26 @@ impl SfuRoom {
         }
     }
 
+    /// Return immutable room configuration.
     pub fn config(&self) -> &SfuConfig {
         &self.config
     }
 
+    /// Return the active participant identifiers currently in the room.
     pub fn participants(&self) -> &HashSet<Uuid> {
         &self.participants
     }
 
+    /// Add a participant to the room and return the generated participant ID.
     pub fn join_room(&mut self) -> Uuid {
         let participant_id = Uuid::new_v4();
         self.participants.insert(participant_id);
         participant_id
     }
 
+    /// Remove a participant and any room state owned by that participant.
+    ///
+    /// Returns the participant ID that was requested to leave.
     pub fn leave_room(&mut self, participant_id: Uuid) -> Uuid {
         self.participants.remove(&participant_id);
         self.subscriptions.remove(&participant_id);
@@ -67,6 +77,9 @@ impl SfuRoom {
         participant_id
     }
 
+    /// Publish or replace the latest payload for a participant's media track.
+    ///
+    /// Publishing is ignored when the participant is not a room member.
     pub fn publish_track(&mut self, participant_id: Uuid, track: MediaTrack, payload: Vec<u8>) {
         if self.participants.contains(&participant_id) {
             self.published_tracks
@@ -74,6 +87,9 @@ impl SfuRoom {
         }
     }
 
+    /// Subscribe a participant to a media track.
+    ///
+    /// Subscriptions are ignored when the participant is not a room member.
     pub fn subscribe_track(&mut self, participant_id: Uuid, track: MediaTrack) {
         if self.participants.contains(&participant_id) {
             self.subscriptions
@@ -83,10 +99,12 @@ impl SfuRoom {
         }
     }
 
+    /// Get the most recent payload published by a participant for the given track.
     pub fn latest_payload(&self, participant_id: Uuid, track: MediaTrack) -> Option<Vec<u8>> {
         self.published_tracks.get(&(participant_id, track)).cloned()
     }
 
+    /// Check whether a participant is subscribed to a media track.
     pub fn is_subscribed(&self, participant_id: Uuid, track: MediaTrack) -> bool {
         self.subscriptions
             .get(&participant_id)

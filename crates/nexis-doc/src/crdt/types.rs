@@ -13,6 +13,7 @@ pub type ClientId = u64;
 /// Compact vector-clock representation.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Clock {
+    /// `(client_id, counter)` entries for vector clock comparison.
     pub entries: SmallVec<[(ClientId, u64); 4]>,
 }
 
