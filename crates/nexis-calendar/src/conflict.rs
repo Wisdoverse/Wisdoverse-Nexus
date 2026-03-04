@@ -64,3 +64,48 @@ pub fn detect_overlap(a: TimeRange, b: TimeRange) -> Option<TimeRange> {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use chrono::{Duration, TimeZone, Utc};
+
+    use super::{detect_overlap, TimeRange};
+
+    fn at(hour: u32, minute: u32) -> chrono::DateTime<Utc> {
+        Utc.with_ymd_and_hms(2026, 1, 15, hour, minute, 0)
+            .single()
+            .expect("fixed timestamp should be valid")
+    }
+
+    #[test]
+    fn detect_overlap_excludes_touching_boundaries() {
+        let a = TimeRange::new(at(9, 0), at(10, 0));
+        let b = TimeRange::new(at(10, 0), at(11, 0));
+
+        assert_eq!(detect_overlap(a, b), None);
+        assert_eq!(detect_overlap(b, a), None);
+    }
+
+    #[test]
+    fn detect_overlap_returns_inner_range_for_containment() {
+        let outer = TimeRange::new(at(8, 0), at(12, 0));
+        let inner = TimeRange::new(at(9, 30), at(10, 15));
+
+        let overlap = detect_overlap(outer, inner).expect("contained range should overlap");
+        assert_eq!(overlap, inner);
+    }
+
+    #[test]
+    fn detect_overlap_is_symmetric_for_partial_overlap() {
+        let left = TimeRange::new(at(9, 0), at(10, 45));
+        let right = TimeRange::new(at(10, 0), at(11, 0));
+
+        let forward = detect_overlap(left, right).expect("ranges should overlap");
+        let reverse = detect_overlap(right, left).expect("ranges should overlap");
+
+        assert_eq!(forward, reverse);
+        assert_eq!(forward.start, at(10, 0));
+        assert_eq!(forward.end, at(10, 45));
+        assert_eq!(forward.end - forward.start, Duration::minutes(45));
+    }
+}

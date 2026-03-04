@@ -67,3 +67,57 @@ impl Default for CRDTDocument {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use proptest::prelude::*;
+
+    use super::{CRDTDocument, SubscriptionToken};
+
+    #[test]
+    fn new_document_has_empty_state() {
+        let doc = CRDTDocument::new();
+        assert_eq!(doc.get_content(), "");
+        assert_eq!(doc.encode_update(), Vec::<u8>::new());
+    }
+
+    #[test]
+    fn apply_update_is_stable_for_current_stub_behavior() {
+        let doc = CRDTDocument::new();
+        let initial = doc.encode_update();
+
+        doc.apply_update(&[1, 2, 3, 4])
+            .expect("stub apply_update should not fail");
+
+        assert_eq!(doc.encode_update(), initial);
+        assert_eq!(doc.get_content(), "");
+    }
+
+    #[test]
+    fn clone_and_observer_token_match_default_state() {
+        let doc = CRDTDocument::new();
+        let cloned = doc.clone();
+        let token = doc.observe_changes();
+
+        assert_eq!(cloned, doc);
+        assert_eq!(token, SubscriptionToken);
+    }
+
+    proptest! {
+        #[test]
+        fn merge_operations_keep_encoded_state_stable(updates in proptest::collection::vec(proptest::collection::vec(any::<u8>(), 0..64), 0..32)) {
+            let left = CRDTDocument::new();
+            let right = CRDTDocument::new();
+
+            for update in &updates {
+                left.apply_update(update).expect("applying random update should be infallible in stub implementation");
+            }
+            for update in updates.iter().rev() {
+                right.apply_update(update).expect("applying random update should be infallible in stub implementation");
+            }
+
+            prop_assert_eq!(left.encode_update(), right.encode_update());
+            prop_assert_eq!(left.get_content(), right.get_content());
+        }
+    }
+}

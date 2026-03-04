@@ -172,4 +172,62 @@ mod tests {
 
         assert_ne!(id_a, id_b);
     }
+
+    #[test]
+    fn leave_room_cleans_up_tracks_and_subscriptions() {
+        let mut room = SfuRoom::new(SfuConfig {
+            max_participants: 4,
+            video_codec: "vp9".to_owned(),
+            audio_codec: "opus".to_owned(),
+        });
+
+        let participant = room.join_room();
+        room.publish_track(participant, MediaTrack::Audio, vec![7, 8, 9]);
+        room.subscribe_track(participant, MediaTrack::ScreenShare);
+        assert!(room
+            .latest_payload(participant, MediaTrack::Audio)
+            .is_some());
+        assert!(room.is_subscribed(participant, MediaTrack::ScreenShare));
+
+        room.leave_room(participant);
+
+        assert!(room
+            .latest_payload(participant, MediaTrack::Audio)
+            .is_none());
+        assert!(!room.is_subscribed(participant, MediaTrack::ScreenShare));
+    }
+
+    #[test]
+    fn unknown_participant_publish_and_subscribe_are_ignored() {
+        let mut room = SfuRoom::new(SfuConfig {
+            max_participants: 3,
+            video_codec: "vp8".to_owned(),
+            audio_codec: "opus".to_owned(),
+        });
+        let unknown = Uuid::new_v4();
+
+        room.publish_track(unknown, MediaTrack::Video, vec![1, 2, 3]);
+        room.subscribe_track(unknown, MediaTrack::Video);
+
+        assert!(room.latest_payload(unknown, MediaTrack::Video).is_none());
+        assert!(!room.is_subscribed(unknown, MediaTrack::Video));
+    }
+
+    #[test]
+    fn publish_track_replaces_existing_payload_for_same_track() {
+        let mut room = SfuRoom::new(SfuConfig {
+            max_participants: 2,
+            video_codec: "h264".to_owned(),
+            audio_codec: "aac".to_owned(),
+        });
+        let publisher = room.join_room();
+
+        room.publish_track(publisher, MediaTrack::Video, vec![1, 1, 1]);
+        room.publish_track(publisher, MediaTrack::Video, vec![9, 9, 9]);
+
+        assert_eq!(
+            room.latest_payload(publisher, MediaTrack::Video),
+            Some(vec![9, 9, 9])
+        );
+    }
 }

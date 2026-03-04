@@ -262,6 +262,8 @@ impl AgentProfile {
 
 #[cfg(test)]
 mod tests {
+    use proptest::prelude::*;
+
     use super::*;
 
     #[test]
@@ -294,5 +296,26 @@ mod tests {
         assert!(caps.find_by_name("code-review").is_some());
         assert!(caps.find_by_id("cap-2").is_some());
         assert!(caps.find_by_name("nonexistent").is_none());
+    }
+
+    proptest! {
+        #[test]
+        fn agent_id_roundtrips_parse_display_and_serde(
+            org in "[a-zA-Z0-9][a-zA-Z0-9_-]{0,15}",
+            team in "[a-zA-Z0-9][a-zA-Z0-9_-]{0,15}",
+            name in "[a-zA-Z0-9][a-zA-Z0-9_-]{0,31}"
+        ) {
+            let id = AgentId::parse(&org, &team, &name);
+
+            prop_assert_eq!(id.org(), Some(org.as_str()));
+            prop_assert_eq!(id.team(), Some(team.as_str()));
+            prop_assert_eq!(id.name(), Some(name.as_str()));
+            prop_assert_eq!(id.to_string(), format!("agent://{org}/{team}/{name}"));
+
+            let serialized = serde_json::to_string(&id).expect("serialization should succeed");
+            let deserialized: AgentId =
+                serde_json::from_str(&serialized).expect("deserialization should succeed");
+            prop_assert_eq!(deserialized, id);
+        }
     }
 }
