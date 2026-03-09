@@ -24,10 +24,15 @@ tokenizers = { version = "0.21", optional = true }
 # AI-powered summarization
 nexis-runtime = { path = "../nexis-runtime", optional = true }
 
+# Metrics
+prometheus = { version = "0.14", optional = true }
+lazy_static = { version = "1.4", optional = true }
+
 [features]
 default = []
 token-counting = ["tokenizers"]
 ai-summarizer = ["nexis-runtime"]
+metrics = ["prometheus", "lazy_static"]
 
 [dev-dependencies]
 tokio-test = { workspace = true }

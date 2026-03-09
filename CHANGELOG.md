@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **nexis-context**: `ContextManager::with_summarizer()` for enabling summarization.
 - **nexis-context**: Automatic fallback to truncation when summarization fails.
 - **nexis-context**: `ai-summarizer` feature flag for AI-powered summarization.
+- **nexis-context**: Prometheus metrics for monitoring (feature-gated).
+- **nexis-context**: `metrics` feature flag with comprehensive context metrics.
 
 ### Changed
 - Root `README.md` is now English only.
@@ -27,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Security policy now points to the new architecture security docs.
 - **nexis-context**: `OverflowStrategy::Summarize` now functional (was TODO).
 - **nexis-context**: Added `with_overflow_strategy()` and `with_reserved_tokens()` builders.
+- **nexis-context**: Added metrics tracking for summarization success/failure and latency.
 - **web**: Upgraded vite 5→6, vitest 1→4 to fix security vulnerabilities.
 - **web**: Updated tsconfig to ES2022 for `.at()` support.
 - **web**: Excluded e2e tests (playwright) from vitest runner.

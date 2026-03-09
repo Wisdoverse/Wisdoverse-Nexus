@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 use tracing::{debug, warn};
@@ -10,6 +11,12 @@ use crate::context::{ConversationContext, Message};
 use crate::error::{ContextError, ContextResult};
 use crate::window::{ContextWindow, OverflowStrategy};
 use crate::summarizer::{ContextSummarizer, SummarizerConfig};
+
+#[cfg(feature = "metrics")]
+use crate::metrics::{
+    record_summarization_failure, record_summarization_overflow, record_summarization_success,
+    record_truncation, record_window_utilization, set_active_contexts,
+};
 
 /// Context manager for handling conversation contexts
 pub struct ContextManager {
@@ -59,6 +66,10 @@ impl ContextManager {
         let context = ConversationContext::new(room_id);
         let id = context.id;
         self.contexts.write().await.insert(id, context);
+        
+        #[cfg(feature = "metrics")]
+        set_active_contexts(self.contexts.read().await.len());
+        
         Ok(id)
     }
 
@@ -86,7 +97,9 @@ impl ContextManager {
         if new_total > self.window.available_tokens() {
             match self.window.overflow_strategy {
                 OverflowStrategy::TruncateOldest => {
-                    truncate_oldest(context, new_total - self.window.available_tokens());
+                    let truncated = self.truncate_oldest_with_count(context, new_total - self.window.available_tokens());
+                    #[cfg(feature = "metrics")]
+                    record_truncation(truncated);
                 }
                 OverflowStrategy::Fail => {
                     return Err(ContextError::WindowFull);
@@ -101,6 +114,12 @@ impl ContextManager {
         message.token_count = Some(estimated_tokens);
         context.add_message(message);
 
+        #[cfg(feature = "metrics")]
+        {
+            let utilization = (context.total_tokens() as f64 / self.window.available_tokens() as f64) * 100.0;
+            record_window_utilization(utilization);
+        }
+
         Ok(())
     }
 
@@ -110,12 +129,17 @@ impl ContextManager {
         context: &mut ConversationContext,
         new_total: usize,
     ) -> ContextResult<()> {
+        #[cfg(feature = "metrics")]
+        record_summarization_overflow();
+        
         let tokens_to_free = new_total - self.window.available_tokens();
         
         // If no summarizer configured, fall back to truncation
         let Some(ref summarizer) = self.summarizer else {
             debug!("No summarizer configured, falling back to truncation");
-            truncate_oldest(context, tokens_to_free);
+            let truncated = self.truncate_oldest_with_count(context, tokens_to_free);
+            #[cfg(feature = "metrics")]
+            record_truncation(truncated);
             return Ok(());
         };
 
@@ -127,29 +151,37 @@ impl ContextManager {
         }
 
         let messages_to_summarize: Vec<Message> = context.messages.drain(0..batch_size).collect();
-        let tokens_in_batch: usize = messages_to_summarize
-            .iter()
-            .filter_map(|m| m.token_count)
-            .sum();
 
         debug!(
             batch_size = batch_size,
-            tokens = tokens_in_batch,
             "Attempting to summarize messages"
         );
 
+        let start = Instant::now();
         match summarizer.summarize(&messages_to_summarize).await {
             Ok(summary) => {
                 // Insert summary at the beginning
                 context.messages.insert(0, summary);
-                debug!("Successfully summarized {} messages", batch_size);
+                let latency = start.elapsed().as_secs_f64();
+                
+                #[cfg(feature = "metrics")]
+                record_summarization_success(batch_size, latency);
+                
+                debug!("Successfully summarized {} messages in {:.2}s", batch_size, latency);
                 Ok(())
             }
             Err(e) => {
                 // On failure, restore the messages and fall back to truncation
                 warn!(error = ?e, "Summarization failed, falling back to truncation");
                 context.messages = [messages_to_summarize, context.messages.clone()].concat();
-                truncate_oldest(context, tokens_to_free);
+                let truncated = self.truncate_oldest_with_count(context, tokens_to_free);
+                
+                #[cfg(feature = "metrics")]
+                {
+                    record_summarization_failure();
+                    record_truncation(truncated);
+                }
+                
                 Err(ContextError::SummarizationFailed(e.to_string()))
             }
         }
@@ -162,29 +194,37 @@ impl ContextManager {
             .await
             .remove(&id)
             .map(|_| ())
-            .ok_or_else(|| ContextError::NotFound(id.to_string()))
+            .ok_or_else(|| ContextError::NotFound(id.to_string()))?;
+        
+        #[cfg(feature = "metrics")]
+        set_active_contexts(self.contexts.read().await.len());
+        
+        Ok(())
     }
 
     /// Get number of active contexts
     pub async fn context_count(&self) -> usize {
         self.contexts.read().await.len()
     }
+
+    /// Truncate oldest messages and return count of messages removed
+    fn truncate_oldest_with_count(&self, context: &mut ConversationContext, tokens_to_free: usize) -> usize {
+        let mut freed = 0;
+        let mut count = 0;
+        while freed < tokens_to_free && context.messages.len() > 1 {
+            if let Some(msg) = context.messages.first() {
+                freed += msg.token_count.unwrap_or(0);
+                context.messages.remove(0);
+                count += 1;
+            }
+        }
+        count
+    }
 }
 
 /// Simple token estimation (approximately 4 chars per token)
 fn estimate_tokens(text: &str) -> usize {
     (text.len() / 4).max(1)
-}
-
-/// Truncate oldest messages to free up tokens
-fn truncate_oldest(context: &mut ConversationContext, tokens_to_free: usize) {
-    let mut freed = 0;
-    while freed < tokens_to_free && context.messages.len() > 1 {
-        if let Some(msg) = context.messages.first() {
-            freed += msg.token_count.unwrap_or(0);
-            context.messages.remove(0);
-        }
-    }
 }
 
 #[cfg(test)]

@@ -10,6 +10,7 @@
 //!
 //! - `token-counting` - Enable accurate token counting using tokenizers
 //! - `ai-summarizer` - Enable AI-powered summarization using nexis-runtime
+//! - `metrics` - Enable Prometheus metrics for monitoring
 
 pub mod context;
 pub mod error;
@@ -22,6 +23,17 @@ pub mod ai_summarizer;
 
 #[cfg(feature = "ai-summarizer")]
 pub use ai_summarizer::AISummarizer;
+
+#[cfg(feature = "metrics")]
+pub mod metrics;
+
+#[cfg(feature = "metrics")]
+pub use metrics::{
+    record_summarization_failure, record_summarization_overflow,
+    record_summarization_success, record_truncation, record_window_utilization,
+    set_active_contexts, CONTEXTS_ACTIVE, MESSAGES_SUMMARIZED, MESSAGES_TRUNCATED,
+    OVERFLOW_EVENTS, SUMMARIZATION_ATTEMPTS, SUMMARIZATION_LATENCY, TOKEN_SAVINGS,
+};
 
 pub use context::{ConversationContext, Message, MessageRole};
 pub use error::{ContextError, ContextResult};
