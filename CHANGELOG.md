@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **nexis-context**: `ai-summarizer` feature flag for AI-powered summarization.
 - **nexis-context**: Prometheus metrics for monitoring (feature-gated).
 - **nexis-context**: `metrics` feature flag with comprehensive context metrics.
+- **nexis-gateway**: `ShardedConnectionManager` for 100K+ WebSocket connections.
+- **nexis-gateway**: Sharded connection pool with 64 shards for high concurrency.
+- **nexis-gateway**: Peak connection tracking and shard distribution metrics.
+- **nexis-gateway**: Inactive connection cleanup for connection pool maintenance.
 
 ### Changed
 - Root `README.md` is now English only.

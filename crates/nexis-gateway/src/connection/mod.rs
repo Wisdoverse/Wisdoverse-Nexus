@@ -3,30 +3,34 @@
 //! Manages WebSocket connections, message broadcasting, and connection pooling.
 //! Integrates with the server module for real-time communication.
 
-#![allow(dead_code)] // Used by tests, pending server integration
+mod pool;
 
+pub use pool::{BroadcastMessage, Connection, ConnectionId, PoolStats, ShardedConnectionManager};
+
+// Legacy exports for backward compatibility
+#[allow(dead_code)] // Used by tests, pending server integration
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tokio::sync::{broadcast, OwnedSemaphorePermit, RwLock, Semaphore};
 use uuid::Uuid;
 
-/// Connection ID type
-pub type ConnectionId = Uuid;
+/// Connection ID type (legacy)
+pub type ConnectionIdLegacy = Uuid;
 
-/// A connected client
+/// A connected client (legacy)
 #[derive(Debug, Clone)]
-pub struct Connection {
-    pub id: ConnectionId,
+pub struct ConnectionLegacy {
+    pub id: ConnectionIdLegacy,
     pub member_id: String,
     pub room_id: Option<String>,
     pub connected_at: chrono::DateTime<chrono::Utc>,
 }
 
-/// Connection manager
+/// Connection manager (legacy - use ShardedConnectionManager for high performance)
 pub struct ConnectionManager {
-    connections: Arc<RwLock<HashMap<ConnectionId, Connection>>>,
-    connection_permits: Arc<RwLock<HashMap<ConnectionId, OwnedSemaphorePermit>>>,
+    connections: Arc<RwLock<HashMap<ConnectionIdLegacy, ConnectionLegacy>>>,
+    connection_permits: Arc<RwLock<HashMap<ConnectionIdLegacy, OwnedSemaphorePermit>>>,
     active_connections: Arc<AtomicUsize>,
     connection_slots: Arc<Semaphore>,
     message_tx: broadcast::Sender<String>,
@@ -51,10 +55,10 @@ impl ConnectionManager {
     }
 
     /// Try to add a new connection, returning None when the pool is saturated.
-    pub async fn try_add_connection(&self, member_id: String) -> Option<ConnectionId> {
+    pub async fn try_add_connection(&self, member_id: String) -> Option<ConnectionIdLegacy> {
         let permit = self.connection_slots.clone().try_acquire_owned().ok()?;
         let id = Uuid::new_v4();
-        let connection = Connection {
+        let connection = ConnectionLegacy {
             id,
             member_id,
             room_id: None,
@@ -76,14 +80,14 @@ impl ConnectionManager {
     }
 
     /// Add a new connection
-    pub async fn add_connection(&self, member_id: String) -> ConnectionId {
+    pub async fn add_connection(&self, member_id: String) -> ConnectionIdLegacy {
         self.try_add_connection(member_id)
             .await
             .expect("connection pool saturated")
     }
 
     /// Remove a connection
-    pub async fn remove_connection(&self, id: ConnectionId) {
+    pub async fn remove_connection(&self, id: ConnectionIdLegacy) {
         let mut connections = self.connections.write().await;
         if connections.remove(&id).is_some() {
             drop(connections);
