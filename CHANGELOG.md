@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documentation structure normalized into strict `docs/en` and `docs/zh-CN` trees.
 - `CODE_OF_CONDUCT.md` based on Contributor Covenant.
 - `docs/en/getting-started/development-guide.md` as the development handbook entry.
+- `docs/en/api/metrics.md` - Prometheus metrics documentation.
 - **nexis-meeting**: `SfuRoom::try_join_room()` with capacity enforcement.
 - **nexis-meeting**: `SfuRoom::leave_room()` and cleanup methods.
 - **nexis-context**: `ContextSummarizer` trait for pluggable summarization strategies.
@@ -26,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **nexis-gateway**: Sharded connection pool with 64 shards for high concurrency.
 - **nexis-gateway**: Peak connection tracking and shard distribution metrics.
 - **nexis-gateway**: Inactive connection cleanup for connection pool maintenance.
+- **nexis-gateway**: Prometheus metrics integration for connection pool.
 
 ### Changed
 - Root `README.md` is now English only.
