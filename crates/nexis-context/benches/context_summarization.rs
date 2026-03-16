@@ -7,11 +7,11 @@ use std::sync::Arc;
 
 // We need to conditionally compile based on features
 #[cfg(feature = "ai-summarizer")]
+use async_trait::async_trait;
+#[cfg(feature = "ai-summarizer")]
 use nexis_context::{AISummarizer, ContextSummarizer, Message, SummarizerConfig};
 #[cfg(feature = "ai-summarizer")]
 use nexis_runtime::{AIProvider, GenerateRequest, GenerateResponse, ProviderError};
-#[cfg(feature = "ai-summarizer")]
-use async_trait::async_trait;
 
 #[cfg(feature = "ai-summarizer")]
 #[derive(Debug)]
@@ -24,10 +24,7 @@ impl AIProvider for FastMockProvider {
         "fast-mock"
     }
 
-    async fn generate(
-        &self,
-        _req: GenerateRequest,
-    ) -> Result<GenerateResponse, ProviderError> {
+    async fn generate(&self, _req: GenerateRequest) -> Result<GenerateResponse, ProviderError> {
         // Simulate fast AI response
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         Ok(GenerateResponse {
@@ -48,33 +45,42 @@ impl AIProvider for FastMockProvider {
 #[cfg(feature = "ai-summarizer")]
 fn bench_summarization(c: &mut Criterion) {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    
+
     let mut group = c.benchmark_group("summarization");
-    
+
     // Test with different message counts
     for count in [5, 10, 20, 50].iter() {
         group.throughput(Throughput::Elements(*count as u64));
-        
+
         let messages: Vec<Message> = (0..*count)
             .map(|i| {
                 if i % 2 == 0 {
-                    Message::user(format!("User message {} with some content to make it realistic", i))
+                    Message::user(format!(
+                        "User message {} with some content to make it realistic",
+                        i
+                    ))
                 } else {
-                    Message::assistant(format!("Assistant response {} with detailed information", i))
+                    Message::assistant(format!(
+                        "Assistant response {} with detailed information",
+                        i
+                    ))
                 }
             })
             .collect();
-        
+
         let provider = Arc::new(FastMockProvider);
         let summarizer = AISummarizer::new(provider, "mock-model");
-        
-        group.bench_with_input(BenchmarkId::new("ai_summarize", count), &messages, |b, messages| {
-            b.to_async(&rt).iter(|| async {
-                black_box(summarizer.summarize(messages).await)
-            });
-        });
+
+        group.bench_with_input(
+            BenchmarkId::new("ai_summarize", count),
+            &messages,
+            |b, messages| {
+                b.to_async(&rt)
+                    .iter(|| async { black_box(summarizer.summarize(messages).await) });
+            },
+        );
     }
-    
+
     group.finish();
 }
 

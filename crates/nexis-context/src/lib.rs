@@ -29,16 +29,16 @@ pub mod metrics;
 
 #[cfg(feature = "metrics")]
 pub use metrics::{
-    record_summarization_failure, record_summarization_overflow,
-    record_summarization_success, record_truncation, record_window_utilization,
-    set_active_contexts, CONTEXTS_ACTIVE, MESSAGES_SUMMARIZED, MESSAGES_TRUNCATED,
-    OVERFLOW_EVENTS, SUMMARIZATION_ATTEMPTS, SUMMARIZATION_LATENCY, TOKEN_SAVINGS,
+    record_summarization_failure, record_summarization_overflow, record_summarization_success,
+    record_truncation, record_window_utilization, set_active_contexts, CONTEXTS_ACTIVE,
+    MESSAGES_SUMMARIZED, MESSAGES_TRUNCATED, OVERFLOW_EVENTS, SUMMARIZATION_ATTEMPTS,
+    SUMMARIZATION_LATENCY, TOKEN_SAVINGS,
 };
 
 pub use context::{ConversationContext, Message, MessageRole};
 pub use error::{ContextError, ContextResult};
 pub use manager::ContextManager;
-pub use summarizer::{ContextSummarizer, SummarizerConfig, NoOpSummarizer, MockSummarizer};
+pub use summarizer::{ContextSummarizer, MockSummarizer, NoOpSummarizer, SummarizerConfig};
 pub use window::{ContextWindow, OverflowStrategy};
 
 /// Prelude for common imports

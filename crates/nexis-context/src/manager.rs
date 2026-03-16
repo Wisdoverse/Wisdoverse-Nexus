@@ -4,13 +4,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::RwLock;
-use uuid::Uuid;
 use tracing::{debug, warn};
+use uuid::Uuid;
 
 use crate::context::{ConversationContext, Message};
 use crate::error::{ContextError, ContextResult};
-use crate::window::{ContextWindow, OverflowStrategy};
 use crate::summarizer::{ContextSummarizer, SummarizerConfig};
+use crate::window::{ContextWindow, OverflowStrategy};
 
 #[cfg(feature = "metrics")]
 use crate::metrics::{
@@ -66,10 +66,10 @@ impl ContextManager {
         let context = ConversationContext::new(room_id);
         let id = context.id;
         self.contexts.write().await.insert(id, context);
-        
+
         #[cfg(feature = "metrics")]
         set_active_contexts(self.contexts.read().await.len());
-        
+
         Ok(id)
     }
 
@@ -97,7 +97,10 @@ impl ContextManager {
         if new_total > self.window.available_tokens() {
             match self.window.overflow_strategy {
                 OverflowStrategy::TruncateOldest => {
-                    let _count = self.truncate_oldest_with_count(context, new_total - self.window.available_tokens());
+                    let _count = self.truncate_oldest_with_count(
+                        context,
+                        new_total - self.window.available_tokens(),
+                    );
                     #[cfg(feature = "metrics")]
                     record_truncation(_count);
                 }
@@ -105,7 +108,8 @@ impl ContextManager {
                     return Err(ContextError::WindowFull);
                 }
                 OverflowStrategy::Summarize => {
-                    self.handle_overflow_with_summarization(context, new_total).await?;
+                    self.handle_overflow_with_summarization(context, new_total)
+                        .await?;
                 }
             }
         }
@@ -116,7 +120,8 @@ impl ContextManager {
 
         #[cfg(feature = "metrics")]
         {
-            let utilization = (context.total_tokens() as f64 / self.window.available_tokens() as f64) * 100.0;
+            let utilization =
+                (context.total_tokens() as f64 / self.window.available_tokens() as f64) * 100.0;
             record_window_utilization(utilization);
         }
 
@@ -131,9 +136,9 @@ impl ContextManager {
     ) -> ContextResult<()> {
         #[cfg(feature = "metrics")]
         record_summarization_overflow();
-        
+
         let tokens_to_free = new_total - self.window.available_tokens();
-        
+
         // If no summarizer configured, fall back to truncation
         let Some(ref summarizer) = self.summarizer else {
             debug!("No summarizer configured, falling back to truncation");
@@ -144,7 +149,10 @@ impl ContextManager {
         };
 
         // Collect messages to summarize (respecting batch size)
-        let batch_size = self.summarizer_config.batch_size.min(context.messages.len());
+        let batch_size = self
+            .summarizer_config
+            .batch_size
+            .min(context.messages.len());
         if batch_size == 0 {
             warn!("No messages to summarize");
             return Ok(());
@@ -152,10 +160,7 @@ impl ContextManager {
 
         let messages_to_summarize: Vec<Message> = context.messages.drain(0..batch_size).collect();
 
-        debug!(
-            batch_size = batch_size,
-            "Attempting to summarize messages"
-        );
+        debug!(batch_size = batch_size, "Attempting to summarize messages");
 
         let start = Instant::now();
         match summarizer.summarize(&messages_to_summarize).await {
@@ -163,11 +168,14 @@ impl ContextManager {
                 // Insert summary at the beginning
                 context.messages.insert(0, summary);
                 let latency = start.elapsed().as_secs_f64();
-                
+
                 #[cfg(feature = "metrics")]
                 record_summarization_success(batch_size, latency);
-                
-                debug!("Successfully summarized {} messages in {:.2}s", batch_size, latency);
+
+                debug!(
+                    "Successfully summarized {} messages in {:.2}s",
+                    batch_size, latency
+                );
                 Ok(())
             }
             Err(e) => {
@@ -175,13 +183,13 @@ impl ContextManager {
                 warn!(error = ?e, "Summarization failed, falling back to truncation");
                 context.messages = [messages_to_summarize, context.messages.clone()].concat();
                 let _truncated = self.truncate_oldest_with_count(context, tokens_to_free);
-                
+
                 #[cfg(feature = "metrics")]
                 {
                     record_summarization_failure();
                     record_truncation(_truncated);
                 }
-                
+
                 Err(ContextError::SummarizationFailed(e.to_string()))
             }
         }
@@ -195,10 +203,10 @@ impl ContextManager {
             .remove(&id)
             .map(|_| ())
             .ok_or_else(|| ContextError::NotFound(id.to_string()))?;
-        
+
         #[cfg(feature = "metrics")]
         set_active_contexts(self.contexts.read().await.len());
-        
+
         Ok(())
     }
 
@@ -208,7 +216,11 @@ impl ContextManager {
     }
 
     /// Truncate oldest messages and return count of messages removed
-    fn truncate_oldest_with_count(&self, context: &mut ConversationContext, tokens_to_free: usize) -> usize {
+    fn truncate_oldest_with_count(
+        &self,
+        context: &mut ConversationContext,
+        tokens_to_free: usize,
+    ) -> usize {
         let mut freed = 0;
         let mut count = 0;
         while freed < tokens_to_free && context.messages.len() > 1 {
@@ -223,14 +235,14 @@ impl ContextManager {
 }
 
 /// Estimate token count for text
-/// 
+///
 /// Simple estimation that considers CJK characters:
 /// - CJK characters: ~1.5 chars/token
 /// - ASCII text: ~4 chars/token
 fn estimate_tokens(text: &str) -> usize {
     let char_count = text.chars().count();
     let byte_len = text.len();
-    
+
     // If byte length significantly exceeds char count, we have multi-byte (CJK/Unicode)
     if byte_len > char_count * 3 / 2 {
         // Multi-byte chars: approximately 1.5 characters per token
@@ -314,15 +326,21 @@ mod tests {
 
         // Add enough messages to trigger overflow
         for i in 0..20 {
-            let msg = Message::user(format!("Message number {} with enough content to fill window", i));
+            let msg = Message::user(format!(
+                "Message number {} with enough content to fill window",
+                i
+            ));
             manager.add_message(id, msg).await.unwrap();
         }
 
         let context = manager.get_context(id).await.unwrap();
-        
+
         // Should have a summary message at the beginning
         assert!(!context.messages.is_empty());
-        assert!(context.messages[0].is_summary(), "First message should be a summary");
+        assert!(
+            context.messages[0].is_summary(),
+            "First message should be a summary"
+        );
         assert!(context.messages[0].content.contains("Summary of"));
     }
 

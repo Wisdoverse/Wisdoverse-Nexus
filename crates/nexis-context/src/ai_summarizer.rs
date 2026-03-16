@@ -5,9 +5,9 @@
 //!
 //! Requires `ai-summarizer` feature to be enabled.
 
-use std::sync::Arc;
 use async_trait::async_trait;
-use tracing::{debug, warn, instrument};
+use std::sync::Arc;
+use tracing::{debug, instrument, warn};
 
 use crate::context::Message;
 use crate::error::{ContextError, ContextResult};
@@ -93,7 +93,7 @@ impl ContextSummarizer for AISummarizer {
                     summary_len = response.content.len(),
                     "AI summarization complete"
                 );
-                
+
                 let mut summary = Message::system(format!(
                     "[Summary of {} messages]\n{}",
                     messages.len(),
@@ -101,7 +101,7 @@ impl ContextSummarizer for AISummarizer {
                 ));
                 // Estimate token count for the summary
                 summary.token_count = Some(response.content.len() / 4);
-                
+
                 Ok(summary)
             }
             Err(e) => {
@@ -172,9 +172,11 @@ mod tests {
     #[tokio::test]
     async fn test_ai_summarizer_generates_summary() {
         let provider = Arc::new(MockAIProvider {
-            response: "User asked about the project status. Assistant provided updates on three features.".to_string(),
+            response:
+                "User asked about the project status. Assistant provided updates on three features."
+                    .to_string(),
         });
-        
+
         let summarizer = AISummarizer::new(provider, "gpt-4");
         let messages = vec![
             Message::user("What's the project status?".to_string()),
@@ -182,7 +184,7 @@ mod tests {
         ];
 
         let result = summarizer.summarize(&messages).await.unwrap();
-        
+
         assert!(result.is_summary());
         assert!(result.content.contains("Summary of 2 messages"));
         assert!(result.content.contains("project status"));

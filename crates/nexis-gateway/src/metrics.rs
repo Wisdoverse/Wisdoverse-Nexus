@@ -204,11 +204,16 @@ pub fn record_pool_connection_removed(count: usize) {
 pub fn record_pool_peak_if_higher(current: usize) {
     use std::sync::atomic::{AtomicU64, Ordering};
     static PEAK_TRACKER: AtomicU64 = AtomicU64::new(0);
-    
+
     let current_u64 = current as u64;
     let mut peak = PEAK_TRACKER.load(Ordering::Relaxed);
     while current_u64 > peak {
-        match PEAK_TRACKER.compare_exchange_weak(peak, current_u64, Ordering::Relaxed, Ordering::Relaxed) {
+        match PEAK_TRACKER.compare_exchange_weak(
+            peak,
+            current_u64,
+            Ordering::Relaxed,
+            Ordering::Relaxed,
+        ) {
             Ok(_) => {
                 POOL_CONNECTIONS_PEAK.set(current as f64);
                 break;

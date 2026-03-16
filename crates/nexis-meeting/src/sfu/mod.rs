@@ -275,8 +275,13 @@ mod tests {
         // Third join should fail
         let result = room.try_join_room();
         assert!(result.is_err());
-        
+
         let err = result.unwrap_err();
-        assert!(matches!(err, crate::error::MeetingError::RoomCapacityExceeded { max_participants: 2 }));
+        assert!(matches!(
+            err,
+            crate::error::MeetingError::RoomCapacityExceeded {
+                max_participants: 2
+            }
+        ));
     }
 }

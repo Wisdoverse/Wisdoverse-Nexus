@@ -3,16 +3,16 @@
 //! Uses sharding and lock-free data structures for scalability.
 
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::hash::{Hash, Hasher};
 use std::time::Instant;
 use tokio::sync::{broadcast, OwnedSemaphorePermit, RwLock, Semaphore};
 use uuid::Uuid;
 
 use crate::metrics::{
-    record_pool_connection_added, record_pool_connection_removed,
-    record_pool_peak_if_higher, record_pool_message_sent, record_pool_message_dropped,
+    record_pool_connection_added, record_pool_connection_removed, record_pool_message_dropped,
+    record_pool_message_sent, record_pool_peak_if_higher,
 };
 
 /// Default number of shards for connection pool
@@ -106,9 +106,8 @@ impl ShardedConnectionManager {
         let shard_count = shard_count.next_power_of_two();
         let shard_mask = shard_count - 1;
 
-        let shards: Vec<ConnectionShard> = (0..shard_count)
-            .map(|_| ConnectionShard::new())
-            .collect();
+        let shards: Vec<ConnectionShard> =
+            (0..shard_count).map(|_| ConnectionShard::new()).collect();
 
         let (message_tx, _) = broadcast::channel(10000);
 
@@ -153,16 +152,16 @@ impl ShardedConnectionManager {
         }
 
         let count = self.active_connections.fetch_add(1, Ordering::Relaxed) + 1;
-        
+
         // Track peak connections
         loop {
             let peak = self.peak_connections.load(Ordering::Relaxed);
-            if count <= peak || self.peak_connections.compare_exchange_weak(
-                peak,
-                count,
-                Ordering::Relaxed,
-                Ordering::Relaxed,
-            ).is_ok() {
+            if count <= peak
+                || self
+                    .peak_connections
+                    .compare_exchange_weak(peak, count, Ordering::Relaxed, Ordering::Relaxed)
+                    .is_ok()
+            {
                 break;
             }
         }
@@ -198,12 +197,12 @@ impl ShardedConnectionManager {
             drop(connections);
             let mut permits = shard.permits.write().await;
             permits.remove(&id);
-            
+
             let count = self.active_connections.fetch_sub(1, Ordering::Relaxed) - 1;
-            
+
             // Record metrics
             record_pool_connection_removed(count);
-            
+
             tracing::debug!(
                 connection_id = %id,
                 shard = shard_idx,
@@ -224,7 +223,7 @@ impl ShardedConnectionManager {
     pub async fn set_room(&self, id: ConnectionId, room_id: Option<String>) -> bool {
         let shard_idx = self.shard_index(id);
         let shard = &self.shards[shard_idx];
-        
+
         let mut connections = shard.connections.write().await;
         if let Some(conn) = connections.get_mut(&id) {
             conn.room_id = room_id;
@@ -248,10 +247,18 @@ impl ShardedConnectionManager {
     /// Get pool statistics
     pub fn stats(&self) -> PoolStats {
         let total = self.active_connections.load(Ordering::Relaxed);
-        let active_shards = self.shards.iter().filter(|shard| {
-            // Non-blocking check - might be slightly inaccurate
-            shard.connections.try_read().map(|g| !g.is_empty()).unwrap_or(false)
-        }).count();
+        let active_shards = self
+            .shards
+            .iter()
+            .filter(|shard| {
+                // Non-blocking check - might be slightly inaccurate
+                shard
+                    .connections
+                    .try_read()
+                    .map(|g| !g.is_empty())
+                    .unwrap_or(false)
+            })
+            .count();
 
         PoolStats {
             total_connections: total,
@@ -272,7 +279,7 @@ impl ShardedConnectionManager {
             room_id,
             payload: message,
         };
-        
+
         let receiver_count = self.message_tx.receiver_count();
         if receiver_count > 0 {
             if self.message_tx.send(msg).is_err() {
@@ -436,7 +443,7 @@ mod tests {
         let id = manager.add_connection("alice".to_string()).await;
 
         manager.set_room(id, Some("room_123".to_string())).await;
-        
+
         let conn = manager.get_connection(id).await.unwrap();
         assert_eq!(conn.room_id, Some("room_123".to_string()));
     }
@@ -451,20 +458,23 @@ mod tests {
         }
 
         let distribution = manager.shard_distribution().await;
-        
+
         // All shards should have roughly similar load (not exact due to hash distribution)
         let total: usize = distribution.iter().sum();
         assert_eq!(total, 100);
-        
+
         // At least some shards should have connections
         let non_empty = distribution.iter().filter(|&&c| c > 0).count();
-        assert!(non_empty > 1, "Connections should be distributed across shards");
+        assert!(
+            non_empty > 1,
+            "Connections should be distributed across shards"
+        );
     }
 
     #[tokio::test]
     async fn sharded_manager_stats() {
         let manager = ShardedConnectionManager::new();
-        
+
         manager.add_connection("alice".to_string()).await;
         manager.add_connection("bob".to_string()).await;
 
@@ -477,7 +487,9 @@ mod tests {
         let manager = ShardedConnectionManager::new();
         let mut rx = manager.subscribe();
 
-        manager.broadcast(Some("room_1".to_string()), "hello".to_string()).await;
+        manager
+            .broadcast(Some("room_1".to_string()), "hello".to_string())
+            .await;
 
         let msg = rx.try_recv().unwrap();
         assert_eq!(msg.room_id, Some("room_1".to_string()));
@@ -534,7 +546,7 @@ mod tests {
         let removed = manager.cleanup_stale(0).await;
         // With 0 threshold, connections might not be removed instantly due to timing
         // The important thing is the method runs correctly
-        
+
         // Cleanup with a very long threshold should remove nothing
         let id2 = manager.add_connection("bob".to_string()).await;
         let removed = manager.cleanup_stale(86400).await; // 24 hours

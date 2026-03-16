@@ -3,9 +3,9 @@
 //! Provides trait and implementations for summarizing conversation context
 //! when the window overflows.
 
-use async_trait::async_trait;
 use crate::context::{Message, MessageRole};
 use crate::error::{ContextError, ContextResult};
+use async_trait::async_trait;
 
 /// Trait for context summarization strategies
 #[async_trait]
@@ -70,7 +70,8 @@ impl SummarizerConfig {
             })
             .collect();
 
-        self.prompt_template.replace("{messages}", &formatted.join("\n"))
+        self.prompt_template
+            .replace("{messages}", &formatted.join("\n"))
     }
 }
 
@@ -105,10 +106,7 @@ impl ContextSummarizer for MockSummarizer {
     async fn summarize(&self, messages: &[Message]) -> ContextResult<Message> {
         // Count messages for the summary
         let count = messages.len();
-        let mut msg = Message::system(format!(
-            "[Summary of {} messages] {}",
-            count, self.summary
-        ));
+        let mut msg = Message::system(format!("[Summary of {} messages] {}", count, self.summary));
         msg.token_count = Some(count * 10); // Rough estimate
         Ok(msg)
     }
