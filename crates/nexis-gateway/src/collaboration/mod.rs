@@ -250,6 +250,7 @@ fn bad_request_response(message: impl Into<String>) -> Response {
     CollaborationError::BadRequest(message.into()).into_response()
 }
 
+#[allow(clippy::result_large_err)]
 fn validate_required_text(field: &str, value: &str, max_len: usize) -> Result<String, Response> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
@@ -286,10 +287,12 @@ fn validate_identifier(field: &str, value: &str, max_len: usize) -> Result<Strin
     Ok(trimmed.to_string())
 }
 
+#[allow(clippy::result_large_err)]
 fn validate_path_id(field: &str, value: &str) -> Result<String, Response> {
     validate_identifier(field, value, MAX_IDENTIFIER_LEN).map_err(bad_request_response)
 }
 
+#[allow(clippy::result_large_err)]
 fn validate_time_window(starts_at: DateTime<Utc>, ends_at: DateTime<Utc>) -> Result<(), Response> {
     if starts_at >= ends_at {
         return Err(bad_request_response(
