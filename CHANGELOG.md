@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CODE_OF_CONDUCT.md` based on Contributor Covenant.
 - `docs/en/getting-started/development-guide.md` as the development handbook entry.
 - `docs/en/api/metrics.md` - Prometheus metrics documentation.
+- `docs/en/api/versioning.md` - API versioning strategy.
+- `docs/en/performance/benchmark-report.md` - Performance benchmark report.
+- `docs/en/security/audit-report.md` - Security audit report.
+- `docs/en/observability/tracing.md` - OpenTelemetry documentation.
+- `deploy/grafana/dashboards/nexis-overview.json` - Grafana dashboard.
 - **nexis-meeting**: `SfuRoom::try_join_room()` with capacity enforcement.
 - **nexis-meeting**: `SfuRoom::leave_room()` and cleanup methods.
 - **nexis-context**: `ContextSummarizer` trait for pluggable summarization strategies.
@@ -23,11 +28,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **nexis-context**: `ai-summarizer` feature flag for AI-powered summarization.
 - **nexis-context**: Prometheus metrics for monitoring (feature-gated).
 - **nexis-context**: `metrics` feature flag with comprehensive context metrics.
+- **nexis-context**: Improved token estimation with CJK support.
 - **nexis-gateway**: `ShardedConnectionManager` for 100K+ WebSocket connections.
 - **nexis-gateway**: Sharded connection pool with 64 shards for high concurrency.
 - **nexis-gateway**: Peak connection tracking and shard distribution metrics.
 - **nexis-gateway**: Inactive connection cleanup for connection pool maintenance.
+- **nexis-gateway**: Heartbeat monitoring for connections.
 - **nexis-gateway**: Prometheus metrics integration for connection pool.
+- **nexis-gateway**: OpenTelemetry integration (feature-gated with `otel`).
+- **nexis-gateway**: Graceful shutdown support (SIGTERM/SIGINT).
+- **deploy**: Helm chart for K8s deployment.
+- **deploy**: Dockerfile with multi-stage build.
+- **ci**: Test coverage workflow with Codecov.
 
 ### Changed
 - Root `README.md` is now English only.

@@ -19,6 +19,9 @@ pub mod router;
 pub mod search;
 pub mod server;
 
+#[cfg(feature = "otel")]
+pub mod tracing;
+
 #[allow(unused_imports)]
 pub use auth::{AuthError, AuthenticatedUser, Claims, JwtConfig};
 pub use indexing::{IndexingService, MessageIndexer};

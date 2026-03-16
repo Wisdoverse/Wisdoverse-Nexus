@@ -3,6 +3,9 @@
 use anyhow::{anyhow, Result};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
+#[cfg(feature = "otel")]
+use tracing_subscriber::Layer;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TraceExportConfig {
     pub exporter: String,
@@ -37,6 +40,20 @@ pub fn init_tracing() -> Result<()> {
         .map(|v| !v.eq_ignore_ascii_case("false"))
         .unwrap_or(true);
 
+    // If OTLP exporter is configured, initialize OpenTelemetry
+    #[cfg(feature = "otel")]
+    if trace_export.exporter == "otlp" {
+        if let Some(endpoint) = &trace_export.endpoint {
+            init_otel_tracing(endpoint, env_filter, json_logs, with_span_list)?;
+            return Ok(());
+        } else {
+            tracing::warn!(
+                target: "observability",
+                "NEXIS_OTEL_EXPORTER=otlp is set without NEXIS_OTEL_EXPORT_ENDPOINT, falling back to stdout"
+            );
+        }
+    }
+
     let fmt_layer = tracing_subscriber::fmt::layer()
         .json()
         .with_current_span(with_span_list)
@@ -64,15 +81,72 @@ pub fn init_tracing() -> Result<()> {
         "tracing initialized"
     );
 
-    if trace_export.exporter == "otlp" && trace_export.endpoint.is_none() {
-        tracing::warn!(
-            target: "observability",
-            "NEXIS_OTEL_EXPORTER=otlp is set without NEXIS_OTEL_EXPORT_ENDPOINT"
-        );
-    }
+    Ok(())
+}
+
+/// Initialize OpenTelemetry tracing with OTLP exporter.
+#[cfg(feature = "otel")]
+fn init_otel_tracing(
+    endpoint: &str,
+    env_filter: EnvFilter,
+    json_logs: bool,
+    with_span_list: bool,
+) -> Result<()> {
+    use opentelemetry::global;
+    use opentelemetry_otlp::WithExportConfig;
+
+    let tracer = opentelemetry_otlp::new_pipeline()
+        .tracing()
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_endpoint(endpoint),
+        )
+        .install_simple()
+        .map_err(|e| anyhow!("failed to install OTLP tracer: {}", e))?;
+
+    let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
+
+    let fmt_layer = if json_logs {
+        tracing_subscriber::fmt::layer()
+            .json()
+            .with_current_span(with_span_list)
+            .with_span_list(with_span_list)
+            .with_target(true)
+            .with_thread_ids(true)
+            .with_thread_names(true)
+            .boxed()
+    } else {
+        tracing_subscriber::fmt::layer().boxed()
+    };
+
+    tracing_subscriber::registry()
+        .with(env_filter)
+        .with(telemetry)
+        .with(fmt_layer)
+        .init();
+
+    tracing::info!(
+        target: "observability",
+        otel_exporter = "otlp",
+        otel_endpoint = %endpoint,
+        "OpenTelemetry tracing initialized"
+    );
 
     Ok(())
 }
+
+/// Shutdown the OpenTelemetry tracer provider.
+///
+/// Call this during graceful shutdown to ensure all spans are exported.
+#[cfg(feature = "otel")]
+pub fn shutdown() {
+    opentelemetry::global::shutdown_tracer_provider();
+}
+
+/// No-op shutdown when otel feature is disabled
+#[cfg(not(feature = "otel"))]
+pub fn shutdown() {}
 
 #[cfg(test)]
 mod tests {
