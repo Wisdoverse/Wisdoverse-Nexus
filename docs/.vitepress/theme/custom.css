@@ -242,3 +242,87 @@ th {
 tr:hover {
   background: var(--vp-c-bg-soft);
 }
+
+/* ================================
+   Accessibility Improvements - WCAG 2.1
+   ================================ */
+
+/* Focus States - WCAG 2.4.7 */
+:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Skip Links - WCAG 2.4.1 */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--vp-c-brand-1);
+  color: white;
+  padding: 8px 16px;
+  z-index: 100;
+  text-decoration: none;
+  font-weight: 500;
+  border-radius: 0 0 4px 4px;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  :root {
+    --vp-c-text-1: #000;
+    --vp-c-text-2: #333;
+  }
+  .dark {
+    --vp-c-text-1: #fff;
+    --vp-c-text-2: #ccc;
+  }
+}
+
+/* Reduced Motion - WCAG 2.3.3 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Screen Reader Only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Touch Targets - WCAG 2.5.5 (min 44x44px) */
+.vp-doc a,
+button,
+.VPButton {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* External Links - WCAG 2.4.4 */
+a[target="_blank"]::after {
+  content: " ↗";
+  font-size: 0.75em;
+  opacity: 0.7;
+}
