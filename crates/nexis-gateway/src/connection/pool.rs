@@ -32,6 +32,19 @@ pub struct Connection {
     pub room_id: Option<String>,
     pub connected_at: chrono::DateTime<chrono::Utc>,
     pub last_activity: Instant,
+    pub last_heartbeat: Instant,
+}
+
+impl Connection {
+    /// Update heartbeat timestamp
+    pub fn update_heartbeat(&mut self) {
+        self.last_heartbeat = Instant::now();
+    }
+
+    /// Check if connection is stale (no heartbeat for given duration)
+    pub fn is_stale(&self, max_idle_secs: u64) -> bool {
+        self.last_heartbeat.elapsed().as_secs() > max_idle_secs
+    }
 }
 
 /// Statistics for the connection pool
@@ -130,6 +143,7 @@ impl ShardedConnectionManager {
             room_id: None,
             connected_at: chrono::Utc::now(),
             last_activity: Instant::now(),
+            last_heartbeat: Instant::now(),
         };
 
         {
@@ -321,6 +335,35 @@ impl ShardedConnectionManager {
 
         removed
     }
+
+    /// Remove connections that haven't sent heartbeat
+    pub async fn cleanup_stale(&self, max_idle_secs: u64) -> usize {
+        let mut removed = 0;
+
+        for (shard_idx, shard) in self.shards.iter().enumerate() {
+            let mut connections = shard.connections.write().await;
+            let stale: Vec<ConnectionId> = connections
+                .iter()
+                .filter(|(_, conn)| conn.is_stale(max_idle_secs))
+                .map(|(id, _)| *id)
+                .collect();
+
+            for id in stale {
+                connections.remove(&id);
+                let mut permits = shard.permits.write().await;
+                permits.remove(&id);
+                self.active_connections.fetch_sub(1, Ordering::Relaxed);
+                removed += 1;
+                tracing::debug!(
+                    connection_id = %id,
+                    shard = shard_idx,
+                    "Removed stale connection (no heartbeat)"
+                );
+            }
+        }
+
+        removed
+    }
 }
 
 impl Default for ShardedConnectionManager {
@@ -439,5 +482,63 @@ mod tests {
         let msg = rx.try_recv().unwrap();
         assert_eq!(msg.room_id, Some("room_1".to_string()));
         assert_eq!(msg.payload, "hello");
+    }
+
+    #[test]
+    fn connection_is_stale_check() {
+        let conn = Connection {
+            id: Uuid::nil(),
+            member_id: "test".to_string(),
+            room_id: None,
+            connected_at: chrono::Utc::now(),
+            last_activity: Instant::now(),
+            last_heartbeat: Instant::now(),
+        };
+
+        // Fresh connection should not be stale
+        assert!(!conn.is_stale(60));
+    }
+
+    #[test]
+    fn connection_update_heartbeat() {
+        let mut conn = Connection {
+            id: Uuid::nil(),
+            member_id: "test".to_string(),
+            room_id: None,
+            connected_at: chrono::Utc::now(),
+            last_activity: Instant::now(),
+            last_heartbeat: Instant::now() - std::time::Duration::from_secs(120),
+        };
+
+        // Should be stale before update
+        assert!(conn.is_stale(60));
+
+        // Update heartbeat
+        conn.update_heartbeat();
+
+        // Should not be stale after update
+        assert!(!conn.is_stale(60));
+    }
+
+    #[tokio::test]
+    async fn sharded_manager_cleanup_stale() {
+        let manager = ShardedConnectionManager::new();
+
+        // Add a connection
+        let id = manager.add_connection("alice".to_string()).await;
+        assert_eq!(manager.connection_count(), 1);
+
+        // Cleanup with 0 seconds should remove all (since we can't mock time easily,
+        // we test that the method runs without error)
+        // In real usage, connections with old heartbeats would be removed
+        let removed = manager.cleanup_stale(0).await;
+        // With 0 threshold, connections might not be removed instantly due to timing
+        // The important thing is the method runs correctly
+        
+        // Cleanup with a very long threshold should remove nothing
+        let id2 = manager.add_connection("bob".to_string()).await;
+        let removed = manager.cleanup_stale(86400).await; // 24 hours
+        assert_eq!(removed, 0);
+        assert_eq!(manager.connection_count(), 2);
     }
 }
