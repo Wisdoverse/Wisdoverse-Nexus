@@ -373,3 +373,99 @@ a[target="_blank"]::after {
   opacity: 0.5;
   pointer-events: none;
 }
+
+/* ================================
+   Code Block Enhancements
+   ================================ */
+
+/* Code group tabs */
+.vp-code-group .tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0;
+  padding: 0 1rem;
+  background: var(--vp-code-block-bg);
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid var(--vp-c-divider);
+}
+
+.vp-code-group .tabs label {
+  font-weight: 500;
+  font-size: 0.85rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.vp-code-group .tabs label:hover {
+  color: var(--vp-c-brand-1);
+}
+
+.vp-code-group .tabs label.active {
+  color: var(--vp-c-brand-1);
+  border-bottom-color: var(--vp-c-brand-1);
+}
+
+/* Language indicator dots */
+.vp-code-group .tabs label::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 0.5rem;
+  border-radius: 50%;
+  background: var(--vp-c-text-3);
+}
+
+/* Language-specific colors */
+.vp-code-group .tabs label[lang="ts"]::before,
+.vp-code-group .tabs label[lang="typescript"]::before {
+  background: #3178c6;
+}
+
+.vp-code-group .tabs label[lang="rust"]::before {
+  background: #dea584;
+}
+
+.vp-code-group .tabs label[lang="bash"]::before,
+.vp-code-group .tabs label[lang="sh"]::before {
+  background: #4eaa25;
+}
+
+.vp-code-group .tabs label[lang="json"]::before {
+  background: #f5de06;
+}
+
+.vp-code-group .tabs label[lang="yaml"]::before,
+.vp-code-group .tabs label[lang="yml"]::before {
+  background: #cb171e;
+}
+
+/* Code block filename display */
+div[class*='language-'] > span.lang {
+  position: absolute;
+  top: 6px;
+  right: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--vp-c-text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Copy button enhancement */
+.vp-code-group .vp-copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 6px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+div[class*='language-']:hover .vp-copy {
+  opacity: 1;
+}
