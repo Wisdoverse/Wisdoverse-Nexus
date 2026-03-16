@@ -97,10 +97,9 @@ impl ContextManager {
         if new_total > self.window.available_tokens() {
             match self.window.overflow_strategy {
                 OverflowStrategy::TruncateOldest => {
-                    #[allow(unused_variables)]
-                    let count = self.truncate_oldest_with_count(context, new_total - self.window.available_tokens());
+                    let _count = self.truncate_oldest_with_count(context, new_total - self.window.available_tokens());
                     #[cfg(feature = "metrics")]
-                    record_truncation(count);
+                    record_truncation(_count);
                 }
                 OverflowStrategy::Fail => {
                     return Err(ContextError::WindowFull);
@@ -138,7 +137,7 @@ impl ContextManager {
         // If no summarizer configured, fall back to truncation
         let Some(ref summarizer) = self.summarizer else {
             debug!("No summarizer configured, falling back to truncation");
-            let truncated = self.truncate_oldest_with_count(context, tokens_to_free);
+            let _truncated = self.truncate_oldest_with_count(context, tokens_to_free);
             #[cfg(feature = "metrics")]
             record_truncation(truncated);
             return Ok(());
@@ -175,12 +174,12 @@ impl ContextManager {
                 // On failure, restore the messages and fall back to truncation
                 warn!(error = ?e, "Summarization failed, falling back to truncation");
                 context.messages = [messages_to_summarize, context.messages.clone()].concat();
-                let truncated = self.truncate_oldest_with_count(context, tokens_to_free);
+                let _truncated = self.truncate_oldest_with_count(context, tokens_to_free);
                 
                 #[cfg(feature = "metrics")]
                 {
                     record_summarization_failure();
-                    record_truncation(truncated);
+                    record_truncation(_truncated);
                 }
                 
                 Err(ContextError::SummarizationFailed(e.to_string()))
