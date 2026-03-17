@@ -3,10 +3,22 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'Nexis',
   description: 'Enterprise-grade Real-time Collaboration Platform — 100K+ concurrent connections, cloud-native, AI-powered',
-  lang: 'en-US',
+  
+  // Multi-language routing
+  locales: {
+    root: {
+      label: 'English',
+      lang: 'en-US',
+    },
+    'zh-CN': {
+      label: '简体中文',
+      lang: 'zh-CN',
+      link: '/zh-CN/',
+    }
+  },
   
   ignoreDeadLinks: true,
-
+  
   head: [
     // Favicon and theme
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/images/logo.svg' }],
@@ -35,11 +47,11 @@ export default defineConfig({
     ['link', { rel: 'canonical', href: 'https://gbrothersgroup.github.io/Nexis/' }],
 
     // Google Analytics (replace G-XXXXXXXXXX with your actual ID)
-    ['script', { async: '', src: 'https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX' }],
-    ['script', {}, `window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
-gtag('config', 'G-XXXXXXXXXX');`],
+    // ['script', { async: '', src: 'https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX' }],
+    // ['script', {}, `window.dataLayer = window.dataLayer || [];
+    // function gtag(){dataLayer.push(arguments);}
+    // gtag('js', new Date());
+    // gtag('config', 'G-XXXXXXXXXX');`],
   ],
   
   themeConfig: {
@@ -49,6 +61,9 @@ gtag('config', 'G-XXXXXXXXXX');`],
     icon: {
       type: 'svg'
     },
+    
+    // Breadcrumb navigation
+    breadcrumb: true,
     
     nav: [
       { text: 'Home', link: '/' },
@@ -125,6 +140,68 @@ gtag('config', 'G-XXXXXXXXXX');`],
           items: [
             { text: 'Contributing Guide', link: '/en/development/contributing' },
             { text: 'Roadmap', link: '/en/roadmap' }
+          ]
+        }
+      ],
+      '/zh-CN/': [
+        {
+          text: '📚 介绍',
+          items: [
+            { text: '概述', link: '/zh-CN/' }
+          ]
+        },
+        {
+          text: '🚀 快速开始',
+          collapsed: false,
+          items: [
+            { text: '5 分钟入门', link: '/zh-CN/getting-started/quick-start' },
+            { text: '开发指南', link: '/zh-CN/getting-started/development-guide' }
+          ]
+        },
+        {
+          text: '🏗️ 架构',
+          collapsed: false,
+          items: [
+            { text: '概述', link: '/zh-CN/architecture/' },
+            { text: '数据流', link: '/zh-CN/architecture/data-flow' },
+            { text: '组件', link: '/zh-CN/architecture/components' }
+          ]
+        },
+        {
+          text: '📡 API 参考',
+          collapsed: true,
+          items: [
+            { text: 'Metrics API', link: '/zh-CN/api/metrics' },
+            { text: '版本控制', link: '/zh-CN/api/versioning' }
+          ]
+        },
+        {
+          text: '🔍 可观测性',
+          collapsed: true,
+          items: [
+            { text: '链路追踪', link: '/zh-CN/observability/tracing' }
+          ]
+        },
+        {
+          text: '⚡ 性能',
+          collapsed: true,
+          items: [
+            { text: '基准测试报告', link: '/zh-CN/performance/benchmark-report' }
+          ]
+        },
+        {
+          text: '🛡️ 安全',
+          collapsed: true,
+          items: [
+            { text: '安全审计报告', link: '/zh-CN/security/audit-report' }
+          ]
+        },
+        {
+          text: '🤝 社区',
+          collapsed: true,
+          items: [
+            { text: '贡献指南', link: '/zh-CN/development/contributing' },
+            { text: '路线图', link: '/zh-CN/roadmap' }
           ]
         }
       ]

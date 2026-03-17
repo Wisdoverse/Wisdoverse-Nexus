@@ -1,17 +1,20 @@
-import { h } from 'vue'
-import type { Theme } from 'vitepress'
+// Custom theme extension for Nexis
 import DefaultTheme from 'vitepress/theme'
-import Breadcrumb from '../components/Breadcrumb.vue'
+import type { Theme } from 'vitepress'
+
+// Import custom CSS for animations and enhancements
 import './custom.css'
 
 export default {
   extends: DefaultTheme,
-  Layout: () => {
-    return h(DefaultTheme.Layout, null, {
-      'doc-before': () => h(Breadcrumb)
-    })
-  },
-  enhanceApp({ app, router, siteData }) {
-    // Register global components if needed
+  
+  // Setup for page transition animations
+  setup() {
+    if (typeof window !== 'undefined') {
+      // Add fade-in animation class to document
+      document.addEventListener('DOMContentLoaded', () => {
+        document.body.classList.add('page-loaded')
+      })
+    }
   }
 } satisfies Theme
