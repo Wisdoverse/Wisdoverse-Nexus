@@ -1,23 +1,16 @@
 [package]
 name = "nexis-plugin"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-description = "Plugin system for Nexis - extensible hooks, commands, and adapters"
+version = "0.1.0"
+edition = "2021"
+description = "Plugin system for Nexis gateway"
 
 [dependencies]
-async-trait.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-thiserror.workspace = true
-tokio.workspace = true
-tracing.workspace = true
-uuid.workspace = true
-nexis-core.workspace = true
-nexis-protocol.workspace = true
+async-trait = "0.1"
+tokio = { version = "1", features = ["sync", "rt"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+thiserror = "1"
 
 [dev-dependencies]
-tokio-test.workspace = true
-
-[lints]
-workspace = true
+tokio = { version = "1", features = ["full"] }

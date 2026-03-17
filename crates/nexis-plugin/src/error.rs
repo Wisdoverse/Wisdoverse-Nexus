@@ -1,35 +1,28 @@
-//! Plugin error types.
-
 use thiserror::Error;
 
-/// Errors that can occur within the plugin system.
-#[derive(Debug, Error)]
+#[derive(Error, Debug)]
 pub enum PluginError {
-    /// A plugin failed to process a hook.
-    #[error("plugin '{name}' failed: {reason}")]
-    HookFailed { name: String, reason: String },
-
-    /// A plugin with the same name is already registered.
-    #[error("plugin '{0}' is already registered")]
-    AlreadyRegistered(String),
-
-    /// The requested plugin was not found.
-    #[error("plugin '{0}' not found")]
+    #[error("Plugin not found: {0}")]
     NotFound(String),
 
-    /// A plugin failed to initialize.
-    #[error("plugin '{name}' init failed: {reason}")]
-    InitFailed { name: String, reason: String },
+    #[error("Plugin initialization failed: {0}")]
+    InitFailed(String),
 
-    /// A plugin failed during teardown.
-    #[error("plugin '{name}' teardown failed: {reason}")]
-    TeardownFailed { name: String, reason: String },
+    #[error("Plugin execution failed: {0}")]
+    ExecutionFailed(String),
 
-    /// Extension point error.
-    #[error("extension point error: {0}")]
-    ExtensionPoint(String),
+    #[error("Command not recognized: {0}")]
+    UnknownCommand(String),
 
-    /// Serialization error.
-    #[error("serialization error: {0}")]
-    Serialization(#[from] serde_json::Error),
+    #[error("Permission denied for plugin: {0}")]
+    PermissionDenied(String),
+
+    #[error("Configuration error: {0}")]
+    ConfigError(String),
+
+    #[error("Timeout: {0}")]
+    Timeout(String),
+
+    #[error("{0}")]
+    Other(String),
 }

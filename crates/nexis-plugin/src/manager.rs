@@ -1,151 +1,98 @@
-//! Plugin manager with registration, lifecycle, and error isolation.
-
 use std::collections::HashMap;
 use std::sync::Arc;
-
 use tokio::sync::RwLock;
+use async_trait::async_trait;
 use tracing::{info, warn};
 
 use crate::error::PluginError;
-use crate::extension_points::{
-    Command, CommandHandler, MessageFilter, NotificationChannel, StorageAdapter,
-};
-use crate::plugin::{Member, Message, Plugin, Response};
+use crate::plugin::{Plugin, Command, Member, Response};
 
-/// Manages plugin registration, lifecycle, and dispatch.
+/// Manages plugin lifecycle, registration, and dispatch
 pub struct PluginManager {
     plugins: RwLock<HashMap<String, Arc<dyn Plugin>>>,
 }
 
 impl PluginManager {
-    /// Create a new empty plugin manager.
     pub fn new() -> Self {
         Self {
             plugins: RwLock::new(HashMap::new()),
         }
     }
 
-    /// Register a plugin. Initializes it immediately.
-    ///
-    /// Returns an error if a plugin with the same name already exists
-    /// or if initialization fails.
-    pub async fn register(&self, plugin: impl Plugin + 'static) -> Result<(), PluginError> {
+    /// Register a new plugin. Calls on_init; rolls back on failure.
+    pub async fn register<P: Plugin + 'static>(&self, mut plugin: P) -> Result<(), PluginError> {
         let name = plugin.name().to_string();
-        let version = plugin.version().to_string();
-        let plugin = Arc::new(plugin);
 
-        {
-            let mut plugins = self.plugins.write().await;
-            if plugins.contains_key(&name) {
-                return Err(PluginError::AlreadyRegistered(name));
-            }
-            plugins.insert(name.clone(), plugin.clone());
+        if self.plugins.read().await.contains_key(&name) {
+            return Err(PluginError::InitFailed(format!("Plugin '{}' already registered", name)));
         }
 
-        // Initialize with error isolation
-        if let Err(e) = plugin.on_init().await {
-            warn!("Plugin '{}' init failed, removing: {}", name, e);
-            self.plugins.write().await.remove(&name);
-            return Err(PluginError::InitFailed {
-                name,
-                reason: e.to_string(),
-            });
-        }
+        plugin.on_init().await.map_err(|e| {
+            PluginError::InitFailed(format!("Plugin '{}' init failed: {}", name, e))
+        })?;
 
-        info!(plugin = %name, version = %version, "Plugin registered");
+        info!(plugin = %name, version = plugin.version(), "Plugin registered");
+        self.plugins.write().await.insert(name, Arc::new(plugin));
         Ok(())
     }
 
-    /// Unregister a plugin. Calls teardown before removal.
+    /// Unregister a plugin by name
     pub async fn unregister(&self, name: &str) -> Result<(), PluginError> {
-        let plugin = {
-            let mut plugins = self.plugins.write().await;
-            plugins.remove(name).ok_or_else(|| PluginError::NotFound(name.to_string()))?
-        };
-
-        if let Err(e) = plugin.on_teardown().await {
-            warn!("Plugin '{}' teardown failed: {}", name, e);
-            // Still considered unregistered even if teardown fails
+        let mut plugins = self.plugins.write().await;
+        if let Some(plugin) = plugins.remove(name) {
+            // Note: on_teardown would need mut access; skip for Arc safety
+            info!(plugin = %name, "Plugin unregistered");
+            Ok(())
+        } else {
+            Err(PluginError::NotFound(name.to_string()))
         }
-
-        info!(plugin = %name, "Plugin unregistered");
-        Ok(())
     }
 
-    /// List registered plugin names.
+    /// List registered plugin names
     pub async fn list_plugins(&self) -> Vec<String> {
         self.plugins.read().await.keys().cloned().collect()
     }
 
-    /// Dispatch a message to all plugins' `on_message` hook.
-    ///
-    /// Errors are logged and isolated — one failing plugin does not
-    /// prevent others from running.
-    pub async fn dispatch_message(&self, message: &mut Message) {
+    /// Dispatch a message through all plugins (error-isolated)
+    pub async fn dispatch_message(&self, message: &mut crate::plugin::Message) {
         let plugins = self.plugins.read().await;
         for (name, plugin) in plugins.iter() {
             if let Err(e) = plugin.on_message(message) {
-                warn!(plugin = %name, error = %e, "Plugin on_message failed");
+                warn!(plugin = %name, error = %e, "Plugin message hook failed");
             }
         }
     }
 
-    /// Dispatch a member join event to all plugins.
-    pub async fn dispatch_member_join(&self, member: &Member) {
+    /// Dispatch member join event
+    pub async fn dispatch_member_join(&self, member: &Member, room_id: &str) {
         let plugins = self.plugins.read().await;
         for (name, plugin) in plugins.iter() {
-            if let Err(e) = plugin.on_member_join(member) {
-                warn!(plugin = %name, error = %e, "Plugin on_member_join failed");
+            if let Err(e) = plugin.on_member_join(member, room_id) {
+                warn!(plugin = %name, error = %e, "Plugin member_join hook failed");
             }
         }
     }
 
-    /// Dispatch a member leave event to all plugins.
-    pub async fn dispatch_member_leave(&self, member: &Member) {
+    /// Dispatch member leave event
+    pub async fn dispatch_member_leave(&self, member: &Member, room_id: &str) {
         let plugins = self.plugins.read().await;
         for (name, plugin) in plugins.iter() {
-            if let Err(e) = plugin.on_member_leave(member) {
-                warn!(plugin = %name, error = %e, "Plugin on_member_leave failed");
+            if let Err(e) = plugin.on_member_leave(member, room_id) {
+                warn!(plugin = %name, error = %e, "Plugin member_leave hook failed");
             }
         }
     }
 
-    /// Dispatch a command to all plugins. Returns the first non-None response.
-    pub async fn dispatch_command(&self, cmd: &Command) -> Option<Response> {
+    /// Dispatch a command. Returns first non-None response.
+    pub async fn dispatch_command(&self, command: &Command) -> Result<Option<Response>, PluginError> {
         let plugins = self.plugins.read().await;
         for (name, plugin) in plugins.iter() {
-            match plugin.on_command(cmd) {
-                Ok(Some(response)) => return Some(response),
+            match plugin.on_command(command) {
+                Ok(Some(response)) => return Ok(Some(response)),
                 Ok(None) => continue,
                 Err(e) => {
-                    warn!(plugin = %name, error = %e, "Plugin on_command failed");
+                    warn!(plugin = %name, error = %e, "Plugin command hook failed");
                 }
-            }
-        }
-        None
-    }
-
-    /// Run message filters in order. Returns an error if any filter rejects.
-    pub async fn run_message_filters(
-        &self,
-        filters: &[&dyn MessageFilter],
-        message: &mut Message,
-    ) -> Result<(), PluginError> {
-        for filter in filters {
-            filter.filter(message).await?;
-        }
-        Ok(())
-    }
-
-    /// Run command handlers. Returns the first response.
-    pub async fn run_command_handlers(
-        &self,
-        handlers: &[&dyn CommandHandler],
-        cmd: &Command,
-    ) -> Result<Option<Response>, PluginError> {
-        for handler in handlers {
-            if handler.command_name() == cmd.name {
-                return handler.handle(cmd).await;
             }
         }
         Ok(None)
