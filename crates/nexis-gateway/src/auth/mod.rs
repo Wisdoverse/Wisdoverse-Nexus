@@ -141,6 +141,13 @@ pub struct AuthenticatedUser {
     pub tenant_context: Option<TenantContext>,
 }
 
+impl AuthenticatedUser {
+    /// Alias for member_id for convenience
+    pub fn user_id(&self) -> &str {
+        &self.member_id
+    }
+}
+
 #[async_trait::async_trait]
 impl<S> FromRequestParts<S> for AuthenticatedUser
 where

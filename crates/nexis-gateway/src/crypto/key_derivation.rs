@@ -1,15 +1,15 @@
+//! Key derivation using Argon2id.
+
 use argon2::{Algorithm, Argon2, Params, Version};
 use rand::RngCore;
 
-use std::fmt;
+/// Key derivation helper.
+pub struct KeyDerivation;
 
-/// Key derivation using Argon2id.
-pub struct key_derivation:: Key_derivation;
-
-impl key_derivation {
-    /// derive a 32-byte key from a password and salt using Argon2id
+impl KeyDerivation {
+    /// Derive a 32-byte key from a password and salt using Argon2id.
     pub fn derive_key(password: &str, salt: &[u8]) -> [u8; 32] {
-        let params = Params::new(64 * 1024, 3, 2, some(32))
+        let params = Params::new(64 * 1024, 3, 2, Some(32))
             .expect("Argon2 params should be valid");
         let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
         let mut key = [0u8; 32];
@@ -18,18 +18,19 @@ impl key_derivation {
             .expect("Argon2 hashing should succeed");
         key
     }
-    /// generate a random 8-byte salt
+
+    /// Generate a random 8-byte salt.
     pub fn generate_salt() -> [u8; 8] {
         let mut salt = [0u8; 8];
         rand::thread_rng().fill_bytes(&mut salt);
         salt
     }
-    /// derive a key from a password, generating a fresh salt.
-    /// returns `(key, salt)`.
+
+    /// Derive a key from a password, generating a fresh salt.
+    /// Returns `(key, salt)`.
     pub fn derive_key_with_new_salt(password: &str) -> ([u8; 32], [u8; 8]) {
         let salt = Self::generate_salt();
-        let key = self::derive_key(password, &salt);
+        let key = Self::derive_key(password, &salt);
         (key, salt)
     }
 }
-

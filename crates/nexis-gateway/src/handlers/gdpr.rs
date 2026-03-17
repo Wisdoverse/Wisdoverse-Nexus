@@ -22,7 +22,7 @@ use uuid::Uuid;
 
 use crate::auth::AuthenticatedUser;
 use crate::metrics::{OPERATION_ERRORS_TOTAL, OPERATION_LATENCY, OPERATION_THROUGHPUT_TOTAL};
-use crate::router::AppState;
+use crate::router::{AppState, StoredMessage};
 
 // ── Response / request types ─────────────────────────────────────────
 
@@ -105,19 +105,19 @@ fn record_err(op: &str, kind: &str, t: std::time::Instant) {
 
 // ── GET /v1/members/me/export ───────────────────────────────────────
 
-#[instrument(name = "gdpr.export_data", skip(state, user), fields(member_id = %user.user_id))]
-pub async fn export_data(
+#[instrument(name = "gdpr.export_data", skip(state, user), fields(member_id = %user.member_id))]
+pub(crate) async fn export_data(
     State(state): State<AppState>,
     user: AuthenticatedUser,
 ) -> Response {
     let t = std::time::Instant::now();
-    let uid = user.user_id.to_string();
+    let uid = user.member_id.clone();
 
     // Collect messages authored by this member across all rooms.
     let messages: Vec<MessageExportData> = {
-        let msgs = state.room_messages.read().await;
+        let msgs = state.room_messages().read().await;
         msgs.iter()
-            .flat_map(|(room_id, list)| {
+            .flat_map(|(room_id, list): (&String, &Vec<StoredMessage>)| {
                 list.iter()
                     .filter(|m| m.sender == uid)
                     .map(|m| MessageExportData {
@@ -132,7 +132,7 @@ pub async fn export_data(
 
     // Collect rooms created by this member.
     let rooms: Vec<RoomExportData> = {
-        let rooms = state.rooms.read().await;
+        let rooms = state.rooms().read().await;
         rooms
             .values()
             .filter(|r| r.id.contains(&uid.replace('-', "")))
@@ -164,14 +164,14 @@ pub async fn export_data(
 
 // ── DELETE /v1/members/me ───────────────────────────────────────────
 
-#[instrument(name = "gdpr.delete_data", skip(state, user, body), fields(member_id = %user.user_id))]
-pub async fn delete_data(
+#[instrument(name = "gdpr.delete_data", skip(state, user, body), fields(member_id = %user.member_id))]
+pub(crate) async fn delete_data(
     State(state): State<AppState>,
     user: AuthenticatedUser,
     Json(body): Json<DeletionRequest>,
 ) -> Response {
     let t = std::time::Instant::now();
-    let uid = user.user_id.to_string();
+    let uid = user.member_id.clone();
 
     if !body.confirm {
         record_err("gdpr_delete", "validation", t);
@@ -193,7 +193,7 @@ pub async fn delete_data(
     // ── 1. Anonymize messages (soft-delete: keep metadata, scrub content) ──
     let mut message_count = 0i64;
     {
-        let mut msgs = state.room_messages.write().await;
+        let mut msgs = state.room_messages().write().await;
         for list in msgs.values_mut() {
             for msg in list.iter_mut() {
                 if msg.sender == uid {
@@ -207,7 +207,7 @@ pub async fn delete_data(
 
     // ── 2. Remove member from room rosters ──
     {
-        let mut members = state.room_members.write().await;
+        let mut members = state.room_members().write().await;
         for list in members.values_mut() {
             if let Some(pos) = list.iter().position(|m| m == &uid) {
                 list.remove(pos);
@@ -217,7 +217,7 @@ pub async fn delete_data(
 
     // ── 3. Identify and soft-delete rooms created by this member ──
     let to_remove: Vec<String> = {
-        let rooms = state.rooms.read().await;
+        let rooms = state.rooms().read().await;
         rooms
             .keys()
             .filter(|id| id.contains(&uid.replace('-', "")))
@@ -228,14 +228,14 @@ pub async fn delete_data(
 
     // Drop read lock before acquiring write locks (avoid deadlock)
     {
-        let mut rooms = state.rooms.write().await;
+        let mut rooms = state.rooms().write().await;
         for id in &to_remove {
             rooms.remove(id);
         }
     }
     {
-        let mut msgs = state.room_messages.write().await;
-        let mut mems = state.room_members.write().await;
+        let mut msgs = state.room_messages().write().await;
+        let mut mems = state.room_members().write().await;
         for id in &to_remove {
             msgs.remove(id);
             mems.remove(id);

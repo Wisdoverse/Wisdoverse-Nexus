@@ -57,6 +57,27 @@ impl Default for AppState {
 }
 
 impl AppState {
+    pub fn rooms(&self) -> &Arc<RwLock<HashMap<String, Room>>> {
+        &self.rooms
+    }
+    pub fn room_messages(&self) -> &Arc<RwLock<HashMap<String, Vec<StoredMessage>>>> {
+        &self.room_messages
+    }
+    pub fn room_members(&self) -> &Arc<RwLock<HashMap<String, Vec<String>>>> {
+        &self.room_members
+    }
+    #[allow(dead_code)]
+    pub fn write_gate(&self) -> &Arc<Semaphore> {
+        &self.write_gate
+    }
+    #[allow(dead_code)]
+    pub fn encryption(&self) -> &Option<DataEncryption> {
+        &self.encryption
+    }
+    #[allow(dead_code)]
+    pub fn search_service(&self) -> &Option<Arc<dyn SearchService>> {
+        &self.search_service
+    }
     fn with_search_service(mut self, service: Arc<dyn SearchService>) -> Self {
         self.search_service = Some(service);
         self
@@ -69,10 +90,10 @@ const OPENAPI_JSON: &str = include_str!("openapi.json");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct Room {
-    id: String,
-    name: String,
+    pub(crate) id: String,
+    pub(crate) name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    topic: Option<String>,
+    pub(crate) topic: Option<String>,
     #[cfg(feature = "multi-tenant")]
     #[serde(skip_serializing_if = "Option::is_none")]
     tenant_id: Option<String>,
@@ -90,7 +111,7 @@ struct CreateRoomRequest {
 
 #[derive(Debug, Clone, Serialize)]
 struct CreateRoomResponse {
-    id: String,
+    pub(crate) id: String,
     name: String,
 }
 
@@ -106,21 +127,21 @@ struct SendMessageRequest {
 
 #[derive(Debug, Clone, Serialize)]
 struct SendMessageResponse {
-    id: String,
+    pub(crate) id: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct StoredMessage {
-    id: String,
-    sender: String,
-    text: String,
+    pub(crate) id: String,
+    pub(crate) sender: String,
+    pub(crate) text: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    reply_to: Option<String>,
+    pub(crate) reply_to: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 struct RoomInfoResponse {
-    id: String,
+    pub(crate) id: String,
     name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     topic: Option<String>,
@@ -150,7 +171,7 @@ struct ListRoomsResponse {
 
 #[derive(Debug, Clone, Serialize)]
 struct RoomSummary {
-    id: String,
+    pub(crate) id: String,
     name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     topic: Option<String>,
@@ -433,7 +454,7 @@ async fn websocket_handler(
     ws: WebSocketUpgrade,
     Query(query): Query<WebSocketAuthQuery>,
 ) -> Response {
-    use crate::connection::AUTH_TIMEOUT_SECS;
+    
     
     // Check for deprecated token in query parameter
     let legacy_token = query.token;
@@ -929,8 +950,7 @@ async fn delete_room(
 /// Handle WebSocket connection
 async fn handle_socket(socket: WebSocket, legacy_token: Option<String>) {
     use crate::connection::{
-        parse_client_message, serialize_server_message, create_auth_timeout_message,
-        ClientMessage, ServerMessage, ConnectionState, WebSocketAuthenticator, MessageResult, AUTH_TIMEOUT,
+        parse_client_message, serialize_server_message, create_auth_timeout_message, ServerMessage, ConnectionState, WebSocketAuthenticator, MessageResult, AUTH_TIMEOUT,
     };
     use futures::{SinkExt, StreamExt};
     use tokio::time::timeout;
@@ -940,7 +960,7 @@ async fn handle_socket(socket: WebSocket, legacy_token: Option<String>) {
     let (tx, mut rx) = mpsc::channel::<Message>(256);
 
     // If legacy token is provided, pre-authenticate
-    let mut state = if let Some(token) = legacy_token {
+    let state = if let Some(token) = legacy_token {
         // Attempt to authenticate with the legacy token
         match authenticator.verify_token(&token) {
             Ok(claims) => {
@@ -983,8 +1003,13 @@ async fn handle_socket(socket: WebSocket, legacy_token: Option<String>) {
         }
     });
 
+    // Save initial auth state before async block captures it mutably
+    let was_unauthenticated = state == ConnectionState::Unauthenticated;
+    
     // Authentication timeout - wrap the entire message loop
-    let auth_timeout_future = async {
+    let tx_timeout = tx.clone();
+    let auth_timeout_future = async move {
+        let mut conn_state = state;
         while let Some(msg) = receiver.next().await {
             match msg {
                 Ok(Message::Text(text)) => {
@@ -994,11 +1019,11 @@ async fn handle_socket(socket: WebSocket, legacy_token: Option<String>) {
                     match parse_client_message(&text) {
                         Ok(client_msg) => {
                             
-                            match authenticator.process_message(state, &client_msg) {
+                            match authenticator.process_message(conn_state, &client_msg) {
                                 MessageResult::Response(server_msg) => {
                                     // Check if this was a successful auth
                                     if let ServerMessage::AuthSuccess { .. } = &server_msg {
-                                        state = ConnectionState::Authenticated;
+                                        conn_state = ConnectionState::Authenticated;
                                     }
                                     
                                     if let Ok(json) = serialize_server_message(&server_msg) {
@@ -1012,7 +1037,7 @@ async fn handle_socket(socket: WebSocket, legacy_token: Option<String>) {
                                         member_id = %session.member_id,
                                         "WebSocket authenticated"
                                     );
-                                    state = ConnectionState::Authenticated;
+                                    conn_state = ConnectionState::Authenticated;
                                 }
                                 MessageResult::CloseConnection => {
                                     tracing::debug!("Closing connection by request");
@@ -1047,19 +1072,20 @@ async fn handle_socket(socket: WebSocket, legacy_token: Option<String>) {
                 _ => {}
             }
         }
+        conn_state
     };
 
     // Apply timeout only if not already authenticated via legacy token
-    if state == ConnectionState::Unauthenticated {
+    if was_unauthenticated {
         match timeout(AUTH_TIMEOUT, auth_timeout_future).await {
-            Ok(()) => {
+            Ok(_final_state) => {
                 // Connection closed normally
             }
             Err(_) => {
                 // Timeout - send error and close
                 tracing::warn!("WebSocket authentication timeout");
-                let _ = tx.send(Message::Text(create_auth_timeout_message())).await;
-                let _ = tx.send(Message::Close(None)).await;
+                let _ = tx_timeout.send(Message::Text(create_auth_timeout_message())).await;
+                let _ = tx_timeout.send(Message::Close(None)).await;
             }
         }
     } else {

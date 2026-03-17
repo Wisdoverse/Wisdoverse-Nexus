@@ -3,10 +3,8 @@
 //! Implements first-message authentication pattern for WebSocket connections.
 //! This module ensures tokens are never exposed in query parameters or logs.
 
-use axum::extract::ws::Message;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use tokio::time::timeout;
 
 use crate::auth::{AuthError, JwtConfig};
 

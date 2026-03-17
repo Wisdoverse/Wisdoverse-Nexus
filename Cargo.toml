@@ -148,6 +148,4 @@ similar_names = "allow"
 struct_excessive_bools = "allow"
 cargo_common_metadata = "allow"
 
-[[example]]
-name = "plugins/hello_world"
-path = "examples/plugins/hello_world.rs"
+# Examples are in member crates
