@@ -260,6 +260,7 @@ pub fn create_text_layer() -> impl Layer<tracing_subscriber::Registry> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
 
     #[test]
     fn log_format_parsing() {

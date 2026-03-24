@@ -319,7 +319,7 @@ mod tests {
         });
 
         let id1 = room.try_join_room().unwrap();
-        let id2 = room.try_join_room().unwrap();
+        let _id2 = room.try_join_room().unwrap();
 
         // At capacity
         let r3 = room.try_join_room();

@@ -537,18 +537,18 @@ mod tests {
         let manager = ShardedConnectionManager::new();
 
         // Add a connection
-        let id = manager.add_connection("alice".to_string()).await;
+        let _id = manager.add_connection("alice".to_string()).await;
         assert_eq!(manager.connection_count(), 1);
 
         // Cleanup with 0 seconds should remove all (since we can't mock time easily,
         // we test that the method runs without error)
         // In real usage, connections with old heartbeats would be removed
-        let removed = manager.cleanup_stale(0).await;
+        let _removed = manager.cleanup_stale(0).await;
         // With 0 threshold, connections might not be removed instantly due to timing
         // The important thing is the method runs correctly
 
         // Cleanup with a very long threshold should remove nothing
-        let id2 = manager.add_connection("bob".to_string()).await;
+        let _id2 = manager.add_connection("bob".to_string()).await;
         let removed = manager.cleanup_stale(86400).await; // 24 hours
         assert_eq!(removed, 0);
         assert_eq!(manager.connection_count(), 2);
@@ -647,9 +647,10 @@ mod tests {
         let manager = ShardedConnectionManager::with_max_connections(5);
 
         // Fill to exact capacity
-        let ids: Vec<_> = (0..5)
-            .map(|i| manager.add_connection(format!("user_{}", i)).await)
-            .collect();
+        let mut ids = Vec::new();
+        for i in 0..5 {
+            ids.push(manager.add_connection(format!("user_{}", i)).await);
+        }
 
         assert_eq!(manager.connection_count(), 5);
 
@@ -737,9 +738,10 @@ mod tests {
         let manager = ShardedConnectionManager::with_max_connections(100);
 
         // Add 50 connections
-        let ids: Vec<_> = (0..50)
-            .map(|i| manager.add_connection(format!("user_{}", i)).await)
-            .collect();
+        let mut ids = Vec::new();
+        for i in 0..50 {
+            ids.push(manager.add_connection(format!("user_{}", i)).await);
+        }
 
         assert_eq!(manager.peak_connection_count(), 50);
 

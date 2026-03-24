@@ -18,6 +18,12 @@ pub enum ContextError {
 
     #[error("Unauthorized")]
     Unauthorized,
+
+    #[error("Context window is full")]
+    WindowFull,
+
+    #[error("Summarization not available")]
+    SummarizationNotAvailable,
 }
 
 pub type ContextResult<T> = Result<T, ContextError>;

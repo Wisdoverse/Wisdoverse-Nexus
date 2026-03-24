@@ -17,7 +17,7 @@ fn auth_header() -> String {
     let token = jsonwebtoken::encode(
         &jsonwebtoken::Header::default(),
         &claims,
-        &jsonwebtoken::EncodingKey::from_secret("default_secret".as_bytes()),
+        &jsonwebtoken::EncodingKey::from_secret("dev_only_secret_change_in_production".as_bytes()),
     )
     .expect("encode test token");
     format!("Bearer {token}")

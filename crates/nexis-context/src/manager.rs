@@ -249,7 +249,7 @@ fn estimate_tokens(text: &str) -> usize {
         (char_count as f64 / 1.5).ceil() as usize
     } else {
         // ASCII/English: approximately 4 characters per token
-        (char_count / 4).max(1)
+        if char_count == 0 { 0 } else { (char_count / 4).max(1) }
     }
 }
 
@@ -469,12 +469,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_window_one_over() {
-        let window = ContextWindow::new(10); // Very small
+        let window = ContextWindow::new(10).with_reserved_tokens(0); // Very small
         let manager = ContextManager::new(window);
         let id = manager.create_context(None).await.unwrap();
 
         // Add a message that barely overflows
-        let msg = Message::user("This message is longer than ten tokens would allow");
+        let msg = Message::user("This message is longer than ten tokens would allow".to_string());
         manager.add_message(id, msg).await.unwrap();
 
         let context = manager.get_context(id).await.unwrap();
@@ -488,8 +488,8 @@ mod tests {
         let manager = ContextManager::new(window);
         let id = manager.create_context(None).await.unwrap();
 
-        let msg = Message::user("test");
-        let result = manager.add_message(id, msg).await;
+        let msg = Message::user("test".to_string());
+        let _result = manager.add_message(id, msg).await;
 
         // Should either fail or handle gracefully
         // Depending on implementation, might truncate or error
@@ -532,17 +532,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_window_overflow_strategy_fail() {
-        let window = ContextWindow::new(10).with_overflow_strategy(OverflowStrategy::Fail);
+        let window = ContextWindow::new(10).with_reserved_tokens(0).with_overflow_strategy(OverflowStrategy::Fail);
         let manager = ContextManager::new(window);
         let id = manager.create_context(None).await.unwrap();
 
         // First message should fit
-        let msg1 = Message::user("short");
+        let msg1 = Message::user("short".to_string());
         let result1 = manager.add_message(id, msg1).await;
         assert!(result1.is_ok());
 
         // Large message should fail with Fail strategy
-        let msg2 = Message::user("This is a very long message that will overflow");
+        let msg2 = Message::user("This is a very long message that will overflow".to_string());
         let result2 = manager.add_message(id, msg2).await;
         assert!(result2.is_err());
     }
@@ -570,7 +570,7 @@ mod tests {
         let manager = ContextManager::new(ContextWindow::default());
         let fake_id = Uuid::new_v4();
 
-        let msg = Message::user("test");
+        let msg = Message::user("test".to_string());
         let result = manager.add_message(fake_id, msg).await;
         assert!(result.is_err());
     }

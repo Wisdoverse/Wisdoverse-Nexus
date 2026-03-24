@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use async_trait::async_trait;
 use tracing::{info, warn};
 
 use crate::error::PluginError;
@@ -39,7 +38,7 @@ impl PluginManager {
     /// Unregister a plugin by name
     pub async fn unregister(&self, name: &str) -> Result<(), PluginError> {
         let mut plugins = self.plugins.write().await;
-        if let Some(plugin) = plugins.remove(name) {
+        if let Some(_plugin) = plugins.remove(name) {
             // Note: on_teardown would need mut access; skip for Arc safety
             info!(plugin = %name, "Plugin unregistered");
             Ok(())
