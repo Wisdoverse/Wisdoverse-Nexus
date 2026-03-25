@@ -9,8 +9,7 @@ pub struct KeyDerivation;
 impl KeyDerivation {
     /// Derive a 32-byte key from a password and salt using Argon2id.
     pub fn derive_key(password: &str, salt: &[u8]) -> [u8; 32] {
-        let params = Params::new(64 * 1024, 3, 2, Some(32))
-            .expect("Argon2 params should be valid");
+        let params = Params::new(64 * 1024, 3, 2, Some(32)).expect("Argon2 params should be valid");
         let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
         let mut key = [0u8; 32];
         argon2

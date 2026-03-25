@@ -50,8 +50,7 @@ impl AISummarizer {
             return Ok(Summary::new("No messages to summarize.".to_string()));
         }
 
-        let participants: Vec<String> =
-            messages.iter().map(|m| m.sender_name.clone()).collect();
+        let participants: Vec<String> = messages.iter().map(|m| m.sender_name.clone()).collect();
         let unique_participants: Vec<String> = participants
             .into_iter()
             .collect::<std::collections::HashSet<_>>()
@@ -86,9 +85,12 @@ impl AISummarizer {
         );
 
         match self.ai_provider.complete(&prompt).await {
-            Ok(response) => {
-                self.parse_meeting_notes_response(&response, &meeting.title, &meeting.participants, duration_minutes)
-            }
+            Ok(response) => self.parse_meeting_notes_response(
+                &response,
+                &meeting.title,
+                &meeting.participants,
+                duration_minutes,
+            ),
             Err(e) => {
                 warn!("Meeting notes generation failed: {}", e);
                 Err(ContextError::SummarizationFailed(e.to_string()))
@@ -128,7 +130,14 @@ Based on the conversation history above, provide a clear and accurate answer to 
     fn format_messages_for_summary(&self, messages: &[Message]) -> String {
         messages
             .iter()
-            .map(|m| format!("[{}] {}: {}", m.timestamp.format("%H:%M"), m.sender_name, m.content))
+            .map(|m| {
+                format!(
+                    "[{}] {}: {}",
+                    m.timestamp.format("%H:%M"),
+                    m.sender_name,
+                    m.content
+                )
+            })
             .collect::<Vec<_>>()
             .join("\n")
     }
@@ -186,7 +195,10 @@ Output ONLY valid JSON, no markdown formatting."#,
             .map(|a| {
                 format!(
                     "\nAGENDA:\n{}",
-                    a.iter().map(|i| format!("- {}", i)).collect::<Vec<_>>().join("\n")
+                    a.iter()
+                        .map(|i| format!("- {}", i))
+                        .collect::<Vec<_>>()
+                        .join("\n")
                 )
             })
             .unwrap_or_default();

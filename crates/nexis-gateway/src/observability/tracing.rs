@@ -109,8 +109,8 @@ impl TracingConfig {
             ));
         }
 
-        let service_name = std::env::var("OTEL_SERVICE_NAME")
-            .unwrap_or_else(|_| "nexis-gateway".to_string());
+        let service_name =
+            std::env::var("OTEL_SERVICE_NAME").unwrap_or_else(|_| "nexis-gateway".to_string());
 
         Ok(Self {
             exporter,
@@ -163,9 +163,10 @@ pub fn init_tracing_with_config(config: TracingConfig) -> Result<()> {
             Ok(())
         }
         ExporterType::Otlp => {
-            let endpoint = config.endpoint.as_ref().ok_or_else(|| {
-                anyhow!("OTLP exporter requires an endpoint")
-            })?;
+            let endpoint = config
+                .endpoint
+                .as_ref()
+                .ok_or_else(|| anyhow!("OTLP exporter requires an endpoint"))?;
 
             init_otlp_exporter(endpoint, &config.service_name)?;
 
@@ -338,8 +339,14 @@ mod tests {
     fn exporter_type_parsing() {
         assert_eq!(ExporterType::from_str("otlp").unwrap(), ExporterType::Otlp);
         assert_eq!(ExporterType::from_str("OTLP").unwrap(), ExporterType::Otlp);
-        assert_eq!(ExporterType::from_str("stdout").unwrap(), ExporterType::Stdout);
-        assert_eq!(ExporterType::from_str("STDOUT").unwrap(), ExporterType::Stdout);
+        assert_eq!(
+            ExporterType::from_str("stdout").unwrap(),
+            ExporterType::Stdout
+        );
+        assert_eq!(
+            ExporterType::from_str("STDOUT").unwrap(),
+            ExporterType::Stdout
+        );
         assert_eq!(ExporterType::from_str("none").unwrap(), ExporterType::None);
         assert_eq!(ExporterType::from_str("NONE").unwrap(), ExporterType::None);
         assert!(ExporterType::from_str("invalid").is_err());

@@ -157,7 +157,10 @@ async fn security_headers_middleware(request: Request<axum::body::Body>, next: N
         "cross-origin-resource-policy",
         HeaderValue::from_static("same-origin"),
     );
-    headers.insert("referrer-policy", HeaderValue::from_static("strict-origin-when-cross-origin"));
+    headers.insert(
+        "referrer-policy",
+        HeaderValue::from_static("strict-origin-when-cross-origin"),
+    );
     headers.insert(
         "permissions-policy",
         HeaderValue::from_static("camera=(), microphone=(), geolocation=()"),

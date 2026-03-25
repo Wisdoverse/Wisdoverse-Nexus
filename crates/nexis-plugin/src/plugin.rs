@@ -1,6 +1,6 @@
+use crate::error::PluginError;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use crate::error::PluginError;
 
 /// A message flowing through the system
 #[derive(Debug, Clone, Serialize, Deserialize)]

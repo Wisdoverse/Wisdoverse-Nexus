@@ -42,8 +42,8 @@ pub struct DataEncryption {
 impl DataEncryption {
     /// Create a new encryption instance from a 32-byte key.
     pub fn new(key: &[u8; 32]) -> Self {
-        let cipher = Aes256Gcm::new_from_slice(key)
-            .expect("Aes256Gcm accepts exactly 32-byte keys");
+        let cipher =
+            Aes256Gcm::new_from_slice(key).expect("Aes256Gcm accepts exactly 32-byte keys");
         Self { cipher }
     }
 

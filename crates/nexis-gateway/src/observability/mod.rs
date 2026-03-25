@@ -40,7 +40,7 @@ pub mod tracing;
 pub use logging::{init_logging, LoggingConfig};
 
 #[cfg(feature = "otel")]
-pub use tracing::{init_tracing, TracingConfig, shutdown_tracing};
+pub use tracing::{init_tracing, shutdown_tracing, TracingConfig};
 
 /// Initialize observability with default configuration.
 ///

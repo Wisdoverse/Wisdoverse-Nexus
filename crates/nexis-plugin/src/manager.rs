@@ -4,7 +4,7 @@ use tokio::sync::RwLock;
 use tracing::{info, warn};
 
 use crate::error::PluginError;
-use crate::plugin::{Plugin, Command, Member, Response};
+use crate::plugin::{Command, Member, Plugin, Response};
 
 /// Manages plugin lifecycle, registration, and dispatch
 pub struct PluginManager {
@@ -23,7 +23,10 @@ impl PluginManager {
         let name = plugin.name().to_string();
 
         if self.plugins.read().await.contains_key(&name) {
-            return Err(PluginError::InitFailed(format!("Plugin '{}' already registered", name)));
+            return Err(PluginError::InitFailed(format!(
+                "Plugin '{}' already registered",
+                name
+            )));
         }
 
         plugin.on_init().await.map_err(|e| {
@@ -83,7 +86,10 @@ impl PluginManager {
     }
 
     /// Dispatch a command. Returns first non-None response.
-    pub async fn dispatch_command(&self, command: &Command) -> Result<Option<Response>, PluginError> {
+    pub async fn dispatch_command(
+        &self,
+        command: &Command,
+    ) -> Result<Option<Response>, PluginError> {
         let plugins = self.plugins.read().await;
         for (name, plugin) in plugins.iter() {
             match plugin.on_command(command) {

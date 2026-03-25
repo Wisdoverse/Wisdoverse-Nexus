@@ -18,11 +18,7 @@
 //! to correlate log entries across a request lifecycle.
 
 use anyhow::{anyhow, Result};
-use tracing_subscriber::{
-    layer::SubscriberExt,
-    util::SubscriberInitExt,
-    EnvFilter, Layer,
-};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
 
 /// Log output format configuration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

@@ -429,8 +429,7 @@ mod tests {
         room.join_room();
         let result = room.try_join_room();
 
-        if let Err(crate::error::MeetingError::RoomCapacityExceeded { max_participants }) = result
-        {
+        if let Err(crate::error::MeetingError::RoomCapacityExceeded { max_participants }) = result {
             assert_eq!(max_participants, 1);
         } else {
             panic!("Expected RoomCapacityExceeded error");

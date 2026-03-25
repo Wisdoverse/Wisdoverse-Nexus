@@ -223,8 +223,9 @@ impl WebSocketAuthenticator {
                     _ => {
                         // Any message other than Auth before authentication
                         MessageResult::Response(ServerMessage::AuthRequired {
-                            message: "Authentication required. Please send an 'auth' message first."
-                                .to_string(),
+                            message:
+                                "Authentication required. Please send an 'auth' message first."
+                                    .to_string(),
                         })
                     }
                 }
@@ -265,9 +266,13 @@ pub fn serialize_server_message(message: &ServerMessage) -> Result<String, serde
 /// Create a close message with reason
 pub fn create_auth_timeout_message() -> String {
     serde_json::to_string(&ServerMessage::AuthError {
-        message: format!("Authentication timeout. Connection must authenticate within {} seconds.", AUTH_TIMEOUT_SECS),
+        message: format!(
+            "Authentication timeout. Connection must authenticate within {} seconds.",
+            AUTH_TIMEOUT_SECS
+        ),
         code: Some("AUTH_TIMEOUT".to_string()),
-    }).unwrap_or_else(|_| r#"{"type":"auth_error","message":"Authentication timeout"}"#.to_string())
+    })
+    .unwrap_or_else(|_| r#"{"type":"auth_error","message":"Authentication timeout"}"#.to_string())
 }
 
 #[cfg(test)]
@@ -276,7 +281,11 @@ mod tests {
     use crate::auth::JwtConfig;
 
     fn test_config() -> JwtConfig {
-        JwtConfig::new("test_secret_key", "nexis-test".to_string(), "nexis".to_string())
+        JwtConfig::new(
+            "test_secret_key",
+            "nexis-test".to_string(),
+            "nexis".to_string(),
+        )
     }
 
     fn test_authenticator() -> WebSocketAuthenticator {
@@ -333,13 +342,16 @@ mod tests {
     fn authenticator_validates_token() {
         let auth = test_authenticator();
         let token = test_config().generate_token("alice", "human").unwrap();
-        
+
         let msg = ClientMessage::Auth {
             token: format!("Bearer {}", token),
         };
 
         match auth.process_message(ConnectionState::Unauthenticated, &msg) {
-            MessageResult::Response(ServerMessage::AuthSuccess { member_id, member_type }) => {
+            MessageResult::Response(ServerMessage::AuthSuccess {
+                member_id,
+                member_type,
+            }) => {
                 assert_eq!(member_id, "alice");
                 assert_eq!(member_type, "human");
             }
@@ -374,7 +386,9 @@ mod tests {
     #[test]
     fn authenticated_state_heartbeat_returns_ack() {
         let auth = test_authenticator();
-        let msg = ClientMessage::Heartbeat { timestamp: Some(123) };
+        let msg = ClientMessage::Heartbeat {
+            timestamp: Some(123),
+        };
 
         match auth.process_message(ConnectionState::Authenticated, &msg) {
             MessageResult::Response(ServerMessage::HeartbeatAck { timestamp }) => {

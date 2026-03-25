@@ -169,20 +169,21 @@ impl TenantResolver {
     }
 
     /// Resolve tenant from request parts.
-    pub async fn resolve(&self, parts: &mut Parts) -> Result<ResolvedTenant, TenantResolutionError> {
+    pub async fn resolve(
+        &self,
+        parts: &mut Parts,
+    ) -> Result<ResolvedTenant, TenantResolutionError> {
         match self.config.strategy {
-            ResolutionStrategy::SubdomainFirst => {
-                self.from_subdomain(parts)
-                    .or_else(|_| self.from_header(parts))
-                    .or_else(|_| self.from_path(parts))
-                    .or_else(|_| self.from_query(parts))
-            }
-            ResolutionStrategy::HeaderFirst => {
-                self.from_header(parts)
-                    .or_else(|_| self.from_subdomain(parts))
-                    .or_else(|_| self.from_path(parts))
-                    .or_else(|_| self.from_query(parts))
-            }
+            ResolutionStrategy::SubdomainFirst => self
+                .from_subdomain(parts)
+                .or_else(|_| self.from_header(parts))
+                .or_else(|_| self.from_path(parts))
+                .or_else(|_| self.from_query(parts)),
+            ResolutionStrategy::HeaderFirst => self
+                .from_header(parts)
+                .or_else(|_| self.from_subdomain(parts))
+                .or_else(|_| self.from_path(parts))
+                .or_else(|_| self.from_query(parts)),
             ResolutionStrategy::ExplicitOnly => Err(TenantResolutionError::MissingTenant),
         }
     }
@@ -201,10 +202,11 @@ impl TenantResolver {
         // Extract subdomain
         if let Some(base_domain) = &self.config.base_domain {
             if host.ends_with(base_domain) {
-                let subdomain = host.strip_suffix(base_domain)
+                let subdomain = host
+                    .strip_suffix(base_domain)
                     .and_then(|s| s.strip_suffix('.'))
                     .filter(|s| !s.is_empty());
-                
+
                 if let Some(slug) = subdomain {
                     // Would need lookup to get ID; for now return slug
                     return Ok(ResolvedTenant {
@@ -269,17 +271,18 @@ impl TenantResolver {
     fn from_query(&self, parts: &Parts) -> Result<ResolvedTenant, TenantResolutionError> {
         let uri = &parts.uri;
         let query = uri.query().unwrap_or("");
-        
+
         // Parse query parameters manually
         for pair in query.split('&') {
-            if let Some(value) = pair.strip_prefix(&format!("{}=", self.config.tenant_query_param)) {
+            if let Some(value) = pair.strip_prefix(&format!("{}=", self.config.tenant_query_param))
+            {
                 let value = urlencoding_decode(value);
-                
+
                 // Try to parse as UUID first
                 if let Ok(id) = Uuid::parse_str(&value) {
                     return Ok(ResolvedTenant::from_id(id));
                 }
-                
+
                 // Otherwise treat as slug
                 return Ok(ResolvedTenant {
                     id: Uuid::nil(),
@@ -333,7 +336,7 @@ where
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let resolver = TenantResolver::from_ref(state);
         let tenant = resolver.resolve(parts).await?;
-        
+
         // Determine source based on what succeeded
         // This is simplified; in practice you'd track the source
         let source = TenantSource::Header; // Default assumption
@@ -365,7 +368,10 @@ impl InMemoryTenantStore {
     /// Look up a tenant by ID.
     pub fn get_by_id(&self, id: Uuid) -> Option<String> {
         let tenants = self.tenants.read().unwrap();
-        tenants.iter().find(|(i, _)| i == &id).map(|(_, s)| s.clone())
+        tenants
+            .iter()
+            .find(|(i, _)| i == &id)
+            .map(|(_, s)| s.clone())
     }
 
     /// Look up a tenant by slug.
@@ -378,11 +384,13 @@ impl InMemoryTenantStore {
 #[async_trait::async_trait]
 impl TenantLookup for InMemoryTenantStore {
     async fn lookup_by_id(&self, id: Uuid) -> Option<ResolvedTenant> {
-        self.get_by_id(id).map(|slug| ResolvedTenant::with_slug(id, slug))
+        self.get_by_id(id)
+            .map(|slug| ResolvedTenant::with_slug(id, slug))
     }
 
     async fn lookup_by_slug(&self, slug: &str) -> Option<ResolvedTenant> {
-        self.get_by_slug(slug).map(|id| ResolvedTenant::with_slug(id, slug))
+        self.get_by_slug(slug)
+            .map(|id| ResolvedTenant::with_slug(id, slug))
     }
 }
 

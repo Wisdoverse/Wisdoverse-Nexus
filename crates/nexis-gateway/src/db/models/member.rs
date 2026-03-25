@@ -72,11 +72,7 @@ pub struct Member {
 
 impl Member {
     /// Create a new member in a workspace.
-    pub fn new(
-        workspace_id: Uuid,
-        member_type: MemberType,
-        display_name: Option<String>,
-    ) -> Self {
+    pub fn new(workspace_id: Uuid, member_type: MemberType, display_name: Option<String>) -> Self {
         Self {
             id: Uuid::new_v4(),
             workspace_id,
@@ -157,7 +153,11 @@ pub mod repository {
         async fn create(&self, member: CreateMember) -> Result<Member, RepositoryError>;
 
         /// Get a member by ID within workspace scope.
-        async fn get(&self, workspace_id: Uuid, id: Uuid) -> Result<Option<Member>, RepositoryError>;
+        async fn get(
+            &self,
+            workspace_id: Uuid,
+            id: Uuid,
+        ) -> Result<Option<Member>, RepositoryError>;
 
         /// Get a member by external ID within workspace scope.
         async fn get_by_external_id(

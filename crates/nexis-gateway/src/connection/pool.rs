@@ -580,9 +580,7 @@ mod tests {
         let mut handles = vec![];
         for (_, id) in successful {
             let mgr = manager.clone();
-            handles.push(tokio::spawn(async move {
-                mgr.remove_connection(id).await
-            }));
+            handles.push(tokio::spawn(async move { mgr.remove_connection(id).await }));
         }
 
         futures::future::join_all(handles).await;
@@ -678,7 +676,9 @@ mod tests {
         assert_eq!(manager.connection_count(), 0);
 
         // Can add again after removal
-        let new_id = manager.try_add_connection("after_removal".to_string()).await;
+        let new_id = manager
+            .try_add_connection("after_removal".to_string())
+            .await;
         assert!(new_id.is_some());
     }
 
@@ -703,7 +703,9 @@ mod tests {
     async fn set_room_nonexistent_connection() {
         let manager = ShardedConnectionManager::new();
 
-        let result = manager.set_room(Uuid::nil(), Some("room".to_string())).await;
+        let result = manager
+            .set_room(Uuid::nil(), Some("room".to_string()))
+            .await;
         assert!(!result);
     }
 

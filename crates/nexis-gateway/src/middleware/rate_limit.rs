@@ -1,8 +1,6 @@
 //! Token-bucket rate limiting middleware.
 //!
-//! Protects API endpoints from abuse by enforcing per-client request limits.
-//! Clients are identified by IP address or an authenticated user ID extracted
-//! from the `X-User-Id` header.
+//! Protects API endpoints from abuse by enforcing per-IP request limits.
 
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::SystemTime;
@@ -15,7 +13,7 @@ use axum::{
 };
 use dashmap::DashMap;
 use lazy_static::lazy_static;
-use prometheus::{IntCounterVec, Registry};
+use prometheus::{IntCounterVec, Opts, Registry};
 use serde::Deserialize;
 
 // ---------------------------------------------------------------------------
@@ -24,16 +22,19 @@ use serde::Deserialize;
 
 lazy_static! {
     static ref RATE_LIMIT_TOTAL: IntCounterVec = IntCounterVec::new(
-        "nexis_rate_limit_total",
-        "Total number of rate limit checks performed",
-        &["client"]
+        Opts::new(
+            "nexis_rate_limit_total",
+            "Total number of rate limit checks performed"
+        ),
+        &["ip"]
     )
     .expect("failed to create nexis_rate_limit_total");
-
     static ref RATE_LIMIT_REJECTED_TOTAL: IntCounterVec = IntCounterVec::new(
-        "nexis_rate_limit_rejected_total",
-        "Total number of requests rejected by rate limiter",
-        &["client"]
+        Opts::new(
+            "nexis_rate_limit_rejected_total",
+            "Total number of requests rejected by rate limiter"
+        ),
+        &["ip"]
     )
     .expect("failed to create nexis_rate_limit_rejected_total");
 }
@@ -75,20 +76,16 @@ impl Default for RateLimitConfig {
 impl RateLimitConfig {
     /// Load configuration from environment variables with sensible defaults.
     ///
-    /// | Variable                | Default | Description              |
-    /// |-------------------------|---------|--------------------------|
-    /// | `NEXIS_RATE_LIMIT_MAX`  | `100`   | Max requests per window  |
-    /// | `NEXIS_RATE_LIMIT_WINDOW` | `60` | Window duration in seconds |
+    /// | Variable                | Default | Description                    |
+    /// |-------------------------|---------|--------------------------------|
+    /// | `NEXIS_RATE_LIMIT_RPM`  | `100`   | Requests per minute (per IP)   |
     pub fn from_env() -> Self {
-        let max_requests: u32 = std::env::var("NEXIS_RATE_LIMIT_MAX")
+        let max_requests: u32 = std::env::var("NEXIS_RATE_LIMIT_RPM")
             .ok()
             .and_then(|v| v.parse().ok())
             .unwrap_or(100);
 
-        let window_secs: u64 = std::env::var("NEXIS_RATE_LIMIT_WINDOW")
-            .ok()
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(60);
+        let window_secs: u64 = 60;
 
         // Burst defaults to max_requests so the bucket starts full.
         let burst_size = max_requests;
@@ -236,9 +233,7 @@ impl RateLimiter {
     /// Returns `Ok(())` if allowed, or `Err(RateLimitResponse)` with a 429
     /// payload including a `Retry-After` header.
     pub fn check(&self, client_key: &str) -> Result<(), RateLimitResponse> {
-        RATE_LIMIT_TOTAL
-            .with_label_values(&[client_key])
-            .inc();
+        RATE_LIMIT_TOTAL.with_label_values(&[client_key]).inc();
 
         let bucket = self
             .buckets
@@ -308,15 +303,10 @@ impl IntoResponse for RateLimitResponse {
 /// Extract a client identity from the request.
 ///
 /// Priority:
-/// 1. `X-User-Id` header (authenticated user)
-/// 2. `X-Forwarded-For` (first IP)
-/// 3. `X-Real-IP`
-/// 4. Fallback: `"unknown"`
+/// 1. `X-Forwarded-For` (first IP)
+/// 2. `X-Real-IP`
+/// 3. Fallback: `"unknown"`
 fn client_key(req: &Request) -> String {
-    if let Some(uid) = req.headers().get("X-User-Id").and_then(|v| v.to_str().ok()) {
-        return format!("user:{uid}");
-    }
-
     if let Some(forwarded) = req
         .headers()
         .get("X-Forwarded-For")
@@ -327,11 +317,7 @@ fn client_key(req: &Request) -> String {
         }
     }
 
-    if let Some(ip) = req
-        .headers()
-        .get("X-Real-IP")
-        .and_then(|v| v.to_str().ok())
-    {
+    if let Some(ip) = req.headers().get("X-Real-IP").and_then(|v| v.to_str().ok()) {
         return format!("ip:{ip}");
     }
 
@@ -439,13 +425,12 @@ mod tests {
     }
 
     #[test]
-    fn client_key_prefers_user_id() {
+    fn client_key_uses_forwarded_for_when_present() {
         let req = Request::builder()
-            .header("X-User-Id", "alice")
             .header("X-Forwarded-For", "1.2.3.4")
             .body(axum::body::Body::empty())
             .unwrap();
-        assert_eq!(client_key(&req), "user:alice");
+        assert_eq!(client_key(&req), "ip:1.2.3.4");
     }
 
     #[test]
@@ -459,9 +444,7 @@ mod tests {
 
     #[test]
     fn client_key_unknown_fallback() {
-        let req = Request::builder()
-            .body(axum::body::Body::empty())
-            .unwrap();
+        let req = Request::builder().body(axum::body::Body::empty()).unwrap();
         assert_eq!(client_key(&req), "ip:unknown");
     }
 }

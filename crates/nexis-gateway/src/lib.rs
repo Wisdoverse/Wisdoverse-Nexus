@@ -12,14 +12,16 @@
 pub mod auth;
 pub mod collaboration;
 pub mod connection;
+pub mod crypto;
 pub mod db;
 pub mod handlers;
 pub mod indexing;
 pub mod metrics;
-pub mod crypto;
 #[cfg(feature = "multi-tenant")]
 pub mod middleware;
 pub mod observability;
+#[path = "middleware/rate_limit.rs"]
+pub mod rate_limit;
 pub mod router;
 pub mod search;
 pub mod server;
@@ -42,7 +44,7 @@ pub use auth::{TenantContext, TenantError, TenantExtractor};
 
 #[cfg(feature = "multi-tenant")]
 pub use middleware::{
-    InMemoryTenantStore, MiddlewareTenantContext, ResolvedTenant, ResolutionStrategy, TenantLookup,
+    InMemoryTenantStore, MiddlewareTenantContext, ResolutionStrategy, ResolvedTenant, TenantLookup,
     TenantResolutionConfig, TenantResolutionError, TenantResolver, TenantSource,
 };
 

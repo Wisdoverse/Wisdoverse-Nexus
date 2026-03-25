@@ -65,10 +65,7 @@ fn generate_request_id() -> Arc<str> {
 /// 3. Adds the ID to request extensions for downstream access
 /// 4. Adds the ID to response headers
 /// 5. Creates a tracing span with the request ID
-pub async fn request_id_middleware(
-    request: Request<Body>,
-    next: Next,
-) -> Response<Body> {
+pub async fn request_id_middleware(request: Request<Body>, next: Next) -> Response<Body> {
     // Get or generate request ID
     let request_id = request
         .headers()
@@ -86,7 +83,9 @@ pub async fn request_id_middleware(
 
     // Add to request extensions
     let mut request = request;
-    request.extensions_mut().insert(RequestId(request_id.clone()));
+    request
+        .extensions_mut()
+        .insert(RequestId(request_id.clone()));
 
     // Run the request in the span
     let response = async move { next.run(request).await }
@@ -111,17 +110,20 @@ mod tests {
     use super::*;
     use axum::{
         body::Body,
+        extract::State,
         http::{Request, StatusCode},
         routing::get,
         Router,
-        extract::State,
     };
     use tower::ServiceExt;
 
     #[tokio::test]
     async fn generates_request_id_if_missing() {
         let app = Router::new()
-            .route("/test", get(|req_id: RequestId| async move { req_id.to_string() }))
+            .route(
+                "/test",
+                get(|req_id: RequestId| async move { req_id.to_string() }),
+            )
             .layer(axum::middleware::from_fn(request_id_middleware));
 
         let response = app
@@ -131,10 +133,12 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         assert!(response.headers().contains_key(X_REQUEST_ID));
-        
-        let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+
+        let body = axum::body::to_bytes(response.into_body(), 1024)
+            .await
+            .unwrap();
         let id_str = String::from_utf8_lossy(&body);
-        
+
         // Should be a valid UUID format
         assert!(Uuid::parse_str(&id_str).is_ok());
     }
@@ -142,9 +146,12 @@ mod tests {
     #[tokio::test]
     async fn propagates_existing_request_id() {
         let existing_id = "01234567-89ab-7def-8123-456789abcdef";
-        
+
         let app = Router::new()
-            .route("/test", get(|req_id: RequestId| async move { req_id.to_string() }))
+            .route(
+                "/test",
+                get(|req_id: RequestId| async move { req_id.to_string() }),
+            )
             .layer(axum::middleware::from_fn(request_id_middleware));
 
         let response = app
@@ -159,8 +166,13 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-        
-        let response_id = response.headers().get(X_REQUEST_ID).unwrap().to_str().unwrap();
+
+        let response_id = response
+            .headers()
+            .get(X_REQUEST_ID)
+            .unwrap()
+            .to_str()
+            .unwrap();
         assert_eq!(response_id, existing_id);
     }
 
@@ -168,7 +180,7 @@ mod tests {
     fn generates_valid_uuid_v7() {
         let id = generate_request_id();
         let parsed = Uuid::parse_str(&id).expect("Should be valid UUID");
-        
+
         // UUID v7 has version 7
         assert_eq!(parsed.get_version_num(), 7);
     }

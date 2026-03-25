@@ -122,10 +122,7 @@ impl std::fmt::Display for ReferrerPolicy {
 }
 
 /// Security headers middleware
-pub async fn security_headers_middleware(
-    request: Request<Body>,
-    next: Next,
-) -> Response<Body> {
+pub async fn security_headers_middleware(request: Request<Body>, next: Next) -> Response<Body> {
     let config = SecurityHeadersConfig::default();
     let mut response = next.run(request).await;
 
@@ -151,18 +148,12 @@ pub async fn security_headers_middleware(
 
     // Content-Security-Policy
     if let Some(csp) = &config.content_security_policy {
-        headers.insert(
-            header::CONTENT_SECURITY_POLICY,
-            csp.parse().unwrap(),
-        );
+        headers.insert(header::CONTENT_SECURITY_POLICY, csp.parse().unwrap());
     }
 
     // Permissions-Policy
     if let Some(pp) = &config.permissions_policy {
-        headers.insert(
-            "Permissions-Policy",
-            pp.parse().unwrap(),
-        );
+        headers.insert("Permissions-Policy", pp.parse().unwrap());
     }
 
     // Strict-Transport-Security (HSTS)
@@ -181,16 +172,10 @@ pub async fn security_headers_middleware(
     }
 
     // X-XSS-Protection (deprecated but still useful for older browsers)
-    headers.insert(
-        "X-XSS-Protection",
-        "1; mode=block".parse().unwrap(),
-    );
+    headers.insert("X-XSS-Protection", "1; mode=block".parse().unwrap());
 
     // Cache-Control for API responses
-    headers.insert(
-        header::CACHE_CONTROL,
-        "no-store".parse().unwrap(),
-    );
+    headers.insert(header::CACHE_CONTROL, "no-store".parse().unwrap());
 
     response
 }
@@ -218,14 +203,20 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-        
+
         // Check headers are present
-        assert!(response.headers().contains_key(header::X_CONTENT_TYPE_OPTIONS));
+        assert!(response
+            .headers()
+            .contains_key(header::X_CONTENT_TYPE_OPTIONS));
         assert!(response.headers().contains_key(header::X_FRAME_OPTIONS));
         assert!(response.headers().contains_key(header::REFERRER_POLICY));
-        assert!(response.headers().contains_key(header::CONTENT_SECURITY_POLICY));
+        assert!(response
+            .headers()
+            .contains_key(header::CONTENT_SECURITY_POLICY));
         assert!(response.headers().contains_key("Permissions-Policy"));
-        assert!(response.headers().contains_key(header::STRICT_TRANSPORT_SECURITY));
+        assert!(response
+            .headers()
+            .contains_key(header::STRICT_TRANSPORT_SECURITY));
     }
 
     #[test]

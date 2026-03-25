@@ -17,8 +17,12 @@ fn encrypt_decrypt_string_roundtrip() {
     let key = [42u8; 32];
     let enc = DataEncryption::new(&key);
     let plaintext = "hello, world!";
-    let ciphertext = enc.encrypt_string(plaintext).expect("encrypt_string should succeed");
-    let decrypted = enc.decrypt_string(&ciphertext).expect("decrypt_string should succeed");
+    let ciphertext = enc
+        .encrypt_string(plaintext)
+        .expect("encrypt_string should succeed");
+    let decrypted = enc
+        .decrypt_string(&ciphertext)
+        .expect("decrypt_string should succeed");
     assert_eq!(decrypted, plaintext);
 }
 

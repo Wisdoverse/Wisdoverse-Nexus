@@ -77,7 +77,11 @@ pub mod repository {
         ) -> Result<Workspace, RepositoryError>;
 
         /// Get a workspace by ID within tenant scope.
-        async fn get(&self, tenant_id: Uuid, id: Uuid) -> Result<Option<Workspace>, RepositoryError>;
+        async fn get(
+            &self,
+            tenant_id: Uuid,
+            id: Uuid,
+        ) -> Result<Option<Workspace>, RepositoryError>;
 
         /// Get a workspace by slug within tenant scope.
         async fn get_by_slug(

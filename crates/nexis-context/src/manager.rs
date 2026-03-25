@@ -249,7 +249,11 @@ fn estimate_tokens(text: &str) -> usize {
         (char_count as f64 / 1.5).ceil() as usize
     } else {
         // ASCII/English: approximately 4 characters per token
-        if char_count == 0 { 0 } else { (char_count / 4).max(1) }
+        if char_count == 0 {
+            0
+        } else {
+            (char_count / 4).max(1)
+        }
     }
 }
 
@@ -416,7 +420,11 @@ mod tests {
         let long_ascii = "This is a very long English sentence that should be tokenized using the ASCII ratio of approximately four characters per token";
         let tokens = estimate_tokens(long_ascii);
         // ~130 chars / 4 = ~32 tokens
-        assert!(tokens >= 30, "Long ASCII should produce ~32 tokens, got {}", tokens);
+        assert!(
+            tokens >= 30,
+            "Long ASCII should produce ~32 tokens, got {}",
+            tokens
+        );
     }
 
     #[test]
@@ -428,7 +436,10 @@ mod tests {
     #[test]
     fn test_estimate_tokens_single_cjk_char() {
         let tokens = estimate_tokens("你");
-        assert!(tokens >= 1, "Single CJK char should produce at least 1 token");
+        assert!(
+            tokens >= 1,
+            "Single CJK char should produce at least 1 token"
+        );
     }
 
     #[test]
@@ -532,7 +543,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_window_overflow_strategy_fail() {
-        let window = ContextWindow::new(10).with_reserved_tokens(0).with_overflow_strategy(OverflowStrategy::Fail);
+        let window = ContextWindow::new(10)
+            .with_reserved_tokens(0)
+            .with_overflow_strategy(OverflowStrategy::Fail);
         let manager = ContextManager::new(window);
         let id = manager.create_context(None).await.unwrap();
 

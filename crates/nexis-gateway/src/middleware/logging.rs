@@ -47,8 +47,13 @@ impl std::fmt::Display for RequestLog {
         write!(
             f,
             "[{}] {} {} {} {}ms ip={} uid={:?}",
-            self.request_id, self.method, self.path, self.status, self.duration_ms,
-            self.client_ip, self.user_id,
+            self.request_id,
+            self.method,
+            self.path,
+            self.status,
+            self.duration_ms,
+            self.client_ip,
+            self.user_id,
         )
     }
 }
@@ -102,10 +107,7 @@ pub async fn request_logging(mut req: Request, next: Next) -> Response {
         let status = response.status().as_u16();
 
         // Extract user_id from response extensions (set by auth middleware).
-        let user_id = response
-            .extensions()
-            .get::<UserId>()
-            .map(|u| u.0.clone());
+        let user_id = response.extensions().get::<UserId>().map(|u| u.0.clone());
 
         // --- Prometheus metrics ---------------------------------------------
         HTTP_RESPONSES
@@ -209,7 +211,10 @@ mod tests {
     fn test_app() -> Router {
         Router::new()
             .route("/health", get(|| async { StatusCode::OK }))
-            .route("/error", get(|| async { StatusCode::INTERNAL_SERVER_ERROR }))
+            .route(
+                "/error",
+                get(|| async { StatusCode::INTERNAL_SERVER_ERROR }),
+            )
             .layer(axum::middleware::from_fn(request_logging))
     }
 

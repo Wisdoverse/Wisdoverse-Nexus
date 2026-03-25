@@ -90,17 +90,28 @@ fn err_json(status: StatusCode, code: &str, msg: impl Into<String>) -> Response 
         error: String,
         code: String,
     }
-    (status, Json(E { error: msg.into(), code: code.to_string() })).into_response()
+    (
+        status,
+        Json(E {
+            error: msg.into(),
+            code: code.to_string(),
+        }),
+    )
+        .into_response()
 }
 
 fn record_ok(op: &str, t: std::time::Instant) {
     OPERATION_THROUGHPUT_TOTAL.with_label_values(&[op]).inc();
-    OPERATION_LATENCY.with_label_values(&[op]).observe(t.elapsed().as_secs_f64());
+    OPERATION_LATENCY
+        .with_label_values(&[op])
+        .observe(t.elapsed().as_secs_f64());
 }
 
 fn record_err(op: &str, kind: &str, t: std::time::Instant) {
     OPERATION_ERRORS_TOTAL.with_label_values(&[op, kind]).inc();
-    OPERATION_LATENCY.with_label_values(&[op]).observe(t.elapsed().as_secs_f64());
+    OPERATION_LATENCY
+        .with_label_values(&[op])
+        .observe(t.elapsed().as_secs_f64());
 }
 
 // ── GET /v1/members/me/export ───────────────────────────────────────
@@ -267,9 +278,7 @@ pub(crate) async fn delete_data(
 /// When enabled, it should be called by a scheduled task / cron job.
 #[cfg(feature = "persistence-sqlx")]
 #[instrument(name = "gdpr.purge_expired", skip(pool))]
-pub async fn purge_expired_deletions(
-    pool: &sqlx::PgPool,
-) -> Result<u64, sqlx::Error> {
+pub async fn purge_expired_deletions(pool: &sqlx::PgPool) -> Result<u64, sqlx::Error> {
     info!("Running GDPR data purge for expired retention periods");
 
     let mut tx = pool.begin().await?;
@@ -311,7 +320,10 @@ pub async fn purge_expired_deletions(
     }
 
     tx.commit().await?;
-    info!("GDPR purge completed: {} members permanently deleted", count);
+    info!(
+        "GDPR purge completed: {} members permanently deleted",
+        count
+    );
     Ok(count)
 }
 
@@ -323,7 +335,10 @@ mod tests {
 
     #[test]
     fn deletion_requires_confirmation() {
-        let req = DeletionRequest { confirm: false, reason: None };
+        let req = DeletionRequest {
+            confirm: false,
+            reason: None,
+        };
         assert!(!req.confirm);
     }
 

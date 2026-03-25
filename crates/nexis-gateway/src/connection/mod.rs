@@ -3,15 +3,15 @@
 //! Manages WebSocket connections, message broadcasting, and connection pooling.
 //! Integrates with the server module for real-time communication.
 
-mod pool;
 mod auth;
+mod pool;
 
 pub use pool::{BroadcastMessage, Connection, ConnectionId, PoolStats, ShardedConnectionManager};
 
 pub use auth::{
-    parse_client_message, serialize_server_message, create_auth_timeout_message,
-    ClientMessage, ServerMessage, ConnectionState, AuthenticatedSession,
-    WebSocketAuthenticator, MessageResult, AUTH_TIMEOUT, AUTH_TIMEOUT_SECS,
+    create_auth_timeout_message, parse_client_message, serialize_server_message,
+    AuthenticatedSession, ClientMessage, ConnectionState, MessageResult, ServerMessage,
+    WebSocketAuthenticator, AUTH_TIMEOUT, AUTH_TIMEOUT_SECS,
 };
 
 // Legacy exports for backward compatibility

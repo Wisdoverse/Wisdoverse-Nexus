@@ -15,7 +15,7 @@ pub mod security_headers;
 pub use logging::{request_logging, RequestLog, RequestLoggingLayer};
 
 pub use rate_limit::{
-    register_metrics, rate_limit_middleware, RateLimitConfig, RateLimitResponse, RateLimiter,
+    rate_limit_middleware, register_metrics, RateLimitConfig, RateLimitResponse, RateLimiter,
     TokenBucket,
 };
 
@@ -31,6 +31,6 @@ pub mod tenant;
 
 #[cfg(feature = "multi-tenant")]
 pub use tenant::{
-    InMemoryTenantStore, MiddlewareTenantContext, ResolvedTenant, ResolutionStrategy,
-    TenantLookup, TenantResolutionConfig, TenantResolutionError, TenantResolver, TenantSource,
+    InMemoryTenantStore, MiddlewareTenantContext, ResolutionStrategy, ResolvedTenant, TenantLookup,
+    TenantResolutionConfig, TenantResolutionError, TenantResolver, TenantSource,
 };

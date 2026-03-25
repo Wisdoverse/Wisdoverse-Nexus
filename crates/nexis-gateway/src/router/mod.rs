@@ -288,9 +288,25 @@ impl From<SearchError> for ErrorResponse {
     }
 }
 
+fn v1_routes() -> Router<AppState> {
+    Router::new()
+        .route("/v1/rooms", get(list_rooms).post(create_room))
+        .route("/v1/rooms/:id", get(get_room).delete(delete_room))
+        .route("/v1/rooms/:id/invite", post(invite_member))
+        .route("/v1/messages", post(send_message))
+        .route("/v1/search", get(search_messages_get).post(search_messages))
+        .route(
+            "/v1/members/me/export",
+            get(crate::handlers::gdpr::export_data),
+        )
+        .route("/v1/members/me", delete(crate::handlers::gdpr::delete_data))
+        .merge(crate::collaboration::routes())
+}
+
 /// Build the main router for the gateway
 pub fn build_routes() -> Router {
     let state = AppState::default();
+    let rate_limiter = Arc::new(crate::rate_limit::RateLimiter::from_env());
 
     Router::new()
         .route("/health", get(health_check))
@@ -298,14 +314,10 @@ pub fn build_routes() -> Router {
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(swagger_ui))
         .route("/ws", get(websocket_handler))
-        .route("/v1/rooms", get(list_rooms).post(create_room))
-        .route("/v1/rooms/:id", get(get_room).delete(delete_room))
-        .route("/v1/rooms/:id/invite", post(invite_member))
-        .route("/v1/messages", post(send_message))
-        .route("/v1/search", get(search_messages_get).post(search_messages))
-        .route("/v1/members/me/export", get(crate::handlers::gdpr::export_data))
-        .route("/v1/members/me", delete(crate::handlers::gdpr::delete_data))
-        .merge(crate::collaboration::routes())
+        .merge(v1_routes().layer(middleware::from_fn_with_state(
+            rate_limiter,
+            crate::rate_limit::rate_limit_middleware,
+        )))
         .layer(middleware::from_fn(correlation_id_middleware))
         .with_state(state)
 }
@@ -313,6 +325,7 @@ pub fn build_routes() -> Router {
 /// Build router with search service
 pub fn build_routes_with_search(search_service: Arc<dyn SearchService>) -> Router {
     let state = AppState::default().with_search_service(search_service);
+    let rate_limiter = Arc::new(crate::rate_limit::RateLimiter::from_env());
 
     Router::new()
         .route("/health", get(health_check))
@@ -320,14 +333,10 @@ pub fn build_routes_with_search(search_service: Arc<dyn SearchService>) -> Route
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(swagger_ui))
         .route("/ws", get(websocket_handler))
-        .route("/v1/rooms", get(list_rooms).post(create_room))
-        .route("/v1/rooms/:id", get(get_room).delete(delete_room))
-        .route("/v1/rooms/:id/invite", post(invite_member))
-        .route("/v1/messages", post(send_message))
-        .route("/v1/search", get(search_messages_get).post(search_messages))
-        .route("/v1/members/me/export", get(crate::handlers::gdpr::export_data))
-        .route("/v1/members/me", delete(crate::handlers::gdpr::delete_data))
-        .merge(crate::collaboration::routes())
+        .merge(v1_routes().layer(middleware::from_fn_with_state(
+            rate_limiter,
+            crate::rate_limit::rate_limit_middleware,
+        )))
         .layer(middleware::from_fn(correlation_id_middleware))
         .with_state(state)
 }
@@ -454,8 +463,6 @@ async fn websocket_handler(
     ws: WebSocketUpgrade,
     Query(query): Query<WebSocketAuthQuery>,
 ) -> Response {
-    
-    
     // Check for deprecated token in query parameter
     let legacy_token = query.token;
     if legacy_token.is_some() {
@@ -465,7 +472,7 @@ async fn websocket_handler(
              Migrate to sending {{\"type\":\"auth\",\"token\":\"Bearer xxx\"}} as the first message."
         );
     }
-    
+
     // Pass the optional legacy token to the socket handler
     ws.on_upgrade(move |socket| handle_socket(socket, legacy_token))
 }
@@ -579,11 +586,10 @@ async fn send_message(
         id: format!("msg_{}", Uuid::new_v4().simple()),
         sender: payload.sender,
         text: if let Some(ref enc) = state.encryption {
-            enc.encrypt_string(&payload.text)
-                .unwrap_or_else(|e| {
-                    tracing::error!("encryption failed: {}\n", e);
-                    payload.text.clone()
-                })
+            enc.encrypt_string(&payload.text).unwrap_or_else(|e| {
+                tracing::error!("encryption failed: {}\n", e);
+                payload.text.clone()
+            })
         } else {
             payload.text
         },
@@ -950,7 +956,8 @@ async fn delete_room(
 /// Handle WebSocket connection
 async fn handle_socket(socket: WebSocket, legacy_token: Option<String>) {
     use crate::connection::{
-        parse_client_message, serialize_server_message, create_auth_timeout_message, ServerMessage, ConnectionState, WebSocketAuthenticator, MessageResult, AUTH_TIMEOUT,
+        create_auth_timeout_message, parse_client_message, serialize_server_message,
+        ConnectionState, MessageResult, ServerMessage, WebSocketAuthenticator, AUTH_TIMEOUT,
     };
     use futures::{SinkExt, StreamExt};
     use tokio::time::timeout;
@@ -1005,7 +1012,7 @@ async fn handle_socket(socket: WebSocket, legacy_token: Option<String>) {
 
     // Save initial auth state before async block captures it mutably
     let was_unauthenticated = state == ConnectionState::Unauthenticated;
-    
+
     // Authentication timeout - wrap the entire message loop
     let tx_timeout = tx.clone();
     let auth_timeout_future = async move {
@@ -1014,18 +1021,17 @@ async fn handle_socket(socket: WebSocket, legacy_token: Option<String>) {
             match msg {
                 Ok(Message::Text(text)) => {
                     tracing::debug!("Received: {}", text);
-                    
+
                     // Parse the message
                     match parse_client_message(&text) {
                         Ok(client_msg) => {
-                            
                             match authenticator.process_message(conn_state, &client_msg) {
                                 MessageResult::Response(server_msg) => {
                                     // Check if this was a successful auth
                                     if let ServerMessage::AuthSuccess { .. } = &server_msg {
                                         conn_state = ConnectionState::Authenticated;
                                     }
-                                    
+
                                     if let Ok(json) = serialize_server_message(&server_msg) {
                                         if tx.send(Message::Text(json)).await.is_err() {
                                             break;
@@ -1084,7 +1090,9 @@ async fn handle_socket(socket: WebSocket, legacy_token: Option<String>) {
             Err(_) => {
                 // Timeout - send error and close
                 tracing::warn!("WebSocket authentication timeout");
-                let _ = tx_timeout.send(Message::Text(create_auth_timeout_message())).await;
+                let _ = tx_timeout
+                    .send(Message::Text(create_auth_timeout_message()))
+                    .await;
                 let _ = tx_timeout.send(Message::Close(None)).await;
             }
         }

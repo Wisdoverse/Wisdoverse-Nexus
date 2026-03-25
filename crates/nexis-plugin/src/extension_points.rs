@@ -1,6 +1,6 @@
-use async_trait::async_trait;
 use crate::error::PluginError;
 use crate::plugin::Message;
+use async_trait::async_trait;
 
 /// Message filter — content moderation, sensitive words
 #[async_trait]
@@ -28,12 +28,7 @@ pub trait CommandHandler: Send + Sync {
 pub trait NotificationChannel: Send + Sync {
     fn channel_name(&self) -> &str;
 
-    async fn send(
-        &self,
-        title: &str,
-        body: &str,
-        target: &str,
-    ) -> Result<(), PluginError>;
+    async fn send(&self, title: &str, body: &str, target: &str) -> Result<(), PluginError>;
 }
 
 /// Storage adapter — S3, MongoDB, Redis
