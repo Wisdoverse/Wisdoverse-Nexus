@@ -41,6 +41,7 @@ pub struct RequestLogEntry {
 
 impl RequestLogEntry {
     /// Build a log entry. Prompt snippet is truncated to 500 chars.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         api_key_id: String,
         model: String,
@@ -194,7 +195,7 @@ mod tests {
                 "INSERT INTO api_keys (id, name, key_hash, created_at, updated_at) VALUES ('key_test', 'test', 'hash123', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
                 [],
             )
-        }).await.unwrap().unwrap();
+        }).await.unwrap();
 
         let entry = make_entry();
         assert!(logger.try_log(entry));
@@ -205,19 +206,21 @@ mod tests {
         // Verify
         let count: i64 = db
             .spawn_blocking(|conn| {
-                conn.query_row("SELECT COUNT(*) FROM request_logs", [], |row| row.get(0))
+                conn.query_row("SELECT COUNT(*) FROM request_logs", [], |row| {
+                    row.get::<_, i64>(0)
+                })
             })
             .await
-            .unwrap()
             .unwrap();
         assert_eq!(count, 1);
 
         let cost: f64 = db
             .spawn_blocking(|conn| {
-                conn.query_row("SELECT cost_usd FROM request_logs", [], |row| row.get(0))
+                conn.query_row("SELECT cost_usd FROM request_logs", [], |row| {
+                    row.get::<_, f64>(0)
+                })
             })
             .await
-            .unwrap()
             .unwrap();
         assert!((cost - (100f64 * 2.5 / 1_000_000.0 + 50f64 * 10.0 / 1_000_000.0)).abs() < 0.0001);
     }
@@ -225,10 +228,10 @@ mod tests {
     #[tokio::test]
     async fn test_channel_overflow_returns_false() {
         let dir = tempdir().unwrap();
-        let db = DbPool::open(&dir.path().join("test2.db")).unwrap();
+        let _db = DbPool::open(&dir.path().join("test2.db")).unwrap();
 
         // Use a tiny channel to test overflow
-        let (tx, mut rx) = mpsc::channel::<RequestLogEntry>(1);
+        let (tx, _rx) = mpsc::channel::<RequestLogEntry>(1);
 
         // Fill the channel
         tx.try_send(make_entry()).unwrap(); // capacity=1
@@ -246,8 +249,15 @@ mod tests {
     #[test]
     fn test_log_entry_snippet_truncation() {
         let entry = RequestLogEntry::new(
-            "k".into(), "m".into(), "p".into(),
-            "x".repeat(600), 100, 50, 1.0, RequestStatus::Success, None,
+            "k".into(),
+            "m".into(),
+            "p".into(),
+            "x".repeat(600),
+            100,
+            50,
+            1.0,
+            RequestStatus::Success,
+            None,
         );
         assert_eq!(entry.prompt_snippet.len(), 500);
     }

@@ -303,12 +303,7 @@ pub struct MessageEnvelope {
 
 impl MessageEnvelope {
     /// Create a new message envelope
-    pub fn new(
-        id: String,
-        room_id: String,
-        sender: MemberId,
-        content: MessageContent,
-    ) -> Self {
+    pub fn new(id: String, room_id: String, sender: MemberId, content: MessageContent) -> Self {
         Self {
             id,
             room_id,

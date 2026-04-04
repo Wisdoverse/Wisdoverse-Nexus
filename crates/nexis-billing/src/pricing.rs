@@ -15,12 +15,36 @@ pub struct ModelPricing {
 /// Static pricing table (built-in).
 fn static_pricing() -> Vec<ModelPricing> {
     vec![
-        ModelPricing { model: "gpt-4o".into(), prompt_per_1m: 2.5, completion_per_1m: 10.0 },
-        ModelPricing { model: "gpt-4o-mini".into(), prompt_per_1m: 0.15, completion_per_1m: 0.6 },
-        ModelPricing { model: "gpt-4-turbo".into(), prompt_per_1m: 10.0, completion_per_1m: 30.0 },
-        ModelPricing { model: "gpt-3.5-turbo".into(), prompt_per_1m: 0.5, completion_per_1m: 1.5 },
-        ModelPricing { model: "claude-sonnet-4-20250514".into(), prompt_per_1m: 3.0, completion_per_1m: 15.0 },
-        ModelPricing { model: "claude-haiku-4-20250414".into(), prompt_per_1m: 0.8, completion_per_1m: 4.0 },
+        ModelPricing {
+            model: "gpt-4o".into(),
+            prompt_per_1m: 2.5,
+            completion_per_1m: 10.0,
+        },
+        ModelPricing {
+            model: "gpt-4o-mini".into(),
+            prompt_per_1m: 0.15,
+            completion_per_1m: 0.6,
+        },
+        ModelPricing {
+            model: "gpt-4-turbo".into(),
+            prompt_per_1m: 10.0,
+            completion_per_1m: 30.0,
+        },
+        ModelPricing {
+            model: "gpt-3.5-turbo".into(),
+            prompt_per_1m: 0.5,
+            completion_per_1m: 1.5,
+        },
+        ModelPricing {
+            model: "claude-sonnet-4-20250514".into(),
+            prompt_per_1m: 3.0,
+            completion_per_1m: 15.0,
+        },
+        ModelPricing {
+            model: "claude-haiku-4-20250414".into(),
+            prompt_per_1m: 0.8,
+            completion_per_1m: 4.0,
+        },
     ]
 }
 

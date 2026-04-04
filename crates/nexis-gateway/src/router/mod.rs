@@ -473,7 +473,7 @@ async fn websocket_handler(
 ) -> Response {
     // Use the new ws module's upgrade handler
     let ws_state = state.ws_state.clone();
-    
+
     // Check for deprecated token in query parameter
     let legacy_token = query.token;
     if legacy_token.is_some() {
@@ -483,7 +483,14 @@ async fn websocket_handler(
     }
 
     // Use new ws module for upgrade
-    crate::connection::ws::websocket_upgrade_with_state(ws, Query(crate::connection::ws::WebSocketQuery { token: legacy_token }), ws_state).await
+    crate::connection::ws::websocket_upgrade_with_state(
+        ws,
+        Query(crate::connection::ws::WebSocketQuery {
+            token: legacy_token,
+        }),
+        ws_state,
+    )
+    .await
 }
 
 #[tracing::instrument(

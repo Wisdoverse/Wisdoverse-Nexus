@@ -91,10 +91,15 @@ impl WebSocketState {
     }
 
     /// Add a connection
-    pub async fn add_connection(&self, member_id: String, member_type: String, tx: mpsc::Sender<Message>) {
+    pub async fn add_connection(
+        &self,
+        member_id: String,
+        member_type: String,
+        tx: mpsc::Sender<Message>,
+    ) {
         let sender = WebSocketSender { tx, member_type };
         let mut connections = self.connections.write().await;
-        
+
         // If user already has a connection, close the old one
         if let Some(old_sender) = connections.insert(member_id.clone(), sender) {
             tracing::info!(
@@ -103,7 +108,7 @@ impl WebSocketState {
             );
             let _ = old_sender.tx.send(Message::Close(None)).await;
         }
-        
+
         tracing::info!(
             member_id = %member_id,
             active_connections = connections.len(),
@@ -138,7 +143,7 @@ impl WebSocketState {
         let connections = self.connections.read().await;
         let mut sent = 0;
         let mut failed = 0;
-        
+
         for (member_id, sender) in connections.iter() {
             if sender.tx.send(message.clone()).await.is_ok() {
                 sent += 1;
@@ -147,7 +152,7 @@ impl WebSocketState {
                 tracing::warn!(member_id = %member_id, "Failed to send broadcast message");
             }
         }
-        
+
         if sent > 0 || failed > 0 {
             tracing::debug!(sent = sent, failed = failed, "Broadcast complete");
         }
@@ -171,19 +176,19 @@ pub async fn websocket_upgrade_with_state(
             "DEPRECATION WARNING: WebSocket auth via query parameter is deprecated. \
              Use first-message authentication instead."
         );
-        
+
         // Validate token
         match state.authenticator.verify_token(&token) {
             Ok(claims) => {
                 // Pre-authenticated via query token
                 let member_id = claims.sub.clone();
                 let member_type = claims.member_type.clone();
-                
+
                 tracing::info!(
                     member_id = %member_id,
                     "WebSocket authenticated via query token"
                 );
-                
+
                 ws.on_upgrade(move |socket| {
                     handle_authenticated_socket(socket, state, member_id, member_type)
                 })
@@ -232,7 +237,11 @@ async fn handle_socket(socket: WebSocket, state: WebSocketState) {
                             match state.authenticator.process_message(conn_state, &client_msg) {
                                 MessageResult::Response(server_msg) => {
                                     // Check if auth success
-                                    if let ServerMessage::AuthSuccess { ref member_id, ref member_type } = server_msg {
+                                    if let ServerMessage::AuthSuccess {
+                                        ref member_id,
+                                        ref member_type,
+                                    } = server_msg
+                                    {
                                         conn_state = ConnectionState::Authenticated;
                                         session = Some(AuthenticatedSession {
                                             member_id: member_id.clone(),
@@ -289,8 +298,10 @@ async fn handle_socket(socket: WebSocket, state: WebSocketState) {
         Ok(Some(session)) => {
             // Authenticated - register connection and continue
             let member_id = session.member_id.clone();
-            state.add_connection(member_id.clone(), session.member_type, tx.clone()).await;
-            
+            state
+                .add_connection(member_id.clone(), session.member_type, tx.clone())
+                .await;
+
             // Continue handling messages (simplified - full impl would continue the loop)
             tracing::info!(member_id = %member_id, "WebSocket session ended");
             state.remove_connection(&member_id).await;
@@ -332,7 +343,9 @@ async fn handle_authenticated_socket(
     }
 
     // Register connection
-    state.add_connection(member_id.clone(), member_type.clone(), tx.clone()).await;
+    state
+        .add_connection(member_id.clone(), member_type.clone(), tx.clone())
+        .await;
 
     // Spawn writer task
     let writer = tokio::spawn(async move {
@@ -348,10 +361,13 @@ async fn handle_authenticated_socket(
         match msg {
             Ok(Message::Text(text)) => {
                 tracing::debug!(member_id = %member_id, "Received: {}", text);
-                
+
                 match parse_client_message(&text) {
                     Ok(client_msg) => {
-                        match state.authenticator.process_message(ConnectionState::Authenticated, &client_msg) {
+                        match state
+                            .authenticator
+                            .process_message(ConnectionState::Authenticated, &client_msg)
+                        {
                             MessageResult::Response(server_msg) => {
                                 if let Ok(json) = serialize_server_message(&server_msg) {
                                     if tx.send(Message::Text(json)).await.is_err() {
@@ -388,13 +404,17 @@ async fn handle_authenticated_socket(
 /// Create a WebSocket router with authentication
 pub fn websocket_routes() -> axum::Router<WebSocketState> {
     use axum::extract::State;
-    
-    axum::Router::new()
-        .route("/ws", axum::routing::get(
-            |State(state): State<WebSocketState>, ws: WebSocketUpgrade, query: Query<WebSocketQuery>| async move {
+
+    axum::Router::new().route(
+        "/ws",
+        axum::routing::get(
+            |State(state): State<WebSocketState>,
+             ws: WebSocketUpgrade,
+             query: Query<WebSocketQuery>| async move {
                 websocket_upgrade_with_state(ws, query, state).await
-            }
-        ))
+            },
+        ),
+    )
 }
 
 #[cfg(test)]
@@ -408,10 +428,14 @@ mod tests {
 
         assert_eq!(state.connection_count().await, 0);
 
-        state.add_connection("user1".to_string(), "human".to_string(), tx.clone()).await;
+        state
+            .add_connection("user1".to_string(), "human".to_string(), tx.clone())
+            .await;
         assert_eq!(state.connection_count().await, 1);
 
-        state.add_connection("user2".to_string(), "ai".to_string(), tx).await;
+        state
+            .add_connection("user2".to_string(), "ai".to_string(), tx)
+            .await;
         assert_eq!(state.connection_count().await, 2);
 
         state.remove_connection("user1").await;
@@ -424,11 +448,15 @@ mod tests {
         let (tx1, mut rx1) = mpsc::channel(16);
         let (tx2, _) = mpsc::channel(16);
 
-        state.add_connection("user1".to_string(), "human".to_string(), tx1).await;
+        state
+            .add_connection("user1".to_string(), "human".to_string(), tx1)
+            .await;
         assert_eq!(state.connection_count().await, 1);
 
         // Adding same user should close old connection
-        state.add_connection("user1".to_string(), "human".to_string(), tx2).await;
+        state
+            .add_connection("user1".to_string(), "human".to_string(), tx2)
+            .await;
         assert_eq!(state.connection_count().await, 1);
 
         // Old connection should receive close message
@@ -441,9 +469,13 @@ mod tests {
         let state = WebSocketState::new();
         let (tx, mut rx) = mpsc::channel(16);
 
-        state.add_connection("user1".to_string(), "human".to_string(), tx).await;
+        state
+            .add_connection("user1".to_string(), "human".to_string(), tx)
+            .await;
 
-        let sent = state.send_to_user("user1", Message::Text("hello".to_string())).await;
+        let sent = state
+            .send_to_user("user1", Message::Text("hello".to_string()))
+            .await;
         assert!(sent);
 
         let msg = rx.try_recv();
@@ -454,7 +486,9 @@ mod tests {
     async fn websocket_state_send_to_nonexistent_user() {
         let state = WebSocketState::new();
 
-        let sent = state.send_to_user("unknown", Message::Text("hello".to_string())).await;
+        let sent = state
+            .send_to_user("unknown", Message::Text("hello".to_string()))
+            .await;
         assert!(!sent);
     }
 
@@ -464,14 +498,20 @@ mod tests {
         let (tx1, mut rx1) = mpsc::channel(16);
         let (tx2, mut rx2) = mpsc::channel(16);
 
-        state.add_connection("user1".to_string(), "human".to_string(), tx1).await;
-        state.add_connection("user2".to_string(), "ai".to_string(), tx2).await;
+        state
+            .add_connection("user1".to_string(), "human".to_string(), tx1)
+            .await;
+        state
+            .add_connection("user2".to_string(), "ai".to_string(), tx2)
+            .await;
 
-        state.broadcast(Message::Text("broadcast".to_string())).await;
+        state
+            .broadcast(Message::Text("broadcast".to_string()))
+            .await;
 
         let msg1 = rx1.try_recv();
         let msg2 = rx2.try_recv();
-        
+
         assert!(matches!(msg1, Ok(Message::Text(t)) if t == "broadcast"));
         assert!(matches!(msg2, Ok(Message::Text(t)) if t == "broadcast"));
     }

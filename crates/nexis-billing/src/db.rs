@@ -22,7 +22,9 @@ impl DbPool {
         // Run migrations
         run_migrations(&mut conn)?;
 
-        Ok(Self { path: Arc::from(path.to_path_buf()) })
+        Ok(Self {
+            path: Arc::from(path.to_path_buf()),
+        })
     }
 
     /// Run a closure on a new connection inside `spawn_blocking`.

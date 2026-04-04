@@ -83,7 +83,9 @@ mod tests {
             "msg_2".into(),
             "room_1".into(),
             make_sender(),
-            MessageContent::Text { text: "reply".into() },
+            MessageContent::Text {
+                text: "reply".into(),
+            },
         )
         .with_reply_to("msg_1".into())
         .build();
@@ -97,7 +99,9 @@ mod tests {
             "msg_3".into(),
             "room_1".into(),
             make_sender(),
-            MessageContent::Text { text: "test".into() },
+            MessageContent::Text {
+                text: "test".into(),
+            },
         );
         assert!(builder.reply_to().is_none());
     }
@@ -108,7 +112,9 @@ mod tests {
             "msg_3".into(),
             "room_1".into(),
             make_sender(),
-            MessageContent::Text { text: "test".into() },
+            MessageContent::Text {
+                text: "test".into(),
+            },
         )
         .with_reply_to("msg_1".into());
         assert_eq!(builder.reply_to(), Some("msg_1"));

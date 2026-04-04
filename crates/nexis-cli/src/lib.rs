@@ -467,12 +467,12 @@ pub async fn connect_websocket_once(
 
 /// Run interactive WebSocket client with JWT auth
 pub async fn run_ws_client(url: &str, token: &str, default_room: &str) -> Result<String, CliError> {
+    use futures::stream::{SplitSink, SplitStream};
     use std::io::{self, BufRead, Write};
     use std::sync::Arc;
-    use tokio::sync::Mutex;
-    use futures::stream::{SplitSink, SplitStream};
-    use tokio_tungstenite::{WebSocketStream, MaybeTlsStream};
     use tokio::net::TcpStream;
+    use tokio::sync::Mutex;
+    use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
     println!("Connecting to {}...", url);
     let (ws_stream, _) = connect_async(url)
@@ -480,8 +480,11 @@ pub async fn run_ws_client(url: &str, token: &str, default_room: &str) -> Result
         .map_err(|err| CliError::WebSocket(err.to_string()))?;
     println!("Connected!");
 
-    let (ws_sink, ws_recv): (SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>, SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>) =
-        ws_stream.split();
+    #[allow(clippy::type_complexity)]
+    let (ws_sink, ws_recv): (
+        SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
+        SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
+    ) = ws_stream.split();
 
     let ws_sink = Arc::new(Mutex::new(ws_sink));
     let ws_sink_clone = ws_sink.clone();
@@ -559,7 +562,7 @@ pub async fn run_ws_client(url: &str, token: &str, default_room: &str) -> Result
         // Handle commands
         if trimmed.starts_with('/') {
             let parts: Vec<&str> = trimmed.split_whitespace().collect();
-            match parts.get(0).map(|s| *s) {
+            match parts.first().copied() {
                 Some("/quit") => {
                     println!("Goodbye!");
                     recv_handle.abort();
@@ -648,9 +651,7 @@ pub async fn run(cli: Cli) -> Result<String, CliError> {
                 None => Ok("ws connected".to_string()),
             }
         }
-        Commands::Ws { url, token, room } => {
-            run_ws_client(&url, &token, &room).await
-        }
+        Commands::Ws { url, token, room } => run_ws_client(&url, &token, &room).await,
         Commands::TestProvider {
             provider,
             prompt,

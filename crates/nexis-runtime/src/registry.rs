@@ -40,7 +40,8 @@ impl ProviderRegistry {
         if let Ok(api_key) = env::var("OPENAI_API_KEY") {
             let provider = crate::providers::OpenAIProvider::new(
                 api_key,
-                env::var("OPENAI_API_BASE").unwrap_or_else(|_| "https://api.openai.com/v1".to_string()),
+                env::var("OPENAI_API_BASE")
+                    .unwrap_or_else(|_| "https://api.openai.com/v1".to_string()),
                 env::var("OPENAI_DEFAULT_MODEL").unwrap_or_else(|_| "gpt-4o-mini".to_string()),
             );
             // Synchronously register (from_env is not async)
@@ -53,8 +54,10 @@ impl ProviderRegistry {
         if let Ok(api_key) = env::var("ANTHROPIC_API_KEY") {
             let provider = crate::providers::AnthropicProvider::new(
                 api_key,
-                env::var("ANTHROPIC_API_BASE").unwrap_or_else(|_| "https://api.anthropic.com/v1".to_string()),
-                env::var("ANTHROPIC_DEFAULT_MODEL").unwrap_or_else(|_| "claude-3-5-sonnet-20241022".to_string()),
+                env::var("ANTHROPIC_API_BASE")
+                    .unwrap_or_else(|_| "https://api.anthropic.com/v1".to_string()),
+                env::var("ANTHROPIC_DEFAULT_MODEL")
+                    .unwrap_or_else(|_| "claude-3-5-sonnet-20241022".to_string()),
             );
             if let Ok(mut providers) = registry.providers.try_write() {
                 providers.insert("anthropic".to_string(), Arc::new(provider));

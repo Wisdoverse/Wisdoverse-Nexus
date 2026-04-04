@@ -30,7 +30,9 @@ impl Default for AiHandlerConfig {
             triggers: vec!["ai".to_string(), "assistant".to_string()],
             default_agent_name: "ai".to_string(),
             max_context_messages: 20,
-            system_prompt: "You are a helpful AI assistant in a group chat. Be concise and helpful.".to_string(),
+            system_prompt:
+                "You are a helpful AI assistant in a group chat. Be concise and helpful."
+                    .to_string(),
         }
     }
 }
@@ -62,7 +64,11 @@ impl AiHandler {
         context_manager: Arc<ContextManager>,
         provider_registry: Arc<ProviderRegistry>,
     ) -> Self {
-        Self::new(context_manager, provider_registry, AiHandlerConfig::default())
+        Self::new(
+            context_manager,
+            provider_registry,
+            AiHandlerConfig::default(),
+        )
     }
 
     /// Detect if message contains an AI mention
@@ -71,7 +77,7 @@ impl AiHandler {
     /// Supports formats: @ai, @AI, @assistant, @<agent_name>
     pub fn detect_ai_mention(message: &str) -> Option<String> {
         let lower = message.to_lowercase();
-        
+
         // Check for @ai or @assistant mentions
         for trigger in &["ai", "assistant"] {
             let pattern = format!("@{}", trigger);
@@ -79,7 +85,7 @@ impl AiHandler {
                 return Some(trigger.to_string());
             }
         }
-        
+
         None
     }
 
@@ -88,14 +94,14 @@ impl AiHandler {
     /// Removes the @ai mention and returns the clean prompt
     pub fn extract_prompt(message: &str) -> String {
         let lower = message.to_lowercase();
-        
+
         // Remove @ai or @assistant mentions
         let cleaned = lower
             .replace("@ai", "")
             .replace("@assistant", "")
             .trim()
             .to_string();
-        
+
         cleaned
     }
 
@@ -111,10 +117,10 @@ impl AiHandler {
     ) -> Option<AiResponse> {
         // Get context for this room
         let context_messages = self.assemble_context(room_id).await;
-        
+
         // Get the default provider
         let provider = self.provider_registry.get_default().await?;
-        
+
         debug!(
             room_id = %room_id,
             sender_id = %sender_id,
@@ -125,7 +131,7 @@ impl AiHandler {
 
         // Build the prompt with context
         let prompt = self.build_prompt(&context_messages, original_message, sender_id);
-        
+
         // Call the AI provider
         let request = GenerateRequest {
             prompt,
@@ -143,7 +149,7 @@ impl AiHandler {
                     response_len = response.content.len(),
                     "AI response generated"
                 );
-                
+
                 Some(AiResponse {
                     content: response.content,
                     agent_name: self.config.default_agent_name.clone(),
@@ -164,7 +170,7 @@ impl AiHandler {
     /// Assemble context from the room's conversation history
     async fn assemble_context(&self, room_id: &str) -> Vec<ContextMessage> {
         let messages = self.context_manager.get_context_by_room(room_id).await;
-        
+
         // Take the most recent N messages
         let recent: Vec<ContextMessage> = messages
             .into_iter()
@@ -172,13 +178,13 @@ impl AiHandler {
             .take(self.config.max_context_messages)
             .rev()
             .collect();
-        
+
         debug!(
             room_id = %room_id,
             message_count = recent.len(),
             "Context assembled"
         );
-        
+
         recent
     }
 
@@ -191,7 +197,7 @@ impl AiHandler {
     ) -> String {
         let mut prompt = self.config.system_prompt.clone();
         prompt.push_str("\n\n");
-        
+
         // Add conversation context
         if !context_messages.is_empty() {
             prompt.push_str("Recent conversation:\n");
@@ -203,14 +209,14 @@ impl AiHandler {
                 };
                 prompt.push_str(&format!("[{}]: {}\n", role, msg.content));
             }
-            prompt.push_str("\n");
+            prompt.push('\n');
         }
-        
+
         // Add current message
         let clean_prompt = Self::extract_prompt(current_message);
         prompt.push_str(&format!("[User {}]: {}\n", sender_id, clean_prompt));
         prompt.push_str("\nRespond concisely and helpfully:");
-        
+
         prompt
     }
 
@@ -221,8 +227,12 @@ impl AiHandler {
             MessageRole::Assistant => ContextMessage::assistant(content),
             MessageRole::System => ContextMessage::system(content),
         };
-        
-        if let Err(e) = self.context_manager.add_message_by_room(room_id, message).await {
+
+        if let Err(e) = self
+            .context_manager
+            .add_message_by_room(room_id, message)
+            .await
+        {
             warn!(
                 room_id = %room_id,
                 error = %e,
@@ -282,7 +292,10 @@ mod tests {
     fn test_extract_prompt() {
         assert_eq!(AiHandler::extract_prompt("@ai hello"), "hello");
         assert_eq!(AiHandler::extract_prompt("@AI what's up"), "what's up");
-        assert_eq!(AiHandler::extract_prompt("Hey @assistant help me"), "hey  help me");
+        assert_eq!(
+            AiHandler::extract_prompt("Hey @assistant help me"),
+            "hey  help me"
+        );
         assert_eq!(AiHandler::extract_prompt("hello @ai"), "hello");
     }
 
@@ -293,7 +306,7 @@ mod tests {
             agent_name: "ai".to_string(),
             model: Some("gpt-4o-mini".to_string()),
         };
-        
+
         assert_eq!(response.to_chat_message(), "[ai]: Hello! How can I help?");
     }
 }

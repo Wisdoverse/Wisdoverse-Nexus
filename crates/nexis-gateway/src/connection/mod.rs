@@ -16,7 +16,7 @@ pub use auth::{
 };
 
 pub use ws::{
-    websocket_upgrade_with_state, websocket_routes, WebSocketQuery, WebSocketSender, WebSocketState,
+    websocket_routes, websocket_upgrade_with_state, WebSocketQuery, WebSocketSender, WebSocketState,
 };
 
 // Legacy exports for backward compatibility
