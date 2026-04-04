@@ -63,6 +63,15 @@ pub enum Commands {
         )]
         timeout_ms: u64,
     },
+    #[command(about = "Interactive WebSocket client with JWT auth")]
+    Ws {
+        #[arg(long, default_value = "ws://localhost:3000/ws", help = "WebSocket URL")]
+        url: String,
+        #[arg(long, help = "JWT token for authentication")]
+        token: String,
+        #[arg(long, default_value = "general", help = "Default room ID")]
+        room: String,
+    },
     #[command(about = "Test AI provider connection")]
     TestProvider {
         #[arg(short, long, help = "Provider to test (openai or anthropic)")]
@@ -456,6 +465,162 @@ pub async fn connect_websocket_once(
     }
 }
 
+/// Run interactive WebSocket client with JWT auth
+pub async fn run_ws_client(url: &str, token: &str, default_room: &str) -> Result<String, CliError> {
+    use std::io::{self, BufRead, Write};
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+    use futures::stream::{SplitSink, SplitStream};
+    use tokio_tungstenite::{WebSocketStream, MaybeTlsStream};
+    use tokio::net::TcpStream;
+
+    println!("Connecting to {}...", url);
+    let (ws_stream, _) = connect_async(url)
+        .await
+        .map_err(|err| CliError::WebSocket(err.to_string()))?;
+    println!("Connected!");
+
+    let (ws_sink, ws_recv): (SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>, SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>) =
+        ws_stream.split();
+
+    let ws_sink = Arc::new(Mutex::new(ws_sink));
+    let ws_sink_clone = ws_sink.clone();
+
+    // Send auth message
+    let auth_msg = serde_json::json!({
+        "type": "auth",
+        "token": format!("Bearer {}", token)
+    })
+    .to_string();
+    ws_sink
+        .lock()
+        .await
+        .send(Message::Text(auth_msg.into()))
+        .await
+        .map_err(|err| CliError::WebSocket(err.to_string()))?;
+    println!("Sent auth message");
+
+    let mut current_room = default_room.to_string();
+
+    // Spawn a task to receive messages
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<String>(100);
+    let recv_handle = tokio::spawn(async move {
+        let mut ws_recv = ws_recv;
+        while let Some(msg) = ws_recv.next().await {
+            match msg {
+                Ok(Message::Text(text)) => {
+                    if tx.send(text.to_string()).await.is_err() {
+                        break;
+                    }
+                }
+                Ok(Message::Close(_)) => {
+                    eprintln!("Server closed connection");
+                    break;
+                }
+                Err(e) => {
+                    eprintln!("WebSocket error: {}", e);
+                    break;
+                }
+                _ => {}
+            }
+        }
+    });
+
+    println!("Ready. Commands: /join <room>, /leave <room>, /quit");
+    println!("Current room: {}", current_room);
+    print!("> ");
+    let _ = io::stdout().flush();
+
+    let stdin = io::stdin();
+    for line in stdin.lock().lines() {
+        let line = match line {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("Error reading stdin: {}", e);
+                break;
+            }
+        };
+
+        let trimmed = line.trim();
+
+        // Check for received messages (non-blocking)
+        while let Ok(msg) = rx.try_recv() {
+            println!("\r< {}", msg);
+            print!("> ");
+            let _ = io::stdout().flush();
+        }
+
+        if trimmed.is_empty() {
+            print!("> ");
+            let _ = io::stdout().flush();
+            continue;
+        }
+
+        // Handle commands
+        if trimmed.starts_with('/') {
+            let parts: Vec<&str> = trimmed.split_whitespace().collect();
+            match parts.get(0).map(|s| *s) {
+                Some("/quit") => {
+                    println!("Goodbye!");
+                    recv_handle.abort();
+                    return Ok("Disconnected".to_string());
+                }
+                Some("/join") => {
+                    if let Some(room) = parts.get(1) {
+                        current_room = room.to_string();
+                        println!("Joined room: {}", current_room);
+                    } else {
+                        println!("Usage: /join <room>");
+                    }
+                }
+                Some("/leave") => {
+                    if let Some(room) = parts.get(1) {
+                        let leave_msg = serde_json::json!({
+                            "type": "leave",
+                            "roomId": room
+                        })
+                        .to_string();
+                        ws_sink_clone
+                            .lock()
+                            .await
+                            .send(Message::Text(leave_msg.into()))
+                            .await
+                            .map_err(|err| CliError::WebSocket(err.to_string()))?;
+                        println!("Left room: {}", room);
+                    } else {
+                        println!("Usage: /leave <room>");
+                    }
+                }
+                Some(cmd) => {
+                    println!("Unknown command: {}", cmd);
+                    println!("Commands: /join <room>, /leave <room>, /quit");
+                }
+                None => {}
+            }
+        } else {
+            // Send message
+            let msg = serde_json::json!({
+                "type": "message",
+                "roomId": current_room,
+                "text": trimmed
+            })
+            .to_string();
+            ws_sink_clone
+                .lock()
+                .await
+                .send(Message::Text(msg.into()))
+                .await
+                .map_err(|err| CliError::WebSocket(err.to_string()))?;
+        }
+
+        print!("> ");
+        let _ = io::stdout().flush();
+    }
+
+    recv_handle.abort();
+    Ok("Session ended".to_string())
+}
+
 pub async fn run(cli: Cli) -> Result<String, CliError> {
     match cli.command {
         Commands::CreateRoom { name, topic } => {
@@ -482,6 +647,9 @@ pub async fn run(cli: Cli) -> Result<String, CliError> {
                 Some(text) => Ok(format!("ws reply: {text}")),
                 None => Ok("ws connected".to_string()),
             }
+        }
+        Commands::Ws { url, token, room } => {
+            run_ws_client(&url, &token, &room).await
         }
         Commands::TestProvider {
             provider,
