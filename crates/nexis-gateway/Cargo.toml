@@ -75,6 +75,7 @@ nexis-core = { workspace = true }
 nexis-protocol = { workspace = true }
 nexis-mcp = { workspace = true }
 nexis-runtime = { workspace = true }
+nexis-context = { path = "../nexis-context" }
 nexis-vector = { workspace = true }
 nexis-meeting = { workspace = true }
 nexis-doc = { workspace = true }

@@ -78,7 +78,7 @@ thiserror = "1.0"
 anyhow = "1.0"
 
 # Utilities
-uuid = { version = "1.7", features = ["v4", "v7", "serde"] }
+uuid = { version = "1.7", features = ["v4", "v5", "v7", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 url = "2.5"
 bytes = "1.5"

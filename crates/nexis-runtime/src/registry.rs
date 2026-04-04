@@ -4,6 +4,7 @@
 //! dynamic registration, health checks, and default provider selection.
 
 use std::collections::HashMap;
+use std::env;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -22,6 +23,71 @@ impl ProviderRegistry {
             providers: RwLock::new(HashMap::new()),
             default_provider: RwLock::new(None),
         }
+    }
+
+    /// Create and configure registry from environment variables
+    ///
+    /// Environment variables:
+    /// - `NEXIS_DEFAULT_PROVIDER`: Default provider name (openai/anthropic/mock)
+    /// - `OPENAI_API_KEY`: OpenAI API key
+    /// - `ANTHROPIC_API_KEY`: Anthropic API key
+    ///
+    /// At least one API key must be provided for non-mock providers.
+    pub fn from_env() -> Self {
+        let registry = Self::new();
+
+        // Register providers based on available API keys
+        if let Ok(api_key) = env::var("OPENAI_API_KEY") {
+            let provider = crate::providers::OpenAIProvider::new(
+                api_key,
+                env::var("OPENAI_API_BASE").unwrap_or_else(|_| "https://api.openai.com/v1".to_string()),
+                env::var("OPENAI_DEFAULT_MODEL").unwrap_or_else(|_| "gpt-4o-mini".to_string()),
+            );
+            // Synchronously register (from_env is not async)
+            // We'll use try_write and ignore if it fails
+            if let Ok(mut providers) = registry.providers.try_write() {
+                providers.insert("openai".to_string(), Arc::new(provider));
+            }
+        }
+
+        if let Ok(api_key) = env::var("ANTHROPIC_API_KEY") {
+            let provider = crate::providers::AnthropicProvider::new(
+                api_key,
+                env::var("ANTHROPIC_API_BASE").unwrap_or_else(|_| "https://api.anthropic.com/v1".to_string()),
+                env::var("ANTHROPIC_DEFAULT_MODEL").unwrap_or_else(|_| "claude-3-5-sonnet-20241022".to_string()),
+            );
+            if let Ok(mut providers) = registry.providers.try_write() {
+                providers.insert("anthropic".to_string(), Arc::new(provider));
+            }
+        }
+
+        // Register mock provider (always available as fallback)
+        {
+            let mock_provider = crate::MockProvider::new();
+            if let Ok(mut providers) = registry.providers.try_write() {
+                providers.insert("mock".to_string(), Arc::new(mock_provider));
+            }
+        }
+
+        // Set default provider
+        if let Ok(default) = env::var("NEXIS_DEFAULT_PROVIDER") {
+            if let Ok(mut default_provider) = registry.default_provider.try_write() {
+                *default_provider = Some(default);
+            }
+        } else {
+            // Auto-select default: openai > anthropic > mock
+            if let Ok(mut default_provider) = registry.default_provider.try_write() {
+                if env::var("OPENAI_API_KEY").is_ok() {
+                    *default_provider = Some("openai".to_string());
+                } else if env::var("ANTHROPIC_API_KEY").is_ok() {
+                    *default_provider = Some("anthropic".to_string());
+                } else {
+                    *default_provider = Some("mock".to_string());
+                }
+            }
+        }
+
+        registry
     }
 
     /// Register a provider

@@ -19,8 +19,14 @@ use crate::metrics::{
 };
 
 /// Context manager for handling conversation contexts
+///
+/// Supports both context_id (Uuid) and room_id (String) based lookups.
+/// room_id is the primary identifier for M2 AI member integration.
 pub struct ContextManager {
+    /// context_id -> ConversationContext
     contexts: Arc<RwLock<HashMap<Uuid, ConversationContext>>>,
+    /// room_id -> context_id mapping
+    room_contexts: Arc<RwLock<HashMap<String, Uuid>>>,
     window: ContextWindow,
     summarizer: Option<Arc<dyn ContextSummarizer>>,
     summarizer_config: SummarizerConfig,
@@ -31,6 +37,7 @@ impl ContextManager {
     pub fn new(window: ContextWindow) -> Self {
         Self {
             contexts: Arc::new(RwLock::new(HashMap::new())),
+            room_contexts: Arc::new(RwLock::new(HashMap::new())),
             window,
             summarizer: None,
             summarizer_config: SummarizerConfig::default(),
@@ -41,6 +48,7 @@ impl ContextManager {
     pub fn with_summarizer(window: ContextWindow, summarizer: Arc<dyn ContextSummarizer>) -> Self {
         Self {
             contexts: Arc::new(RwLock::new(HashMap::new())),
+            room_contexts: Arc::new(RwLock::new(HashMap::new())),
             window,
             summarizer: Some(summarizer),
             summarizer_config: SummarizerConfig::default(),
@@ -55,6 +63,7 @@ impl ContextManager {
     ) -> Self {
         Self {
             contexts: Arc::new(RwLock::new(HashMap::new())),
+            room_contexts: Arc::new(RwLock::new(HashMap::new())),
             window,
             summarizer: Some(summarizer),
             summarizer_config: config,
@@ -197,6 +206,14 @@ impl ContextManager {
 
     /// Delete a context
     pub async fn delete_context(&self, id: Uuid) -> ContextResult<()> {
+        // Also remove from room_contexts mapping
+        if let Some(context) = self.contexts.read().await.get(&id) {
+            if let Some(room_id) = context.room_id {
+                let mut room_contexts = self.room_contexts.write().await;
+                room_contexts.remove(&room_id.to_string());
+            }
+        }
+
         self.contexts
             .write()
             .await
@@ -208,6 +225,81 @@ impl ContextManager {
         set_active_contexts(self.contexts.read().await.len());
 
         Ok(())
+    }
+
+    // ========================================================================
+    // room_id-based API (M2 AI member integration)
+    // ========================================================================
+
+    /// Get or create a context for a room
+    ///
+    /// This is the primary API for M2 AI member integration.
+    /// Returns the context_id (Uuid) for the room's context.
+    pub async fn get_or_create_context_by_room(&self, room_id: &str) -> Uuid {
+        // Check if room already has a context
+        {
+            let room_contexts = self.room_contexts.read().await;
+            if let Some(&context_id) = room_contexts.get(room_id) {
+                return context_id;
+            }
+        }
+
+        // Create new context for this room
+        let room_uuid = Uuid::new_v5(&Uuid::NAMESPACE_URL, room_id.as_bytes());
+        let mut contexts = self.contexts.write().await;
+        let mut room_contexts = self.room_contexts.write().await;
+
+        // Double-check after acquiring write lock
+        if let Some(&context_id) = room_contexts.get(room_id) {
+            return context_id;
+        }
+
+        let mut context = ConversationContext::new(Some(room_uuid));
+        context.id = room_uuid; // Use deterministic ID based on room_id
+        contexts.insert(room_uuid, context);
+        room_contexts.insert(room_id.to_string(), room_uuid);
+
+        #[cfg(feature = "metrics")]
+        set_active_contexts(contexts.len());
+
+        room_uuid
+    }
+
+    /// Get recent messages for a room
+    ///
+    /// Returns the last N messages from the room's context.
+    /// If the room has no context, returns an empty vector.
+    pub async fn get_context_by_room(&self, room_id: &str) -> Vec<Message> {
+        let room_contexts = self.room_contexts.read().await;
+        if let Some(&context_id) = room_contexts.get(room_id) {
+            drop(room_contexts);
+            if let Ok(context) = self.get_context(context_id).await {
+                return context.messages;
+            }
+        }
+        Vec::new()
+    }
+
+    /// Add a message to a room's context
+    ///
+    /// Creates the room's context if it doesn't exist.
+    pub async fn add_message_by_room(&self, room_id: &str, message: Message) -> ContextResult<()> {
+        let context_id = self.get_or_create_context_by_room(room_id).await;
+        self.add_message(context_id, message).await
+    }
+
+    /// Delete a room's context
+    ///
+    /// Returns Ok(()) if the context was deleted, or error if not found.
+    pub async fn delete_context_by_room(&self, room_id: &str) -> ContextResult<()> {
+        let context_id = {
+            let room_contexts = self.room_contexts.read().await;
+            room_contexts
+                .get(room_id)
+                .copied()
+                .ok_or_else(|| ContextError::NotFound(room_id.to_string()))?
+        };
+        self.delete_context(context_id).await
     }
 
     /// Get number of active contexts

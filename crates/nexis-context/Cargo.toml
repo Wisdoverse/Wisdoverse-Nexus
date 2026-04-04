@@ -10,7 +10,7 @@ authors.workspace = true
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
-uuid = { workspace = true }
+uuid = { workspace = true, features = ["v5"] }
 chrono = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
