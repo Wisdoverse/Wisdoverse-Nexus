@@ -2,12 +2,17 @@
 //!
 //! Routes messages between connections based on room subscriptions.
 //! Handles JoinRoom, LeaveRoom, and message broadcasting.
+//! Supports AI member integration via @ai mentions.
 
 use axum::extract::ws::Message;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
+
+use crate::handlers::ai::{AiHandler, AiHandlerConfig, AiResponse};
+use nexis_context::ContextManager;
+use nexis_runtime::ProviderRegistry;
 
 /// A connection's sender channel
 pub type ConnectionTx = mpsc::Sender<Message>;
@@ -19,7 +24,6 @@ pub type RoomId = String;
 pub type MemberId = String;
 
 /// Router state for message routing
-#[derive(Debug, Default)]
 pub struct RouterState {
     /// room_id -> set of member_ids
     rooms: RwLock<HashMap<RoomId, HashSet<MemberId>>>,
@@ -27,17 +31,62 @@ pub struct RouterState {
     connections: RwLock<HashMap<MemberId, ConnectionTx>>,
     /// member_id -> set of joined rooms (for cleanup)
     member_rooms: RwLock<HashMap<MemberId, HashSet<RoomId>>>,
+    /// AI handler for @ai mentions
+    ai_handler: Option<Arc<AiHandler>>,
+}
+
+impl std::fmt::Debug for RouterState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RouterState")
+            .field("rooms_count", &self.rooms.try_read().map(|r| r.len()).unwrap_or(0))
+            .field("connections_count", &self.connections.try_read().map(|c| c.len()).unwrap_or(0))
+            .field("ai_handler_enabled", &self.ai_handler.is_some())
+            .finish()
+    }
+}
+
+impl Default for RouterState {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RouterState {
     /// Create a new router state
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            rooms: RwLock::new(HashMap::new()),
+            connections: RwLock::new(HashMap::new()),
+            member_rooms: RwLock::new(HashMap::new()),
+            ai_handler: None,
+        }
     }
 
     /// Wrap in Arc for sharing
     pub fn shared() -> Arc<Self> {
         Arc::new(Self::new())
+    }
+
+    /// Create router with AI handler
+    pub fn with_ai_handler(
+        context_manager: Arc<ContextManager>,
+        provider_registry: Arc<ProviderRegistry>,
+    ) -> Self {
+        let ai_handler = AiHandler::with_defaults(context_manager, provider_registry);
+        Self {
+            rooms: RwLock::new(HashMap::new()),
+            connections: RwLock::new(HashMap::new()),
+            member_rooms: RwLock::new(HashMap::new()),
+            ai_handler: Some(Arc::new(ai_handler)),
+        }
+    }
+
+    /// Wrap with AI handler in Arc
+    pub fn shared_with_ai(
+        context_manager: Arc<ContextManager>,
+        provider_registry: Arc<ProviderRegistry>,
+    ) -> Arc<Self> {
+        Arc::new(Self::with_ai_handler(context_manager, provider_registry))
     }
 
     /// Register a connection with its sender channel
@@ -226,6 +275,76 @@ impl RouterState {
     /// Get total room count
     pub async fn room_count(&self) -> usize {
         self.rooms.read().await.len()
+    }
+
+    /// Process a chat message with AI detection
+    ///
+    /// If the message contains @ai or @assistant, spawns an async
+    /// task to handle the AI request and broadcast the response.
+    pub async fn process_chat_message(
+        self: Arc<Self>,
+        room_id: RoomId,
+        sender_id: MemberId,
+        message: String,
+    ) {
+        // Add message to context
+        if let Some(ref handler) = self.ai_handler {
+            handler
+                .add_to_context(&room_id, nexis_context::MessageRole::User, message.clone())
+                .await;
+        }
+
+        // Check for AI mention
+        if AiHandler::detect_ai_mention(&message).is_some() {
+            let handler = self.ai_handler.clone();
+            let router = self.clone();
+            let room = room_id.clone();
+            let sender = sender_id.clone();
+            let msg = message.clone();
+
+            // Spawn async task to handle AI request
+            tokio::spawn(async move {
+                if let Some(ref handler) = handler {
+                    debug!(
+                        room_id = %room,
+                        sender_id = %sender,
+                        "Processing AI mention"
+                    );
+
+                    match handler.handle_message(&room, &sender, &msg).await {
+                        Some(response) => {
+                            // Add AI response to context
+                            handler
+                                .add_to_context(
+                                    &room,
+                                    nexis_context::MessageRole::Assistant,
+                                    response.content.clone(),
+                                )
+                                .await;
+
+                            // Format and broadcast response
+                            let ai_message = response.to_chat_message();
+                            debug!(
+                                room_id = %room,
+                                response_len = ai_message.len(),
+                                "Broadcasting AI response"
+                            );
+
+                            // Broadcast to room (AI is sender, so broadcast to everyone else)
+                            router
+                                .broadcast_to_room(&room, &response.agent_name, &ai_message)
+                                .await;
+                        }
+                        None => {
+                            warn!(
+                                room_id = %room,
+                                "AI handler returned no response"
+                            );
+                        }
+                    }
+                }
+            });
+        }
     }
 }
 
