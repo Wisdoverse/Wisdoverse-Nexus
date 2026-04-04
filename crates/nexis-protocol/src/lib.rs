@@ -236,6 +236,131 @@ impl Message {
     }
 }
 
+// ============================================================
+// Protocol-level messages for WebSocket communication
+// ============================================================
+
+/// Protocol-level control messages for connection lifecycle
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ProtocolMessage {
+    /// Connection request (client -> server)
+    Connect {
+        /// Protocol version
+        version: String,
+        /// Optional authentication token
+        #[serde(skip_serializing_if = "Option::is_none")]
+        token: Option<String>,
+    },
+    /// Connection acknowledgment (server -> client)
+    Connected {
+        /// Server protocol version
+        version: String,
+        /// Assigned connection ID
+        connection_id: String,
+    },
+    /// Regular message (bidirectional)
+    Message {
+        /// Message envelope
+        #[serde(flatten)]
+        envelope: MessageEnvelope,
+    },
+    /// Disconnection notice (bidirectional)
+    Disconnect {
+        /// Reason for disconnection
+        reason: DisconnectReason,
+        /// Optional message
+        #[serde(skip_serializing_if = "Option::is_none")]
+        message: Option<String>,
+    },
+    /// Error message (server -> client)
+    Error {
+        /// Error code
+        code: String,
+        /// Error message
+        message: String,
+        /// Whether the connection should be closed
+        fatal: bool,
+    },
+}
+
+/// Message envelope for protocol messages
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MessageEnvelope {
+    /// Message ID
+    pub id: String,
+    /// Room ID
+    #[serde(rename = "roomId")]
+    pub room_id: String,
+    /// Sender member ID
+    pub sender: MemberId,
+    /// Message content
+    pub content: MessageContent,
+    /// Timestamp
+    #[serde(rename = "createdAt")]
+    pub created_at: DateTime<Utc>,
+}
+
+impl MessageEnvelope {
+    /// Create a new message envelope
+    pub fn new(
+        id: String,
+        room_id: String,
+        sender: MemberId,
+        content: MessageContent,
+    ) -> Self {
+        Self {
+            id,
+            room_id,
+            sender,
+            content,
+            created_at: Utc::now(),
+        }
+    }
+}
+
+/// Reason for disconnection
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DisconnectReason {
+    /// Client initiated disconnect
+    ClientClose,
+    /// Server initiated disconnect
+    ServerClose,
+    /// Authentication timeout
+    AuthTimeout,
+    /// Protocol error
+    ProtocolError,
+    /// Server shutdown
+    ServerShutdown,
+    /// Connection timeout
+    Timeout,
+    /// Rate limit exceeded
+    RateLimitExceeded,
+}
+
+/// Protocol-level error codes
+pub mod error_codes {
+    /// Invalid message format
+    pub const INVALID_MESSAGE: &str = "INVALID_MESSAGE";
+    /// Authentication required
+    pub const AUTH_REQUIRED: &str = "AUTH_REQUIRED";
+    /// Authentication failed
+    pub const AUTH_FAILED: &str = "AUTH_FAILED";
+    /// Authentication timeout
+    pub const AUTH_TIMEOUT: &str = "AUTH_TIMEOUT";
+    /// Token expired
+    pub const TOKEN_EXPIRED: &str = "TOKEN_EXPIRED";
+    /// Invalid room ID
+    pub const INVALID_ROOM: &str = "INVALID_ROOM";
+    /// Permission denied
+    pub const PERMISSION_DENIED: &str = "PERMISSION_DENIED";
+    /// Rate limit exceeded
+    pub const RATE_LIMIT: &str = "RATE_LIMIT";
+    /// Internal server error
+    pub const INTERNAL_ERROR: &str = "INTERNAL_ERROR";
+}
+
 #[cfg(test)]
 mod tests {
     use chrono::{TimeZone, Utc};

@@ -13,4 +13,7 @@ pub mod tenant;
 
 pub use nexis_protocol::{Action, MemberId, MemberIdError, Message, MessageContent, Permissions};
 
+// Identity types
+pub use identity::{AgentId, Identity, UserId, UserRole};
+
 pub const CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
