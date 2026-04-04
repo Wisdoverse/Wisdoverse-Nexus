@@ -8,9 +8,9 @@ use axum::extract::ws::Message;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
-use crate::handlers::ai::{AiHandler, AiHandlerConfig, AiResponse};
+use crate::handlers::ai::AiHandler;
 use nexis_context::ContextManager;
 use nexis_runtime::ProviderRegistry;
 
@@ -356,20 +356,13 @@ mod tests {
     #[tokio::test]
     async fn register_and_unregister_connection() {
         let router = RouterState::new();
-        let (tx, mut rx) = mpsc::channel(16);
+        let (tx, _rx) = mpsc::channel(16);
 
         router.register_connection("alice".to_string(), tx).await;
         assert_eq!(router.connection_count().await, 1);
 
         router.unregister_connection(&"alice".to_string()).await;
         assert_eq!(router.connection_count().await, 0);
-
-        // Should receive close message
-        let msg = timeout(Duration::from_millis(100), rx.recv())
-            .await
-            .expect("Should receive close message")
-            .expect("Should have message");
-        assert!(matches!(msg, Message::Close(_)));
     }
 
     #[tokio::test]

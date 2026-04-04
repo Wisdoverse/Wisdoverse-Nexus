@@ -1,5 +1,7 @@
 //! Message routing for Nexus Gateway
 
+pub mod ws_router;
+
 use axum::{
     extract::ws::WebSocketUpgrade,
     extract::{Path, Query, State},

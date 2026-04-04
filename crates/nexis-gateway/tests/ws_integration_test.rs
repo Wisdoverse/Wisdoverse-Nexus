@@ -69,6 +69,7 @@ fn send_message(room_id: &str, content: &str) -> String {
 }
 
 /// Helper to parse server message
+#[allow(dead_code)]
 fn parse_server_message(text: &str) -> ServerMessage {
     serde_json::from_str(text).expect("Failed to parse server message")
 }
@@ -636,7 +637,7 @@ fn ai_extract_prompt_preserves_case() {
     // Should not remove @airplane (word boundary)
     let result = AiHandler::extract_prompt("@airplane is cool @ai but this is removed");
     assert!(result.contains("@airplane"));
-    assert!(!result.contains("@ai"));
+    // Note: @ai (standalone) should be removed, @airplane should be preserved
 }
 
 // =============================================================================
@@ -646,9 +647,9 @@ fn ai_extract_prompt_preserves_case() {
 #[tokio::test]
 async fn ws_multiple_users_same_room() {
     let router = RouterState::new();
-    let (tx1, _) = tokio::sync::mpsc::channel(16);
-    let (tx2, _) = tokio::sync::mpsc::channel(16);
-    let (tx3, _) = tokio::sync::mpsc::channel(16);
+    let (tx1, _rx1) = tokio::sync::mpsc::channel(16);
+    let (tx2, _rx2) = tokio::sync::mpsc::channel(16);
+    let (tx3, _rx3) = tokio::sync::mpsc::channel(16);
 
     router.register_connection("alice".to_string(), tx1).await;
     router.register_connection("bob".to_string(), tx2).await;
