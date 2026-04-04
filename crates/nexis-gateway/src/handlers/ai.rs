@@ -75,34 +75,66 @@ impl AiHandler {
     ///
     /// Returns Some(trigger) if found, None otherwise.
     /// Supports formats: @ai, @AI, @assistant, @<agent_name>
+    /// Uses word boundary matching to avoid false positives like "@airplane"
     pub fn detect_ai_mention(message: &str) -> Option<String> {
-        let lower = message.to_lowercase();
-
-        // Check for @ai or @assistant mentions
-        for trigger in &["ai", "assistant"] {
-            let pattern = format!("@{}", trigger);
-            if lower.contains(&pattern) {
-                return Some(trigger.to_string());
+        // Check each word for @ai or @assistant (case-insensitive, word boundary)
+        for word in message.split_whitespace() {
+            let lower_word = word.to_lowercase();
+            // Word boundary: @ai must be followed by nothing or punctuation
+            for trigger in &["ai", "assistant"] {
+                let pattern = format!("@{}", trigger);
+                if lower_word == pattern {
+                    return Some(trigger.to_string());
+                }
             }
         }
-
         None
     }
 
     /// Extract the actual question/prompt from the message
     ///
-    /// Removes the @ai mention and returns the clean prompt
+    /// Removes the @ai mention and returns the clean prompt.
+    /// Preserves original case of the message content.
     pub fn extract_prompt(message: &str) -> String {
-        let lower = message.to_lowercase();
+        // Remove @ai/@AI/@Ai/@assistant mentions while preserving original case
+        let mut cleaned = message.to_string();
+        
+        // Find and remove @ai/@assistant mentions (case-insensitive detection)
+        for trigger in &["ai", "assistant"] {
+            // Case-insensitive search for @trigger as a word
+            let mut result = String::new();
+            let mut last_end = 0;
+            let lower_msg = message.to_lowercase();
+            let pattern = format!("@{}", trigger);
+            
+            let mut start = 0;
+            while start < message.len() {
+                if let Some(pos) = lower_msg[start..].find(&pattern) {
+                    let match_start = start + pos;
+                    let match_end = match_start + pattern.len();
+                    
+                    // Check if this is a word boundary (end of token)
+                    let is_word_boundary = match_end >= message.len() 
+                        || !message.as_bytes()[match_end].is_ascii_alphanumeric();
+                    
+                    if is_word_boundary {
+                        // Add text before the match
+                        result.push_str(&message[last_end..match_start]);
+                        last_end = match_end;
+                    }
+                    start = match_end;
+                } else {
+                    break;
+                }
+            }
+            // Add remaining text
+            if last_end > 0 {
+                result.push_str(&message[last_end..]);
+                cleaned = result;
+            }
+        }
 
-        // Remove @ai or @assistant mentions
-        let cleaned = lower
-            .replace("@ai", "")
-            .replace("@assistant", "")
-            .trim()
-            .to_string();
-
-        cleaned
+        cleaned.trim().to_string()
     }
 
     /// Handle an AI message request
@@ -286,17 +318,34 @@ mod tests {
         assert!(AiHandler::detect_ai_mention("hello world").is_none());
         assert!(AiHandler::detect_ai_mention("email@test.com").is_none());
         assert!(AiHandler::detect_ai_mention("someone@example.com").is_none());
+        // Word boundary test - should NOT match @airplane
+        assert!(AiHandler::detect_ai_mention("@airplane is flying").is_none());
+        assert!(AiHandler::detect_ai_mention("@aid is needed").is_none());
+        assert!(AiHandler::detect_ai_mention("@ailing health").is_none());
     }
 
     #[test]
     fn test_extract_prompt() {
+        // Basic extraction
         assert_eq!(AiHandler::extract_prompt("@ai hello"), "hello");
+        assert_eq!(AiHandler::extract_prompt("hello @ai"), "hello");
+        
+        // Preserve original case (P1 fix)
         assert_eq!(AiHandler::extract_prompt("@AI what's up"), "what's up");
         assert_eq!(
             AiHandler::extract_prompt("Hey @assistant help me"),
-            "hey  help me"
+            "Hey  help me"  // Preserves "Hey" with capital H
         );
-        assert_eq!(AiHandler::extract_prompt("hello @ai"), "hello");
+        assert_eq!(
+            AiHandler::extract_prompt("Hello World @ai How Are You?"),
+            "Hello World  How Are You?"  // Preserves case
+        );
+        
+        // Should not remove @airplane (word boundary)
+        assert_eq!(
+            AiHandler::extract_prompt("@airplane is cool @ai but this is removed"),
+            "@airplane is cool  but this is removed"
+        );
     }
 
     #[test]

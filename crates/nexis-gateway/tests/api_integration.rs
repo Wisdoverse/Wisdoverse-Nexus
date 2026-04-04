@@ -4,6 +4,8 @@ use nexis_gateway::build_routes;
 use serde_json::Value;
 use tower::ServiceExt;
 
+const TEST_JWT_SECRET: &str = "test_secret_for_integration_tests";
+
 fn auth_header() -> String {
     let now = chrono::Utc::now().timestamp() as usize;
     let claims = nexis_gateway::auth::Claims {
@@ -17,7 +19,7 @@ fn auth_header() -> String {
     let token = jsonwebtoken::encode(
         &jsonwebtoken::Header::default(),
         &claims,
-        &jsonwebtoken::EncodingKey::from_secret("dev_only_secret_change_in_production".as_bytes()),
+        &jsonwebtoken::EncodingKey::from_secret(TEST_JWT_SECRET.as_bytes()),
     )
     .expect("encode test token");
     format!("Bearer {token}")
@@ -25,6 +27,9 @@ fn auth_header() -> String {
 
 #[tokio::test]
 async fn api_create_room_and_send_message_roundtrip() {
+    // Set JWT_SECRET for this test
+    std::env::set_var("JWT_SECRET", TEST_JWT_SECRET);
+    
     let app = build_routes();
     let auth = auth_header();
 

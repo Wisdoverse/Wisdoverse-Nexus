@@ -178,12 +178,14 @@ where
         #[cfg(not(test))]
         let config = {
             let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| {
-                let env = std::env::var("NEXIS_ENV").unwrap_or_default();
-                if env == "production" {
-                    panic!("JWT_SECRET must be set in production environment");
-                }
-                eprintln!("WARNING: Using default JWT secret. DO NOT use in production!");
-                "dev_only_secret_change_in_production".to_string()
+                // Generate a random secret that will be invalid after restart
+                let random_secret = uuid::Uuid::new_v4().to_string();
+                tracing::warn!(
+                    "JWT_SECRET environment variable not set. Using randomly generated secret. \
+                     All tokens will be invalid after server restart. \
+                     Set JWT_SECRET for persistent authentication."
+                );
+                random_secret
             });
             JwtConfig::new(
                 &secret,

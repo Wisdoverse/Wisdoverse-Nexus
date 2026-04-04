@@ -4,6 +4,8 @@ use nexis_gateway::build_routes;
 use serde_json::Value;
 use tower::ServiceExt;
 
+const TEST_JWT_SECRET: &str = "test_secret_for_boundary_tests";
+
 fn auth_header() -> String {
     let now = chrono::Utc::now().timestamp() as usize;
     let claims = nexis_gateway::auth::Claims {
@@ -17,7 +19,7 @@ fn auth_header() -> String {
     let token = jsonwebtoken::encode(
         &jsonwebtoken::Header::default(),
         &claims,
-        &jsonwebtoken::EncodingKey::from_secret("dev_only_secret_change_in_production".as_bytes()),
+        &jsonwebtoken::EncodingKey::from_secret(TEST_JWT_SECRET.as_bytes()),
     )
     .expect("encode test token");
 
@@ -62,6 +64,9 @@ async fn create_room(app: &axum::Router, auth: &str) -> String {
 
 #[tokio::test]
 async fn rejects_oversized_messages() {
+    // Set JWT_SECRET for this test
+    std::env::set_var("JWT_SECRET", TEST_JWT_SECRET);
+    
     let app = build_routes();
     let auth = auth_header();
     let room_id = create_room(&app, &auth).await;
@@ -92,6 +97,9 @@ async fn rejects_oversized_messages() {
 
 #[tokio::test]
 async fn supports_concurrent_message_writes() {
+    // Set JWT_SECRET for this test
+    std::env::set_var("JWT_SECRET", TEST_JWT_SECRET);
+    
     let app = build_routes();
     let auth = auth_header();
     let room_id = create_room(&app, &auth).await;
@@ -161,6 +169,9 @@ async fn supports_concurrent_message_writes() {
 
 #[tokio::test]
 async fn recovers_after_bad_request_and_accepts_next_message() {
+    // Set JWT_SECRET for this test
+    std::env::set_var("JWT_SECRET", TEST_JWT_SECRET);
+    
     let app = build_routes();
     let auth = auth_header();
     let room_id = create_room(&app, &auth).await;

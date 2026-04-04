@@ -7,6 +7,8 @@ use nexis_gateway::collaboration::{
 use serde_json::Value;
 use tower::ServiceExt;
 
+const TEST_JWT_SECRET: &str = "test_secret_for_collab_tests";
+
 fn auth_header() -> String {
     auth_header_for_subject("collab-integration-user")
 }
@@ -24,7 +26,7 @@ fn auth_header_for_subject(subject: &str) -> String {
     let token = jsonwebtoken::encode(
         &jsonwebtoken::Header::default(),
         &claims,
-        &jsonwebtoken::EncodingKey::from_secret("dev_only_secret_change_in_production".as_bytes()),
+        &jsonwebtoken::EncodingKey::from_secret(TEST_JWT_SECRET.as_bytes()),
     )
     .expect("encode test token");
 
@@ -44,6 +46,9 @@ fn base_request(method: &str, uri: &str, body: Value) -> Request<Body> {
 
 #[tokio::test]
 async fn collaboration_document_request_response_cycle() {
+    // Set JWT_SECRET for this test
+    std::env::set_var("JWT_SECRET", TEST_JWT_SECRET);
+    
     let app = build_routes();
 
     let create_document_response = app
@@ -117,6 +122,9 @@ async fn collaboration_document_request_response_cycle() {
 
 #[tokio::test]
 async fn collaboration_rejects_invalid_api_version_with_structured_error() {
+    // Set JWT_SECRET for this test
+    std::env::set_var("JWT_SECRET", TEST_JWT_SECRET);
+    
     let app = build_routes();
 
     let response = app
@@ -156,6 +164,9 @@ async fn collaboration_rejects_invalid_api_version_with_structured_error() {
 
 #[tokio::test]
 async fn collaboration_rejects_missing_api_version_with_structured_error() {
+    // Set JWT_SECRET for this test
+    std::env::set_var("JWT_SECRET", TEST_JWT_SECRET);
+    
     let app = build_routes();
 
     let response = app
@@ -225,6 +236,9 @@ async fn collaboration_rejects_missing_authentication() {
 
 #[tokio::test]
 async fn collaboration_returns_consistent_validation_error_shape() {
+    // Set JWT_SECRET for this test
+    std::env::set_var("JWT_SECRET", TEST_JWT_SECRET);
+    
     let app = build_routes();
 
     let response = app
@@ -281,6 +295,9 @@ async fn collaboration_routes_require_versioned_path() {
 
 #[tokio::test]
 async fn collaboration_rate_limit_policy_tracks_subject_scope_threshold() {
+    // Set JWT_SECRET for this test
+    std::env::set_var("JWT_SECRET", TEST_JWT_SECRET);
+    
     let app = build_routes();
     let policy = CollaborationRateLimitPolicy::new(2, 60).expect("policy should be valid");
     let key = CollaborationRateLimitKey::new(

@@ -296,13 +296,54 @@ async fn handle_socket(socket: WebSocket, state: WebSocketState) {
     // Apply authentication timeout
     match timeout(AUTH_TIMEOUT, auth_future).await {
         Ok(Some(session)) => {
-            // Authenticated - register connection and continue
+            // Authenticated - register connection and continue handling messages
             let member_id = session.member_id.clone();
             state
                 .add_connection(member_id.clone(), session.member_type, tx.clone())
                 .await;
 
-            // Continue handling messages (simplified - full impl would continue the loop)
+            tracing::info!(member_id = %member_id, "WebSocket authenticated, entering message loop");
+
+            // Continue handling messages in a loop (same as handle_authenticated_socket)
+            while let Some(msg) = receiver.next().await {
+                match msg {
+                    Ok(Message::Text(text)) => {
+                        tracing::debug!(member_id = %member_id, "Received: {}", text);
+
+                        match parse_client_message(&text) {
+                            Ok(client_msg) => {
+                                match state
+                                    .authenticator
+                                    .process_message(ConnectionState::Authenticated, &client_msg)
+                                {
+                                    MessageResult::Response(server_msg) => {
+                                        if let Ok(json) = serialize_server_message(&server_msg) {
+                                            if tx.send(Message::Text(json)).await.is_err() {
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    MessageResult::CloseConnection => break,
+                                    _ => {}
+                                }
+                            }
+                            Err(e) => {
+                                tracing::warn!("Failed to parse message: {}", e);
+                            }
+                        }
+                    }
+                    Ok(Message::Close(_)) => {
+                        tracing::debug!(member_id = %member_id, "Client disconnected");
+                        break;
+                    }
+                    Err(e) => {
+                        tracing::error!(member_id = %member_id, "WebSocket error: {}", e);
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+
             tracing::info!(member_id = %member_id, "WebSocket session ended");
             state.remove_connection(&member_id).await;
         }
