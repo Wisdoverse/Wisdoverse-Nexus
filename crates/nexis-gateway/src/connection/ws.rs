@@ -3,15 +3,15 @@
 //! Handles WebSocket upgrade, JWT validation, and connection management.
 //! JWT token can be provided via:
 //! - Query parameter: `?token=xxx`
-//! - Header: `Authorization: Bearer xxx`
+//! - First-message authentication: `{"type":"auth","token":"Bearer xxx"}`
 //!
 //! Note: Query parameter authentication is deprecated due to security concerns
-//! (tokens may be logged). Use first-message authentication or header-based auth.
+//! (tokens may be logged). Use first-message authentication instead.
 
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        Query, State,
+        Query,
     },
     http::StatusCode,
     response::{IntoResponse, Response},
@@ -20,8 +20,6 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
-use chrono::Utc;
-use uuid::Uuid;
 
 use crate::auth::JwtConfig;
 use crate::connection::{
@@ -29,7 +27,6 @@ use crate::connection::{
     AuthenticatedSession, ConnectionState, MessageResult, ServerMessage, WebSocketAuthenticator,
     AUTH_TIMEOUT,
 };
-use crate::router::RouterState;
 
 /// Query parameters for WebSocket connection
 #[derive(Debug, Clone, Deserialize)]
@@ -58,8 +55,6 @@ pub struct WebSocketState {
     connections: ConnectionMap,
     /// JWT authenticator
     authenticator: Arc<WebSocketAuthenticator>,
-    /// Message router for room-based routing
-    router: Arc<RouterState>,
 }
 
 impl Default for WebSocketState {
@@ -74,7 +69,6 @@ impl WebSocketState {
         Self {
             connections: Arc::new(RwLock::new(HashMap::new())),
             authenticator: Arc::new(WebSocketAuthenticator::from_env()),
-            router: RouterState::shared(),
         }
     }
 
@@ -83,13 +77,7 @@ impl WebSocketState {
         Self {
             connections: Arc::new(RwLock::new(HashMap::new())),
             authenticator: Arc::new(WebSocketAuthenticator::new(jwt_config)),
-            router: RouterState::shared(),
         }
-    }
-
-    /// Get the router state
-    pub fn router(&self) -> &Arc<RouterState> {
-        &self.router
     }
 
     /// Get the connection map
@@ -171,18 +159,6 @@ impl WebSocketState {
     }
 }
 
-/// Handle WebSocket upgrade request
-/// 
-/// Validates JWT token from query parameter or proceeds with first-message auth.
-/// Returns 401 if token is provided but invalid.
-pub async fn websocket_upgrade(
-    ws: WebSocketUpgrade,
-    Query(query): Query<WebSocketQuery>,
-    State(state): State<WebSocketState>,
-) -> Response {
-    websocket_upgrade_with_state(ws, Query(query), state).await
-}
-
 /// Handle WebSocket upgrade with explicit state (for use without State extractor)
 pub async fn websocket_upgrade_with_state(
     ws: WebSocketUpgrade,
@@ -193,7 +169,7 @@ pub async fn websocket_upgrade_with_state(
     if let Some(token) = query.token {
         tracing::warn!(
             "DEPRECATION WARNING: WebSocket auth via query parameter is deprecated. \
-             Use header or first-message authentication instead."
+             Use first-message authentication instead."
         );
         
         // Validate token
@@ -341,7 +317,6 @@ async fn handle_authenticated_socket(
     member_id: String,
     member_type: String,
 ) {
-    use crate::connection::ClientMessage;
     use futures::{SinkExt, StreamExt};
 
     let (mut sender, mut receiver) = socket.split();
@@ -356,9 +331,8 @@ async fn handle_authenticated_socket(
         let _ = tx.send(Message::Text(json)).await;
     }
 
-    // Register connection in both legacy map and router
+    // Register connection
     state.add_connection(member_id.clone(), member_type.clone(), tx.clone()).await;
-    state.router.register_connection(member_id.clone(), tx.clone()).await;
 
     // Spawn writer task
     let writer = tokio::spawn(async move {
@@ -377,7 +351,6 @@ async fn handle_authenticated_socket(
                 
                 match parse_client_message(&text) {
                     Ok(client_msg) => {
-                        // First handle auth-level messages
                         match state.authenticator.process_message(ConnectionState::Authenticated, &client_msg) {
                             MessageResult::Response(server_msg) => {
                                 if let Ok(json) = serialize_server_message(&server_msg) {
@@ -387,21 +360,11 @@ async fn handle_authenticated_socket(
                                 }
                             }
                             MessageResult::CloseConnection => break,
-                            _ => {
-                                // Handle application-level messages (routing)
-                                handle_routed_message(&state, &member_id, &client_msg, &tx).await;
-                            }
+                            _ => {}
                         }
                     }
                     Err(e) => {
                         tracing::warn!("Failed to parse message: {}", e);
-                        let error_msg = ServerMessage::Error {
-                            message: format!("Invalid message format: {}", e),
-                            code: Some("PARSE_ERROR".to_string()),
-                        };
-                        if let Ok(json) = serialize_server_message(&error_msg) {
-                            let _ = tx.send(Message::Text(json)).await;
-                        }
                     }
                 }
             }
@@ -419,106 +382,19 @@ async fn handle_authenticated_socket(
 
     // Cleanup
     state.remove_connection(&member_id).await;
-    state.router.unregister_connection(&member_id).await;
     writer.abort();
-}
-
-/// Handle routed messages (JoinRoom, LeaveRoom, SendMessage)
-async fn handle_routed_message(
-    state: &WebSocketState,
-    member_id: &str,
-    client_msg: &crate::connection::ClientMessage,
-    tx: &mpsc::Sender<Message>,
-) {
-    use crate::connection::ClientMessage;
-
-    match client_msg {
-        ClientMessage::JoinRoom { room_id } => {
-            state.router.join_room(&member_id.to_string(), room_id).await;
-            
-            let response = ServerMessage::RoomJoined {
-                room_id: room_id.clone(),
-            };
-            if let Ok(json) = serialize_server_message(&response) {
-                let _ = tx.send(Message::Text(json)).await;
-            }
-            
-            tracing::info!(
-                member_id = %member_id,
-                room_id = %room_id,
-                "Member joined room via WebSocket"
-            );
-        }
-        
-        ClientMessage::LeaveRoom { room_id } => {
-            state.router.leave_room(&member_id.to_string(), room_id).await;
-            
-            let response = ServerMessage::RoomLeft {
-                room_id: room_id.clone(),
-            };
-            if let Ok(json) = serialize_server_message(&response) {
-                let _ = tx.send(Message::Text(json)).await;
-            }
-            
-            tracing::info!(
-                member_id = %member_id,
-                room_id = %room_id,
-                "Member left room via WebSocket"
-            );
-        }
-        
-        ClientMessage::SendMessage { room_id, content, reply_to } => {
-            // Generate message ID and timestamp
-            let message_id = format!("msg_{}", Uuid::new_v4().simple());
-            let timestamp = Utc::now().timestamp_millis();
-            
-            // Create new message notification for broadcast
-            let new_msg = ServerMessage::NewMessage {
-                room_id: room_id.clone(),
-                message_id: message_id.clone(),
-                sender_id: member_id.to_string(),
-                content: content.clone(),
-                reply_to: reply_to.clone(),
-                timestamp,
-            };
-            
-            // Broadcast to room members
-            if let Ok(json) = serialize_server_message(&new_msg) {
-                let recipients = state.router.broadcast_to_room(room_id, &member_id.to_string(), &json).await;
-                
-                tracing::debug!(
-                    member_id = %member_id,
-                    room_id = %room_id,
-                    message_id = %message_id,
-                    recipients = recipients,
-                    "Message broadcast to room"
-                );
-            }
-            
-            // Send acknowledgment to sender
-            let ack = ServerMessage::NewMessage {
-                room_id: room_id.clone(),
-                message_id: message_id.clone(),
-                sender_id: member_id.to_string(),
-                content: content.clone(),
-                reply_to: reply_to.clone(),
-                timestamp,
-            };
-            if let Ok(json) = serialize_server_message(&ack) {
-                let _ = tx.send(Message::Text(json)).await;
-            }
-        }
-        
-        _ => {
-            // Other messages are handled by authenticator
-        }
-    }
 }
 
 /// Create a WebSocket router with authentication
 pub fn websocket_routes() -> axum::Router<WebSocketState> {
+    use axum::extract::State;
+    
     axum::Router::new()
-        .route("/ws", axum::routing::get(websocket_upgrade))
+        .route("/ws", axum::routing::get(
+            |State(state): State<WebSocketState>, ws: WebSocketUpgrade, query: Query<WebSocketQuery>| async move {
+                websocket_upgrade_with_state(ws, query, state).await
+            }
+        ))
 }
 
 #[cfg(test)]

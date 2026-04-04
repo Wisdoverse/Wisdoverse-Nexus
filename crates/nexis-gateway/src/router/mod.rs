@@ -1,9 +1,5 @@
 //! Message routing for Nexus Gateway
 
-pub mod ws_router;
-
-pub use ws_router::{ConnectionTx, MemberId, RoomId, RouterState};
-
 use axum::{
     extract::ws::WebSocketUpgrade,
     extract::{Path, Query, State},
