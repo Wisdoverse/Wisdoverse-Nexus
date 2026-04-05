@@ -1,36 +1,28 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  gateway:
+  nexis-gateway:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile.gateway
+    container_name: nexis-gateway
+    restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
-      - RUST_LOG=info
-      - NEXIS_BIND_ADDR=0.0.0.0:8080
+      - RUST_LOG=${RUST_LOG:-info}
+      - NEXIS_DEFAULT_PROVIDER=${NEXIS_DEFAULT_PROVIDER:-mock}
+      - NEXIS_DATABASE_PATH=/app/data/nexis.db
+      - JWT_SECRET=${JWT_SECRET:-}
+    volumes:
+      - nexis-data:/app/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
-      timeout: 3s
+      timeout: 10s
       retries: 3
       start_period: 10s
 
-  # Optional: Redis for distributed state
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    profiles:
-      - distributed
-
-  # Optional: Prometheus for metrics
-  prometheus:
-    image: prom/prometheus:latest
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml
-    profiles:
-      - monitoring
+volumes:
+  nexis-data:
+    driver: local
