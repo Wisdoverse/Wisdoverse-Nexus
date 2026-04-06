@@ -1,6 +1,6 @@
 //! Permission domain extensions for Nexis.
 
-pub use nexis_protocol::{Action, Permissions};
+pub use crate::{Action, Permissions};
 
 use std::collections::HashSet;
 
@@ -57,7 +57,7 @@ impl From<Permissions> for PermissionChecker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nexis_protocol::{Action, Permissions};
+    use crate::{Action, Permissions};
 
     #[test]
     fn admin_implies_all_actions() {

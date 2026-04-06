@@ -2266,7 +2266,7 @@ dependencies = [
  "colored",
  "futures",
  "httpmock",
- "nexis-core",
+ "nexis-protocol",
  "nexis-runtime",
  "reqwest",
  "rustyline",
@@ -2293,24 +2293,6 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "tokenizers",
- "tokio",
- "tokio-test",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "nexis-core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "nexis-protocol",
- "proptest",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
  "tokio",
  "tokio-test",
  "tracing",
@@ -2374,7 +2356,6 @@ dependencies = [
  "lazy_static",
  "nexis-calendar",
  "nexis-context",
- "nexis-core",
  "nexis-doc",
  "nexis-mcp",
  "nexis-meeting",
@@ -2480,6 +2461,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 1.0.69",
+ "tokio-test",
  "uuid",
 ]
 

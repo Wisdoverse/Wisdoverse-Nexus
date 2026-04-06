@@ -1,12 +1,12 @@
 //! Message domain extensions for Nexis.
 
-pub use nexis_protocol::{Message, MessageContent};
+pub use crate::{Message, MessageContent};
 
 #[derive(Debug, Clone)]
 pub struct MessageBuilder {
     id: String,
     room_id: String,
-    sender: nexis_protocol::MemberId,
+    sender: crate::MemberId,
     content: MessageContent,
     reply_to: Option<String>,
 }
@@ -15,7 +15,7 @@ impl MessageBuilder {
     pub fn new(
         id: String,
         room_id: String,
-        sender: nexis_protocol::MemberId,
+        sender: crate::MemberId,
         content: MessageContent,
     ) -> Self {
         Self {
@@ -38,7 +38,7 @@ impl MessageBuilder {
 
     pub fn build(self) -> Message {
         Message {
-            protocol_version: nexis_protocol::PROTOCOL_VERSION.to_string(),
+            protocol_version: crate::PROTOCOL_VERSION.to_string(),
             id: self.id,
             room_id: self.room_id,
             sender: self.sender,
@@ -54,7 +54,7 @@ impl MessageBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nexis_protocol::{MemberId, MemberType, MessageContent};
+    use crate::{MemberId, MemberType, MessageContent};
 
     fn make_sender() -> MemberId {
         MemberId::new(MemberType::Human, "alice").unwrap()
@@ -74,7 +74,7 @@ mod tests {
         assert_eq!(msg.room_id, "room_1");
         assert!(msg.reply_to.is_none());
         assert!(msg.metadata.is_none());
-        assert_eq!(msg.protocol_version, nexis_protocol::PROTOCOL_VERSION);
+        assert_eq!(msg.protocol_version, crate::PROTOCOL_VERSION);
     }
 
     #[test]

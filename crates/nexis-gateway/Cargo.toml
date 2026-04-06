@@ -71,7 +71,6 @@ prometheus = "0.14"
 lazy_static = "1.4"
 
 # Internal
-nexis-core = { workspace = true }
 nexis-protocol = { workspace = true }
 nexis-mcp = { workspace = true }
 nexis-runtime = { workspace = true }

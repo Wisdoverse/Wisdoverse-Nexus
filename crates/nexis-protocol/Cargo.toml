@@ -16,8 +16,14 @@ thiserror = { workspace = true }
 bytes = { workspace = true }
 base64 = { workspace = true }
 
+[features]
+default = []
+full = ["multi-tenant"]
+multi-tenant = []
+
 [dev-dependencies]
 proptest = { workspace = true }
+tokio-test = "0.4"
 
 [package.metadata.docs.rs]
 all-features = true

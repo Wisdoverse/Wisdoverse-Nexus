@@ -6,8 +6,8 @@ description = "Nexis command line client"
 license.workspace = true
 
 [dependencies]
-nexis-core = { path = "../nexis-core" }
-nexis-runtime = { path = "../nexis-runtime" }
+nexis-protocol = { workspace = true }
+nexis-runtime = { workspace = true }
 clap.workspace = true
 futures = { workspace = true }
 reqwest = { workspace = true }

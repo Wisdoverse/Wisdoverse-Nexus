@@ -356,6 +356,23 @@ pub mod error_codes {
     pub const INTERNAL_ERROR: &str = "INTERNAL_ERROR";
 }
 
+// Domain extensions (migrated from nexis-core)
+pub mod context;
+pub mod identity;
+pub mod message;
+pub mod permission;
+
+#[cfg(feature = "multi-tenant")]
+pub mod tenant;
+
+// Re-export domain types at crate root
+pub use context::ContextSnapshot;
+pub use identity::{AgentId, Identity, UserId, UserRole};
+pub use message::MessageBuilder;
+pub use permission::PermissionChecker;
+
+pub const CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[cfg(test)]
 mod tests {
     use chrono::{TimeZone, Utc};

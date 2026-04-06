@@ -1,6 +1,6 @@
 //! Identity domain extensions for Nexis.
 
-pub use nexis_protocol::MemberId;
+pub use crate::MemberId;
 use serde::{Deserialize, Serialize};
 
 /// Unique identifier for a user
@@ -96,7 +96,7 @@ impl Identity {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nexis_protocol::{MemberId, MemberType};
+    use crate::{MemberId, MemberType};
 
     #[test]
     fn identity_new_has_no_optional_fields() {

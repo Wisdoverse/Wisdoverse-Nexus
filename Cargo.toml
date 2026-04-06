@@ -1,6 +1,5 @@
 [workspace]
 members = [
-  "crates/nexis-core",
   "crates/nexis-protocol",
   "crates/nexis-a2a",
   "crates/nexis-mcp",
@@ -98,7 +97,6 @@ mockall = "0.12"
 httpmock = "0.8"
 
 # Internal crates
-nexis-core = { path = "crates/nexis-core" }
 nexis-protocol = { path = "crates/nexis-protocol" }
 nexis-mcp = { path = "crates/nexis-mcp" }
 nexis-runtime = { path = "crates/nexis-runtime" }
