@@ -1,10 +1,8 @@
 [workspace]
 members = [
   "crates/nexis-protocol",
-  "crates/nexis-a2a",
-  "crates/nexis-mcp",
+  "crates/nexis-ai",
   "crates/nexis-gateway",
-  "crates/nexis-runtime",
   "crates/nexis-cli",
   "crates/nexis-vector",
   "crates/nexis-context",
@@ -98,8 +96,7 @@ httpmock = "0.8"
 
 # Internal crates
 nexis-protocol = { path = "crates/nexis-protocol" }
-nexis-mcp = { path = "crates/nexis-mcp" }
-nexis-runtime = { path = "crates/nexis-runtime" }
+nexis-ai = { path = "crates/nexis-ai" }
 nexis-vector = { path = "crates/nexis-vector" }
 nexis-context = { path = "crates/nexis-context" }
 nexis-federation = { path = "crates/nexis-federation" }

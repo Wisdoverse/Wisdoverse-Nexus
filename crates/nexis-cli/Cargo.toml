@@ -7,7 +7,7 @@ license.workspace = true
 
 [dependencies]
 nexis-protocol = { workspace = true }
-nexis-runtime = { workspace = true }
+nexis-ai = { workspace = true }
 clap.workspace = true
 futures = { workspace = true }
 reqwest = { workspace = true }

@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::StreamExt;
-use nexis_ai::{
+use crate::{
     AIProvider, GenerateRequest, GenerateResponse, ProviderError, ProviderStream, StreamChunk,
 };
 use reqwest::StatusCode;
@@ -11,21 +11,17 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-const ANTHROPIC_MESSAGES_PATH: &str = "/v1/messages";
-const DEFAULT_ANTHROPIC_BASE_URL: &str = "https://api.anthropic.com";
-const DEFAULT_ANTHROPIC_VERSION: &str = "2023-06-01";
-const DEFAULT_MODEL: &str = "claude-3-5-haiku-latest";
-const DEFAULT_MAX_TOKENS: u32 = 1024;
+const DEFAULT_GEMINI_BASE_URL: &str = "https://generativelanguage.googleapis.com";
+const DEFAULT_MODEL: &str = "gemini-1.5-flash";
 
 #[derive(Debug, Clone)]
-pub struct AnthropicProvider {
+pub struct GeminiProvider {
     client: reqwest::Client,
     api_key: String,
     base_url: String,
-    api_version: String,
 }
 
-impl AnthropicProvider {
+impl GeminiProvider {
     pub fn new(api_key: impl Into<String>) -> Self {
         Self {
             client: reqwest::Client::builder()
@@ -33,8 +29,7 @@ impl AnthropicProvider {
                 .build()
                 .expect("reqwest client should build"),
             api_key: api_key.into(),
-            base_url: DEFAULT_ANTHROPIC_BASE_URL.to_string(),
-            api_version: DEFAULT_ANTHROPIC_VERSION.to_string(),
+            base_url: DEFAULT_GEMINI_BASE_URL.to_string(),
         }
     }
 
@@ -43,28 +38,39 @@ impl AnthropicProvider {
         self
     }
 
-    fn endpoint(&self) -> String {
+    fn generate_endpoint(&self, model: &str) -> String {
         format!(
-            "{}{}",
+            "{}/v1beta/models/{}:generateContent?key={}",
             self.base_url.trim_end_matches('/'),
-            ANTHROPIC_MESSAGES_PATH
+            model,
+            self.api_key
         )
     }
 
-    fn payload(&self, req: GenerateRequest, stream: bool) -> AnthropicMessageRequest {
-        AnthropicMessageRequest {
-            model: req.model.unwrap_or_else(|| DEFAULT_MODEL.to_string()),
-            max_tokens: req.max_tokens.unwrap_or(DEFAULT_MAX_TOKENS),
-            temperature: req.temperature,
-            stream,
-            messages: vec![AnthropicInputMessage {
-                role: "user".to_string(),
-                content: vec![AnthropicInputBlock {
-                    kind: "text".to_string(),
-                    text: req.prompt,
+    fn stream_endpoint(&self, model: &str) -> String {
+        format!(
+            "{}/v1beta/models/{}:streamGenerateContent?alt=sse&key={}",
+            self.base_url.trim_end_matches('/'),
+            model,
+            self.api_key
+        )
+    }
+
+    fn payload(&self, req: GenerateRequest) -> (String, GeminiGenerateRequest) {
+        let model = req.model.unwrap_or_else(|| DEFAULT_MODEL.to_string());
+        (
+            model,
+            GeminiGenerateRequest {
+                contents: vec![GeminiContent {
+                    role: "user".to_string(),
+                    parts: vec![GeminiPart { text: req.prompt }],
                 }],
-            }],
-        }
+                generation_config: GeminiGenerationConfig {
+                    max_output_tokens: req.max_tokens,
+                    temperature: req.temperature,
+                },
+            },
+        )
     }
 
     async fn parse_error_response(
@@ -76,7 +82,7 @@ impl AnthropicProvider {
             .await
             .unwrap_or_else(|_| "<unable to read body>".to_string());
 
-        let parsed = serde_json::from_str::<AnthropicErrorEnvelope>(&body)
+        let parsed = serde_json::from_str::<GeminiErrorEnvelope>(&body)
             .ok()
             .map(|err| err.error.message)
             .unwrap_or_else(|| body.clone());
@@ -89,18 +95,17 @@ impl AnthropicProvider {
 }
 
 #[async_trait]
-impl AIProvider for AnthropicProvider {
+impl AIProvider for GeminiProvider {
     fn name(&self) -> &'static str {
-        "anthropic"
+        "gemini"
     }
 
     async fn generate(&self, req: GenerateRequest) -> Result<GenerateResponse, ProviderError> {
-        let payload = self.payload(req, false);
+        let (model, payload) = self.payload(req);
+
         let response = self
             .client
-            .post(self.endpoint())
-            .header("x-api-key", &self.api_key)
-            .header("anthropic-version", &self.api_version)
+            .post(self.generate_endpoint(&model))
             .json(&payload)
             .send()
             .await
@@ -111,32 +116,36 @@ impl AIProvider for AnthropicProvider {
             return Err(Self::parse_error_response(status, response).await);
         }
 
-        let body: AnthropicMessageResponse = response
+        let body: GeminiGenerateResponse = response
             .json()
             .await
             .map_err(|err| ProviderError::Decode(err.to_string()))?;
 
-        let content = body
+        let first_candidate =
+            body.candidates.into_iter().next().ok_or_else(|| {
+                ProviderError::Decode("missing candidate in response".to_string())
+            })?;
+
+        let content = first_candidate
             .content
-            .iter()
-            .filter_map(|block| block.text.as_deref())
+            .parts
+            .into_iter()
+            .map(|part| part.text)
             .collect::<Vec<_>>()
             .join("");
 
         Ok(GenerateResponse {
             content,
-            model: Some(body.model),
-            finish_reason: body.stop_reason,
+            model: Some(model),
+            finish_reason: first_candidate.finish_reason,
         })
     }
 
     async fn generate_stream(&self, req: GenerateRequest) -> Result<ProviderStream, ProviderError> {
-        let payload = self.payload(req, true);
+        let (model, payload) = self.payload(req);
         let request = self
             .client
-            .post(self.endpoint())
-            .header("x-api-key", &self.api_key)
-            .header("anthropic-version", &self.api_version)
+            .post(self.stream_endpoint(&model))
             .json(&payload);
 
         let mut event_source = request
@@ -151,46 +160,30 @@ impl AIProvider for AnthropicProvider {
                 match event {
                     Ok(Event::Open) => continue,
                     Ok(Event::Message(message)) => {
-                        if message.event == "message_stop" {
-                            let _ = tx.send(Ok(StreamChunk::Done)).await;
-                            done_sent = true;
-                            event_source.close();
-                            break;
-                        }
-
-                        if message.event == "error" {
-                            match serde_json::from_str::<AnthropicErrorEnvelope>(&message.data) {
-                                Ok(err) => {
-                                    let _ = tx
-                                        .send(Err(ProviderError::Message(err.error.message)))
-                                        .await;
-                                }
+                        let chunk =
+                            match serde_json::from_str::<GeminiGenerateResponse>(&message.data) {
+                                Ok(chunk) => chunk,
                                 Err(err) => {
                                     let _ =
                                         tx.send(Err(ProviderError::Decode(err.to_string()))).await;
+                                    event_source.close();
+                                    break;
+                                }
+                            };
+
+                        if let Some(candidate) = chunk.candidates.into_iter().next() {
+                            for part in candidate.content.parts {
+                                if !part.text.is_empty() {
+                                    let _ =
+                                        tx.send(Ok(StreamChunk::Delta { text: part.text })).await;
                                 }
                             }
-                            event_source.close();
-                            break;
-                        }
 
-                        if message.event == "content_block_delta" {
-                            let delta =
-                                match serde_json::from_str::<AnthropicStreamDelta>(&message.data) {
-                                    Ok(value) => value,
-                                    Err(err) => {
-                                        let _ = tx
-                                            .send(Err(ProviderError::Decode(err.to_string())))
-                                            .await;
-                                        event_source.close();
-                                        break;
-                                    }
-                                };
-
-                            if let Some(text) = delta.delta.text {
-                                if !text.is_empty() {
-                                    let _ = tx.send(Ok(StreamChunk::Delta { text })).await;
-                                }
+                            if candidate.finish_reason.is_some() {
+                                let _ = tx.send(Ok(StreamChunk::Done)).await;
+                                done_sent = true;
+                                event_source.close();
+                                break;
                             }
                         }
                     }
@@ -214,67 +207,66 @@ impl AIProvider for AnthropicProvider {
 }
 
 #[derive(Debug, Serialize)]
-struct AnthropicMessageRequest {
-    model: String,
-    max_tokens: u32,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    temperature: Option<f32>,
-    stream: bool,
-    messages: Vec<AnthropicInputMessage>,
+struct GeminiGenerateRequest {
+    contents: Vec<GeminiContent>,
+    #[serde(rename = "generationConfig")]
+    generation_config: GeminiGenerationConfig,
 }
 
 #[derive(Debug, Serialize)]
-struct AnthropicInputMessage {
+struct GeminiContent {
     role: String,
-    content: Vec<AnthropicInputBlock>,
+    parts: Vec<GeminiPart>,
 }
 
-#[derive(Debug, Serialize)]
-struct AnthropicInputBlock {
-    #[serde(rename = "type")]
-    kind: String,
+#[derive(Debug, Serialize, Deserialize)]
+struct GeminiPart {
     text: String,
 }
 
-#[derive(Debug, Deserialize)]
-struct AnthropicMessageResponse {
-    model: String,
-    content: Vec<AnthropicContentBlock>,
-    stop_reason: Option<String>,
+#[derive(Debug, Serialize)]
+struct GeminiGenerationConfig {
+    #[serde(rename = "maxOutputTokens", skip_serializing_if = "Option::is_none")]
+    max_output_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    temperature: Option<f32>,
 }
 
 #[derive(Debug, Deserialize)]
-struct AnthropicContentBlock {
-    text: Option<String>,
+struct GeminiGenerateResponse {
+    #[serde(default)]
+    candidates: Vec<GeminiCandidate>,
 }
 
 #[derive(Debug, Deserialize)]
-struct AnthropicStreamDelta {
-    delta: AnthropicDeltaText,
+struct GeminiCandidate {
+    content: GeminiCandidateContent,
+    #[serde(rename = "finishReason")]
+    finish_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
-struct AnthropicDeltaText {
-    text: Option<String>,
+struct GeminiCandidateContent {
+    parts: Vec<GeminiPart>,
 }
 
 #[derive(Debug, Deserialize)]
-struct AnthropicErrorEnvelope {
-    error: AnthropicErrorDetail,
+struct GeminiErrorEnvelope {
+    error: GeminiErrorDetail,
 }
 
 #[derive(Debug, Deserialize)]
-struct AnthropicErrorDetail {
+struct GeminiErrorDetail {
     message: String,
 }
 
 #[cfg(test)]
 mod tests {
-    use super::AnthropicProvider;
+    use super::GeminiProvider;
     use futures::StreamExt;
     use httpmock::Method::POST;
     use httpmock::MockServer;
-    use nexis_ai::{AIProvider, GenerateRequest, StreamChunk};
+    use crate::{AIProvider, GenerateRequest, StreamChunk};
     use serde_json::json;
 
     fn network_tests_enabled() -> bool {
@@ -284,7 +276,7 @@ mod tests {
     fn request() -> GenerateRequest {
         GenerateRequest {
             prompt: "Say hello".to_string(),
-            model: Some("claude-3-5-haiku-latest".to_string()),
+            model: Some("gemini-1.5-flash".to_string()),
             max_tokens: Some(64),
             temperature: Some(0.1),
             metadata: None,
@@ -292,7 +284,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn generate_calls_anthropic_messages_endpoint() {
+    async fn generate_calls_gemini_generate_content_endpoint() {
         if !network_tests_enabled() {
             eprintln!("skipping network test: set NEXIS_RUN_NETWORK_TESTS=1 to enable");
             return;
@@ -302,27 +294,24 @@ mod tests {
         let mock = server
             .mock_async(|when, then| {
                 when.method(POST)
-                    .path("/v1/messages")
-                    .header("x-api-key", "test-key")
-                    .header("anthropic-version", "2023-06-01")
-                    .body_includes("\"stream\":false");
+                    .path("/v1beta/models/gemini-1.5-flash:generateContent")
+                    .query_param("key", "test-key");
                 then.status(200).json_body(json!({
-                    "id": "msg_1",
-                    "type": "message",
-                    "model": "claude-3-5-haiku-latest",
-                    "stop_reason": "end_turn",
-                    "content": [{"type":"text","text":"Hello from Claude"}]
+                    "candidates": [{
+                        "content": {"parts": [{"text": "Hello from Gemini"}]},
+                        "finishReason": "STOP"
+                    }]
                 }));
             })
             .await;
 
-        let provider = AnthropicProvider::new("test-key").with_base_url(server.base_url());
+        let provider = GeminiProvider::new("test-key").with_base_url(server.base_url());
         let response = provider.generate(request()).await.unwrap();
 
         mock.assert_async().await;
-        assert_eq!(response.content, "Hello from Claude");
-        assert_eq!(response.model.as_deref(), Some("claude-3-5-haiku-latest"));
-        assert_eq!(response.finish_reason.as_deref(), Some("end_turn"));
+        assert_eq!(response.content, "Hello from Gemini");
+        assert_eq!(response.model.as_deref(), Some("gemini-1.5-flash"));
+        assert_eq!(response.finish_reason.as_deref(), Some("STOP"));
     }
 
     #[tokio::test]
@@ -334,26 +323,24 @@ mod tests {
 
         let server = MockServer::start_async().await;
         let sse = concat!(
-            "event: content_block_delta\n",
-            "data: {\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"Hel\"}}\n\n",
-            "event: content_block_delta\n",
-            "data: {\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"lo\"}}\n\n",
-            "event: message_stop\n",
-            "data: {\"type\":\"message_stop\"}\n\n"
+            "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Hel\"}]}}]}\n\n",
+            "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"lo\"}]}}]}\n\n",
+            "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}]}\n\n"
         );
 
         let mock = server
             .mock_async(|when, then| {
                 when.method(POST)
-                    .path("/v1/messages")
-                    .body_includes("\"stream\":true");
+                    .path("/v1beta/models/gemini-1.5-flash:streamGenerateContent")
+                    .query_param("alt", "sse")
+                    .query_param("key", "test-key");
                 then.status(200)
                     .header("content-type", "text/event-stream")
                     .body(sse);
             })
             .await;
 
-        let provider = AnthropicProvider::new("test-key").with_base_url(server.base_url());
+        let provider = GeminiProvider::new("test-key").with_base_url(server.base_url());
         let mut stream = provider.generate_stream(request()).await.unwrap();
 
         let first = stream.next().await.unwrap().unwrap();
@@ -386,22 +373,24 @@ mod tests {
         let server = MockServer::start_async().await;
         server
             .mock_async(|when, then| {
-                when.method(POST).path("/v1/messages");
+                when.method(POST)
+                    .path("/v1beta/models/gemini-1.5-flash:generateContent")
+                    .query_param("key", "test-key");
                 then.status(400).json_body(json!({
-                    "type":"error",
                     "error": {
-                        "type": "invalid_request_error",
-                        "message": "messages is required"
+                        "code": 400,
+                        "message": "Invalid API key",
+                        "status": "INVALID_ARGUMENT"
                     }
                 }));
             })
             .await;
 
-        let provider = AnthropicProvider::new("test-key").with_base_url(server.base_url());
+        let provider = GeminiProvider::new("test-key").with_base_url(server.base_url());
         let err = provider.generate(request()).await.unwrap_err();
 
         let display = err.to_string();
         assert!(display.contains("400"));
-        assert!(display.contains("messages is required"));
+        assert!(display.contains("Invalid API key"));
     }
 }

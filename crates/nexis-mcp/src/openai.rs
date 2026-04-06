@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::StreamExt;
-use nexis_runtime::{
+use nexis_ai::{
     AIProvider, GenerateRequest, GenerateResponse, ProviderError, ProviderStream, StreamChunk,
 };
 use reqwest::StatusCode;
@@ -260,7 +260,7 @@ mod tests {
     use futures::StreamExt;
     use httpmock::Method::POST;
     use httpmock::MockServer;
-    use nexis_runtime::{AIProvider, GenerateRequest, StreamChunk};
+    use nexis_ai::{AIProvider, GenerateRequest, StreamChunk};
     use serde_json::json;
 
     fn network_tests_enabled() -> bool {

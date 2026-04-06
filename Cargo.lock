@@ -2211,18 +2211,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "nexis-a2a"
+name = "nexis-ai"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
+ "dotenvy",
  "futures",
+ "httpmock",
+ "mockall",
+ "nexis-calendar",
+ "nexis-doc",
+ "nexis-meeting",
+ "nexis-protocol",
+ "nexis-task",
  "proptest",
+ "reqwest",
+ "reqwest-eventsource",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-stream",
  "tokio-test",
  "tracing",
  "uuid",
@@ -2266,8 +2277,8 @@ dependencies = [
  "colored",
  "futures",
  "httpmock",
+ "nexis-ai",
  "nexis-protocol",
- "nexis-runtime",
  "reqwest",
  "rustyline",
  "serde",
@@ -2287,7 +2298,7 @@ dependencies = [
  "chrono",
  "criterion",
  "lazy_static",
- "nexis-runtime",
+ "nexis-ai",
  "prometheus",
  "serde",
  "serde_json",
@@ -2354,13 +2365,12 @@ dependencies = [
  "hyper 1.8.1",
  "jsonwebtoken",
  "lazy_static",
+ "nexis-ai",
  "nexis-calendar",
  "nexis-context",
  "nexis-doc",
- "nexis-mcp",
  "nexis-meeting",
  "nexis-protocol",
- "nexis-runtime",
  "nexis-task",
  "nexis-vector",
  "opentelemetry",
@@ -2382,28 +2392,6 @@ dependencies = [
  "tracing-opentelemetry",
  "tracing-subscriber",
  "uuid",
-]
-
-[[package]]
-name = "nexis-mcp"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "futures",
- "httpmock",
- "mockall",
- "nexis-protocol",
- "nexis-runtime",
- "reqwest",
- "reqwest-eventsource",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "tokio-stream",
- "tokio-test",
- "tracing",
 ]
 
 [[package]]
@@ -2462,28 +2450,6 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "tokio-test",
- "uuid",
-]
-
-[[package]]
-name = "nexis-runtime"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "chrono",
- "dotenvy",
- "futures",
- "httpmock",
- "nexis-calendar",
- "nexis-doc",
- "nexis-meeting",
- "nexis-task",
- "reqwest",
- "reqwest-eventsource",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
  "uuid",
 ]
 

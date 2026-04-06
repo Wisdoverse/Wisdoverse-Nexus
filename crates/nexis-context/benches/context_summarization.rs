@@ -11,7 +11,7 @@ use async_trait::async_trait;
 #[cfg(feature = "ai-summarizer")]
 use nexis_context::{AISummarizer, ContextSummarizer, Message, SummarizerConfig};
 #[cfg(feature = "ai-summarizer")]
-use nexis_runtime::{AIProvider, GenerateRequest, GenerateResponse, ProviderError};
+use nexis_ai::{AIProvider, GenerateRequest, GenerateResponse, ProviderError};
 
 #[cfg(feature = "ai-summarizer")]
 #[derive(Debug)]
@@ -37,7 +37,7 @@ impl AIProvider for FastMockProvider {
     async fn generate_stream(
         &self,
         _req: GenerateRequest,
-    ) -> Result<nexis_runtime::ProviderStream, ProviderError> {
+    ) -> Result<nexis_ai::ProviderStream, ProviderError> {
         unimplemented!()
     }
 }

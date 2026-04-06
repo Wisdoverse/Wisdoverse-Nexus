@@ -1,7 +1,7 @@
 //! Indexing service implementation
 
 use async_trait::async_trait;
-use nexis_runtime::{EmbeddingProvider, EmbeddingRequest};
+use nexis_ai::{EmbeddingProvider, EmbeddingRequest};
 use nexis_vector::prelude::*;
 use nexis_vector::DocumentMetadata;
 use std::sync::Arc;
@@ -183,7 +183,7 @@ pub type IndexingResult<T> = Result<T, IndexingError>;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nexis_runtime::MockEmbeddingProvider;
+    use nexis_ai::MockEmbeddingProvider;
     use nexis_vector::InMemoryVectorStore;
 
     #[tokio::test]

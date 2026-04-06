@@ -72,8 +72,7 @@ lazy_static = "1.4"
 
 # Internal
 nexis-protocol = { workspace = true }
-nexis-mcp = { workspace = true }
-nexis-runtime = { workspace = true }
+nexis-ai = { workspace = true }
 nexis-context = { path = "../nexis-context" }
 nexis-vector = { workspace = true }
 nexis-meeting = { workspace = true }

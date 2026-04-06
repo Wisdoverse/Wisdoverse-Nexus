@@ -1,7 +1,7 @@
 //! Search service implementation
 
 use async_trait::async_trait;
-use nexis_runtime::{EmbeddingProvider, EmbeddingRequest};
+use nexis_ai::{EmbeddingProvider, EmbeddingRequest};
 use nexis_vector::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
@@ -311,7 +311,7 @@ impl SearchService for SemanticSearchService {
 mod tests {
     use super::*;
     use async_trait::async_trait;
-    use nexis_runtime::{
+    use nexis_ai::{
         BatchEmbeddingRequest, BatchEmbeddingResponse, EmbeddingProvider, EmbeddingRequest,
         EmbeddingResponse, MockEmbeddingProvider, ProviderError,
     };

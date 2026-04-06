@@ -700,7 +700,7 @@ fn resolve_agent_dir(dir: Option<PathBuf>) -> Result<PathBuf, CliError> {
 }
 
 async fn run_agent_command(command: AgentCommands) -> Result<String, CliError> {
-    use nexis_runtime::{
+    use nexis_ai::{
         compose_agent_prompt, AIProvider, AgentRegistry, AnthropicProvider, GenerateRequest,
         OpenAIProvider, StreamChunk,
     };
@@ -793,7 +793,7 @@ async fn run_agent_command(command: AgentCommands) -> Result<String, CliError> {
 }
 
 async fn test_provider(provider: &str, prompt: &str, stream: bool) -> Result<String, CliError> {
-    use nexis_runtime::{AIProvider, AnthropicProvider, GenerateRequest, OpenAIProvider};
+    use nexis_ai::{AIProvider, AnthropicProvider, GenerateRequest, OpenAIProvider};
     use std::sync::Arc;
 
     println!("Testing {} provider...", provider);
@@ -827,8 +827,8 @@ async fn test_provider(provider: &str, prompt: &str, stream: bool) -> Result<Str
 
         while let Some(chunk) = stream.next().await {
             match chunk.map_err(|e| CliError::HttpTransport(e.to_string()))? {
-                nexis_runtime::StreamChunk::Delta { text } => print!("{}", text),
-                nexis_runtime::StreamChunk::Done => println!(),
+                nexis_ai::StreamChunk::Delta { text } => print!("{}", text),
+                nexis_ai::StreamChunk::Done => println!(),
             }
         }
         Ok("Stream completed".to_string())

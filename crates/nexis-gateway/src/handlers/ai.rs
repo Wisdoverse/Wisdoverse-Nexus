@@ -7,7 +7,7 @@
 //! 3. Returns the response for broadcasting
 
 use nexis_context::{ContextManager, Message as ContextMessage, MessageRole};
-use nexis_runtime::{GenerateRequest, ProviderRegistry};
+use nexis_ai::{GenerateRequest, ProviderRegistry};
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
 

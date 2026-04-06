@@ -21,7 +21,7 @@ reqwest = { workspace = true }
 reqwest-eventsource = "0.6"
 
 nexis-protocol = { workspace = true }
-nexis-runtime = { path = "../nexis-runtime" }
+nexis-ai = { path = "../nexis-ai" }
 
 [dev-dependencies]
 tokio-test = "0.4"

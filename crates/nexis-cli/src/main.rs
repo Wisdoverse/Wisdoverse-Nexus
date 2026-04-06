@@ -7,7 +7,7 @@ use clap::Parser;
 use colored::Colorize;
 use futures::StreamExt;
 use nexis_cli::{CliClient, CliError, RoomInfoResponse};
-use nexis_runtime::{AIProvider, AnthropicProvider, GenerateRequest, OpenAIProvider, StreamChunk};
+use nexis_ai::{AIProvider, AnthropicProvider, GenerateRequest, OpenAIProvider, StreamChunk};
 use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;

@@ -4,9 +4,13 @@
 //! - AI provider traits and implementations
 //! - Tool calling system for AI agents
 //! - Control plane client for task management
+//! - Agent-to-Agent (A2A) protocol for AI collaboration
+//! - Model Context Protocol (MCP) integration
 
+pub mod a2a;
 pub mod agent;
 pub mod embedding;
+pub mod mcp;
 pub mod providers;
 pub mod registry;
 pub mod tool;

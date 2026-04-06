@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use nexis_runtime::{AIProvider, ProviderError};
+use nexis_ai::{AIProvider, ProviderError};
 
 use crate::{AnthropicProvider, GeminiProvider, OpenAIProvider};
 

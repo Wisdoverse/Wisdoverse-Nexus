@@ -12,7 +12,7 @@ use tracing::{debug, info, warn};
 
 use crate::handlers::ai::AiHandler;
 use nexis_context::ContextManager;
-use nexis_runtime::ProviderRegistry;
+use nexis_ai::ProviderRegistry;
 
 /// A connection's sender channel
 pub type ConnectionTx = mpsc::Sender<Message>;
