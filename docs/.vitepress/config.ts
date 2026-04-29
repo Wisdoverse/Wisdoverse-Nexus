@@ -1,9 +1,14 @@
 import { defineConfig } from 'vitepress'
 
+const siteBase = '/Wisdoverse-Nexus/'
+const siteUrl = 'https://wisdoverse.github.io/Wisdoverse-Nexus/'
+const socialImageUrl = `${siteUrl}images/hero-illustration.svg`
+
 export default defineConfig({
   title: 'Wisdoverse Nexus',
   description:
     'Source-available AI-native collaboration infrastructure for real-time rooms, identity, WebSocket messaging, and extensible workflows.',
+  base: siteBase,
 
   locales: {
     root: {
@@ -18,7 +23,7 @@ export default defineConfig({
   },
 
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/images/logo.svg' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: `${siteUrl}images/logo.svg` }],
     ['meta', { name: 'theme-color', content: '#2563eb' }],
     [
       'meta',
@@ -47,8 +52,8 @@ export default defineConfig({
           'Source-available AI-native collaboration infrastructure for real-time rooms, identity, WebSocket messaging, and extensible workflows.',
       },
     ],
-    ['meta', { property: 'og:image', content: 'https://wisdoverse.com/images/og-image.png' }],
-    ['meta', { property: 'og:url', content: 'https://wisdoverse.com/' }],
+    ['meta', { property: 'og:image', content: socialImageUrl }],
+    ['meta', { property: 'og:url', content: siteUrl }],
     ['meta', { property: 'og:site_name', content: 'Wisdoverse Nexus' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:title', content: 'Wisdoverse Nexus' }],
@@ -60,8 +65,8 @@ export default defineConfig({
           'Source-available AI-native collaboration infrastructure for real-time rooms, identity, WebSocket messaging, and extensible workflows.',
       },
     ],
-    ['meta', { name: 'twitter:image', content: 'https://wisdoverse.com/images/og-image.png' }],
-    ['link', { rel: 'canonical', href: 'https://wisdoverse.com/' }],
+    ['meta', { name: 'twitter:image', content: socialImageUrl }],
+    ['link', { rel: 'canonical', href: siteUrl }],
   ],
 
   themeConfig: {

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://wisdoverse.com/sitemap.xml
+Sitemap: https://wisdoverse.github.io/Wisdoverse-Nexus/sitemap.xml

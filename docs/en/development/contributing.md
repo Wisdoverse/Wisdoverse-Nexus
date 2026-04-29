@@ -97,7 +97,8 @@ Documentation must describe the current repository, not future intent.
 
 - Do not add unverified benchmark, certification, customer, or compatibility claims.
 - Keep English and Chinese entry points aligned when first-run behavior changes.
-- Use <https://wisdoverse.com> for the official public documentation site.
+- Use <https://wisdoverse.github.io/Wisdoverse-Nexus/> for the published public
+  documentation site.
 - Keep repository links under `https://github.com/Wisdoverse/Wisdoverse-Nexus`.
 - Keep runtime names such as `nexis-gateway`, `NEXIS_*`, crate names, and Docker service names accurate.
 

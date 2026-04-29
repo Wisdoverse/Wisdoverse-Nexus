@@ -5,7 +5,8 @@ Rust-first gateway, shared protocol crates, web/mobile apps, SDKs, and deploymen
 assets for real-time rooms, identity, WebSocket messaging, and AI-assisted
 workflows.
 
-The official project documentation is published at <https://wisdoverse.com>.
+The published project documentation is available at
+<https://wisdoverse.github.io/Wisdoverse-Nexus/>.
 
 > [!WARNING]
 > Wisdoverse Nexus is a pre-1.0 engineering preview for trusted development,
@@ -80,7 +81,7 @@ pnpm --dir docs docs:build
 ## Documentation
 
 - Spec: [SPEC.md](SPEC.md)
-- Official docs: <https://wisdoverse.com>
+- Published docs: <https://wisdoverse.github.io/Wisdoverse-Nexus/>
 - Quick start: [docs/en/getting-started/quick-start.md](docs/en/getting-started/quick-start.md)
 - Development: [docs/en/getting-started/development-guide.md](docs/en/getting-started/development-guide.md)
 - Architecture: [docs/en/architecture.md](docs/en/architecture.md)

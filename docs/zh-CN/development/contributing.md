@@ -94,7 +94,7 @@ CI 必须通过后才能合并。维护者可能会要求拆分过大的 PR。
 
 - 不写未经验证的 benchmark、认证、客户或兼容性声明。
 - 首次运行流程变化时，同步更新英文和中文入口。
-- 官方公开文档站使用 <https://wisdoverse.com>。
+- 公开文档站使用 <https://wisdoverse.github.io/Wisdoverse-Nexus/>。
 - 仓库链接统一使用 `https://github.com/Wisdoverse/Wisdoverse-Nexus`。
 - 运行时名称必须保持准确，例如 `nexis-gateway`、`NEXIS_*`、crate 名和 Docker service 名。
 

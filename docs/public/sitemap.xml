@@ -1,57 +1,57 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://wisdoverse.com/</loc>
+    <loc>https://wisdoverse.github.io/Wisdoverse-Nexus/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://wisdoverse.com/en/getting-started/quick-start</loc>
+    <loc>https://wisdoverse.github.io/Wisdoverse-Nexus/en/getting-started/quick-start</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://wisdoverse.com/en/getting-started/development-guide</loc>
+    <loc>https://wisdoverse.github.io/Wisdoverse-Nexus/en/getting-started/development-guide</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://wisdoverse.com/en/architecture</loc>
+    <loc>https://wisdoverse.github.io/Wisdoverse-Nexus/en/architecture</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://wisdoverse.com/en/api/reference</loc>
+    <loc>https://wisdoverse.github.io/Wisdoverse-Nexus/en/api/reference</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://wisdoverse.com/en/api/websocket</loc>
+    <loc>https://wisdoverse.github.io/Wisdoverse-Nexus/en/api/websocket</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://wisdoverse.com/en/architecture/security/overview</loc>
+    <loc>https://wisdoverse.github.io/Wisdoverse-Nexus/en/architecture/security/overview</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://wisdoverse.com/en/license</loc>
+    <loc>https://wisdoverse.github.io/Wisdoverse-Nexus/en/license</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://wisdoverse.com/en/operations/deployment</loc>
+    <loc>https://wisdoverse.github.io/Wisdoverse-Nexus/en/operations/deployment</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://wisdoverse.com/en/roadmap</loc>
+    <loc>https://wisdoverse.github.io/Wisdoverse-Nexus/en/roadmap</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://wisdoverse.com/zh-CN/</loc>
+    <loc>https://wisdoverse.github.io/Wisdoverse-Nexus/zh-CN/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>

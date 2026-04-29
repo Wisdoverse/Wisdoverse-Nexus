@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useData } from 'vitepress'
+import { useData, withBase } from 'vitepress'
 import { computed } from 'vue'
 
 const { page } = useData()
@@ -8,23 +8,31 @@ const items = computed(() => {
   const path = page.value.relativePath
   const parts = path.split('/').filter(Boolean)
   const lastPart = parts[parts.length - 1]?.replace(/\.md$/, '') || ''
-  
-  const breadcrumbs = [{ title: 'Home', path: '/' }]
+  const isChinesePage = path.startsWith('zh-CN/')
+
+  const breadcrumbs = [
+    {
+      title: isChinesePage ? '首页' : 'Home',
+      path: isChinesePage ? '/zh-CN/' : '/',
+    },
+  ]
   let currentPath = ''
-  
+
   for (let i = 0; i < parts.length - 1; i++) {
     const part = parts[i]
     currentPath += `/${part}`
+    if (part === 'zh-CN') continue
+
     breadcrumbs.push({
       title: part.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-      path: currentPath + '/'
+      path: currentPath + '/',
     })
   }
-  
+
   if (lastPart && lastPart !== 'index') {
     breadcrumbs.push({
       title: lastPart.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-      path: '/' + path.replace(/\.md$/, '')
+      path: '/' + path.replace(/\.md$/, ''),
     })
   }
   return breadcrumbs
@@ -35,7 +43,7 @@ const items = computed(() => {
   <nav class="breadcrumb" aria-label="breadcrumb">
     <ol>
       <li v-for="(item, index) in items" :key="item.path">
-        <a v-if="index < items.length - 1" :href="item.path" class="breadcrumb-link">{{ item.title }}</a>
+        <a v-if="index < items.length - 1" :href="withBase(item.path)" class="breadcrumb-link">{{ item.title }}</a>
         <span v-else class="breadcrumb-current" aria-current="page">{{ item.title }}</span>
         <span v-if="index < items.length - 1" class="breadcrumb-separator">/</span>
       </li>

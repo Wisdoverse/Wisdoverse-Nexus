@@ -93,7 +93,8 @@ prefer SDK-compatible versions over registry-latest versions; `expo install
 Documentation changes should be accurate for the current repository state.
 
 - Prefer relative links for files inside the repository.
-- Link the official documentation site as <https://wisdoverse.com>.
+- Link the published documentation site as
+  <https://wisdoverse.github.io/Wisdoverse-Nexus/>.
 - Do not add unverified customer names, certification claims, or performance
   claims.
 - Mark experimental or planned capabilities explicitly.
