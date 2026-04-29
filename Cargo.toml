@@ -1,0 +1,155 @@
+[workspace]
+members = [
+  "crates/nexis-protocol",
+  "crates/nexis-ai",
+  "crates/nexis-gateway",
+  "crates/nexis-cli",
+  "crates/nexis-vector",
+  "crates/nexis-context",
+  "crates/nexis-federation",
+  "crates/nexis-memory",
+  "crates/nexis-skills",
+  "crates/nexis-meeting",
+  "crates/nexis-doc",
+  "crates/nexis-task",
+  "crates/nexis-calendar",
+  "crates/nexis-plugin",
+  "crates/nexis-billing",
+]
+exclude = [
+  "plugins/github",
+  "plugins/jira",
+  "plugins/poll",
+  "plugins/translate",
+  "plugins/welcome",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license-file = "LICENSE"
+repository = "https://github.com/Wisdoverse/Wisdoverse-Nexus"
+homepage = "https://github.com/Wisdoverse/Wisdoverse-Nexus"
+documentation = "https://github.com/Wisdoverse/Wisdoverse-Nexus/tree/main/docs"
+authors = ["Wisdoverse Nexus Team"]
+description = "AI-Native Team Communication Platform"
+keywords = ["ai", "collaboration", "communication", "mcp", "real-time"]
+categories = ["network-programming", "web-programming", "asynchronous"]
+readme = "README.md"
+
+[workspace.dependencies]
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_repr = "0.1"
+
+# Async Runtime
+tokio = { version = "1.35", features = ["full"] }
+tokio-stream = "0.1"
+tokio-util = "0.7"
+async-trait = "0.1"
+futures = "0.3"
+
+# Web Framework
+axum = { version = "0.8", features = ["ws"] }
+axum-extra = { version = "0.12", features = ["typed-header", "query"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+hyper = { version = "1.1", features = ["full"] }
+
+# WebSocket
+tokio-tungstenite = "0.29"
+
+# HTTP Client
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
+reqwest-eventsource = "0.6"
+
+# Database
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "json", "migrate"] }
+qdrant-client = "1.7"
+
+# CLI
+clap = { version = "4.5", features = ["derive", "env", "color"] }
+clap_complete = "4.5"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Error Handling
+thiserror = "2.0"
+anyhow = "1.0"
+
+# Utilities
+uuid = { version = "1.7", features = ["v4", "v5", "v7", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+url = "2.5"
+bytes = "1.5"
+base64 = "0.22"
+hex = "0.4"
+
+# Security
+jsonwebtoken = "10.3"
+argon2 = "0.5"
+rand = "0.10"
+
+# Testing
+tokio-test = "0.4"
+proptest = "1.4"
+criterion = "0.8"
+mockall = "0.14"
+httpmock = "0.8"
+
+# Internal crates
+nexis-protocol = { path = "crates/nexis-protocol" }
+nexis-ai = { path = "crates/nexis-ai" }
+nexis-vector = { path = "crates/nexis-vector" }
+nexis-context = { path = "crates/nexis-context" }
+nexis-federation = { path = "crates/nexis-federation" }
+nexis-meeting = { path = "crates/nexis-meeting" }
+nexis-doc = { path = "crates/nexis-doc" }
+nexis-task = { path = "crates/nexis-task" }
+nexis-calendar = { path = "crates/nexis-calendar" }
+nexis-plugin = { path = "crates/nexis-plugin" }
+nexis-billing = { path = "crates/nexis-billing" }
+
+# Release profile
+[profile.release]
+lto = "thin"
+strip = true
+codegen-units = 1
+opt-level = 3
+
+# Development profile
+[profile.dev]
+opt-level = 1
+debug = true
+incremental = true
+
+# Test profile
+[profile.test]
+opt-level = 2
+debug = true
+
+# Lint configuration
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+unused_qualifications = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+
+module_name_repetitions = "allow"
+too_many_lines = "allow"
+many_single_char_names = "allow"
+similar_names = "allow"
+struct_excessive_bools = "allow"
+cargo_common_metadata = "allow"
+
+# Examples are in member crates

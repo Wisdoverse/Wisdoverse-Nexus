@@ -1,0 +1,82 @@
+<!DOCTYPE HTML>
+<html lang="{{ language }}" class="{{ default_theme }}" dir="{{ text_direction }}">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0a84ff">
+
+    <link rel="icon" href="{{ path_to_root }}favicon.svg">
+    <link rel="shortcut icon" href="{{ path_to_root }}favicon.png">
+
+    <link rel="stylesheet" href="{{ path_to_root }}css/variables.css">
+    <link rel="stylesheet" href="{{ path_to_root }}css/general.css">
+    <link rel="stylesheet" href="{{ path_to_root }}css/chrome.css">
+    <link rel="stylesheet" href="{{ path_to_root }}css/print.css" media="print">
+
+    {{#each additional_css}}
+    <link rel="stylesheet" href="{{ ../path_to_root }}{{ this }}">
+    {{/each}}
+
+    {{#if mathjax_support}}
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    {{/if}}
+</head>
+<body>
+    <div id="body-container">
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                {{{ toc }}}
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+            <div class="page">
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                    </div>
+                    <h1 class="menu-title">{{ book_title }}</h1>
+                    <div class="right-buttons">
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <main>
+                        {{{ content }}}
+                    </main>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ path_to_root }}book.js" defer></script>
+    <script src="{{ path_to_root }}elasticlunr.min.js" defer></script>
+    <script src="{{ path_to_root }}searcher.js" defer></script>
+    <script>
+        (function () {
+            function setTheme(theme) {
+                document.documentElement.classList.remove("light", "navy", "ayu");
+                document.documentElement.classList.add(theme);
+                try { localStorage.setItem("mdbook-theme", theme); } catch (e) {}
+            }
+
+            var saved = null;
+            try { saved = localStorage.getItem("mdbook-theme"); } catch (e) {}
+            setTheme(saved || "light");
+
+            document.addEventListener("click", function (event) {
+                if (event.target && event.target.closest("#theme-toggle")) {
+                    var current = document.documentElement.classList.contains("light") ? "light" : "navy";
+                    setTheme(current === "light" ? "navy" : "light");
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

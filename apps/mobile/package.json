@@ -1,0 +1,42 @@
+{
+  "name": "@wisdoverse/nexus-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@react-navigation/bottom-tabs": "^7.15.11",
+    "@react-navigation/native": "^7.2.2",
+    "@react-navigation/native-stack": "^7.14.12",
+    "axios": "^1.15.2",
+    "expo": "~55.0.18",
+    "expo-local-authentication": "~55.0.13",
+    "expo-secure-store": "~55.0.13",
+    "expo-status-bar": "~55.0.5",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-native": "0.83.6",
+    "react-native-safe-area-context": "~5.6.2",
+    "react-native-screens": "~4.23.0",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
+    "typescript": "~5.9.2",
+    "vitest": "^4.1.5"
+  },
+  "overrides": {
+    "postcss": "^8.5.12",
+    "xcode": {
+      "uuid": "^14.0.0"
+    }
+  }
+}

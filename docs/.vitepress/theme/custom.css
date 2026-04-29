@@ -1,0 +1,280 @@
+/* ===== Custom Theme Styles for Wisdoverse Nexus Documentation ===== */
+
+/* ===== Page Transition Animations ===== */
+
+/* Page fade-in on load */
+.page-loaded .VPDoc {
+  animation: pageFadeIn 0.4s ease-out;
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Smooth sidebar item transitions */
+.VPSidebarItem {
+  transition: all 0.2s ease;
+}
+
+.VPSidebarItem:hover {
+  background: var(--vp-c-bg-soft);
+  transform: translateX(4px);
+}
+
+/* ===== Breadcrumb Navigation Enhancements ===== */
+
+.vp-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--vp-c-text-2);
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--vp-c-bg-soft);
+  border-radius: 8px;
+  border: 1px solid var(--vp-c-divider);
+}
+
+.vp-breadcrumb a {
+  color: var(--vp-c-text-2);
+  transition: color 0.2s ease;
+  text-decoration: none;
+}
+
+.vp-breadcrumb a:hover {
+  color: var(--vp-c-brand-1);
+  text-decoration: underline;
+}
+
+.vp-breadcrumb span {
+  color: var(--vp-c-text-3);
+}
+
+/* ===== Cmd+K Search Enhancement ===== */
+
+.VPLocalSearchBox {
+  animation: searchFadeIn 0.25s ease-out;
+}
+
+@keyframes searchFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Search result item hover */
+.DocSearch-Hit {
+  transition: background 0.15s ease;
+}
+
+.DocSearch-Hit:hover {
+  background: var(--vp-c-bg-soft);
+}
+
+/* ===== Code Block Enhancements ===== */
+
+/* Code group tabs */
+.vp-code-group .tabs {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--vp-code-block-bg);
+  border-bottom: 1px solid var(--vp-c-divider);
+}
+
+.vp-code-group .tabs label {
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.vp-code-group .tabs label:hover {
+  background: var(--vp-c-bg-soft);
+}
+
+.vp-code-group .tabs label.active {
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+}
+
+/* ===== Feature Cards Hover Effects ===== */
+
+.VPFeature {
+  border-radius: 16px !important;
+  border: 1px solid var(--vp-c-divider);
+  transition: all 0.3s ease !important;
+  background: var(--vp-c-bg-soft);
+  padding: 2rem !important;
+}
+
+.VPFeature:hover {
+  transform: translateY(-6px) !important;
+  box-shadow: 0 16px 40px rgba(99, 102, 241, 0.15) !important;
+  border-color: var(--vp-c-brand-1) !important;
+}
+
+.VPFeature .title {
+  font-size: 1.3rem !important;
+  font-weight: 700 !important;
+}
+
+.VPFeature .details {
+  color: var(--vp-c-text-2);
+  line-height: 1.7;
+}
+
+/* ===== Dark Mode Transition ===== */
+
+html {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html.dark .VPFeature:hover {
+  box-shadow: 0 16px 40px rgba(129, 140, 248, 0.2) !important;
+}
+
+html.dark .vp-breadcrumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ===== Smooth Scrolling ===== */
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* ===== Navigation Bar Transition ===== */
+
+.VPNavBar {
+  transition: all 0.3s ease;
+}
+
+/* ===== Team Member Cards ===== */
+
+.VPTeamMembersItem {
+  transition: all 0.3s ease;
+}
+
+.VPTeamMembersItem:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.1);
+}
+
+/* ===== Print Styles ===== */
+
+@media print {
+  .VPNav,
+  .VPLocalNav,
+  .VPSidebar,
+  .VPFooter {
+    display: none !important;
+  }
+  
+  .VPDoc {
+    animation: none !important;
+  }
+  
+  .vp-breadcrumb {
+    display: none;
+  }
+}
+
+/* ===== Mobile Responsive ===== */
+
+@media (max-width: 768px) {
+  .page-loaded .VPDoc {
+    animation: none;
+  }
+  
+  .vp-breadcrumb {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .VPFeature {
+    padding: 1.5rem !important;
+  }
+}
+
+/* ===== Typography Enhancements ===== */
+
+/* Better code readability */
+pre, code {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', monospace !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===== Table Enhancements ===== */
+
+.VPDoc table {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.VPDoc table th {
+  background: var(--vp-c-bg-soft);
+  font-weight: 700;
+}
+
+.VPDoc table tr:hover {
+  background: var(--vp-c-bg-soft);
+}
+
+/* ===== External Link Styling ===== */
+
+a[href^="http"]::after {
+  content: " ↗";
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+a[href^="http"]:hover::after {
+  opacity: 1;
+}
+
+/* ===== Hero Animation ===== */
+
+.VPHero {
+  animation: heroFadeIn 0.8s ease-out;
+}
+
+@keyframes heroFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== Feature Grid ===== */
+
+.VPFeatures {
+  gap: 1.5rem !important;
+}
+
+.VPFeature .icon {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+}

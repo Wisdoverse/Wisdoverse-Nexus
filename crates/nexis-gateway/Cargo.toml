@@ -1,0 +1,98 @@
+[package]
+name = "nexis-gateway"
+description = "Wisdoverse Nexus Control Plane - gateway, routing, and orchestration"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "nexis-gateway"
+path = "src/main.rs"
+
+[features]
+default = []
+persistence-sqlx = ["dep:sqlx"]
+multi-tenant = []
+otel = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:tracing-opentelemetry"]
+
+[dependencies]
+# Web
+axum = { workspace = true }
+axum-extra = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+hyper = { workspace = true }
+tokio-tungstenite = { workspace = true }
+
+# Async
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# OpenTelemetry (optional)
+opentelemetry = { version = "0.31", features = ["trace"], optional = true }
+opentelemetry-otlp = { version = "0.31", features = ["trace"], optional = true }
+tracing-opentelemetry = { version = "0.32", optional = true }
+
+# Error
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+chrono = { workspace = true }
+bytes = { workspace = true }
+
+# Database
+sqlx = { workspace = true, optional = true }
+
+# Security
+aes-gcm = "0.10"
+argon2 = "0.5"
+base64 = "0.22"
+hex = "0.4"
+rand = { workspace = true }
+jsonwebtoken = { workspace = true }
+
+# Metrics
+dashmap = "6"
+prometheus = "0.14"
+lazy_static = "1.4"
+
+# Internal
+nexis-protocol = { workspace = true }
+nexis-ai = { workspace = true }
+nexis-context = { path = "../nexis-context" }
+nexis-vector = { workspace = true }
+nexis-meeting = { workspace = true }
+nexis-doc = { workspace = true }
+nexis-task = { workspace = true }
+nexis-calendar = { workspace = true }
+
+[dev-dependencies]
+tokio-test = "0.4"
+criterion = { workspace = true }
+reqwest = { workspace = true }
+
+[[bench]]
+name = "routing"
+harness = false
+
+[[bench]]
+name = "message_throughput"
+harness = false
+
+[[bench]]
+name = "websocket_connections"
+harness = false

@@ -1,0 +1,236 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Wisdoverse Nexus Gateway API",
+    "version": "0.1.0",
+    "description": "Control plane API for room management, messaging, and semantic search."
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "Gateway is healthy"
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "summary": "Prometheus metrics",
+        "responses": {
+          "200": {
+            "description": "Metrics payload"
+          }
+        }
+      }
+    },
+    "/v1/rooms": {
+      "get": {
+        "summary": "List rooms",
+        "responses": {
+          "200": {
+            "description": "Room list"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create room",
+        "responses": {
+          "201": {
+            "description": "Room created"
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/v1/rooms/{id}": {
+      "get": {
+        "summary": "Get room details",
+        "responses": {
+          "200": {
+            "description": "Room details"
+          },
+          "404": {
+            "description": "Room not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete room",
+        "responses": {
+          "204": {
+            "description": "Room deleted"
+          },
+          "404": {
+            "description": "Room not found"
+          }
+        }
+      }
+    },
+    "/v1/messages": {
+      "post": {
+        "summary": "Send message",
+        "responses": {
+          "201": {
+            "description": "Message created"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "404": {
+            "description": "Room not found"
+          }
+        }
+      }
+    },
+    "/v1/search": {
+      "get": {
+        "summary": "Search messages (query params)",
+        "responses": {
+          "200": {
+            "description": "Search response"
+          }
+        }
+      },
+      "post": {
+        "summary": "Search messages (JSON body)",
+        "responses": {
+          "200": {
+            "description": "Search response"
+          }
+        }
+      }
+    },
+    "/collaboration/meetings": {
+      "post": {
+        "summary": "Create collaboration room",
+        "responses": {
+          "201": {
+            "description": "Meeting created"
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/collaboration/meetings/{id}/join": {
+      "post": {
+        "summary": "Join collaboration room",
+        "responses": {
+          "200": {
+            "description": "Joined meeting"
+          },
+          "404": {
+            "description": "Meeting not found"
+          }
+        }
+      }
+    },
+    "/collaboration/meetings/{id}/leave": {
+      "post": {
+        "summary": "Leave collaboration room",
+        "responses": {
+          "200": {
+            "description": "Left meeting"
+          },
+          "404": {
+            "description": "Meeting not found"
+          }
+        }
+      }
+    },
+    "/collaboration/documents": {
+      "post": {
+        "summary": "Create collaborative document",
+        "responses": {
+          "201": {
+            "description": "Document created"
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/collaboration/documents/{id}": {
+      "get": {
+        "summary": "Get collaborative document",
+        "responses": {
+          "200": {
+            "description": "Document details"
+          },
+          "404": {
+            "description": "Document not found"
+          }
+        }
+      }
+    },
+    "/collaboration/tasks": {
+      "post": {
+        "summary": "Create collaboration task",
+        "responses": {
+          "201": {
+            "description": "Task created"
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/collaboration/tasks/{id}/assign": {
+      "put": {
+        "summary": "Assign collaboration task",
+        "responses": {
+          "200": {
+            "description": "Task assigned"
+          },
+          "404": {
+            "description": "Task not found"
+          }
+        }
+      }
+    },
+    "/collaboration/tasks/{id}/complete": {
+      "put": {
+        "summary": "Complete collaboration task",
+        "responses": {
+          "200": {
+            "description": "Task completed"
+          },
+          "404": {
+            "description": "Task not found"
+          }
+        }
+      }
+    },
+    "/collaboration/calendar/events": {
+      "post": {
+        "summary": "Create calendar event",
+        "responses": {
+          "201": {
+            "description": "Event created"
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/collaboration/calendar/conflicts": {
+      "get": {
+        "summary": "Check calendar conflicts",
+        "responses": {
+          "200": {
+            "description": "Conflict check response"
+          }
+        }
+      }
+    }
+  }
+}

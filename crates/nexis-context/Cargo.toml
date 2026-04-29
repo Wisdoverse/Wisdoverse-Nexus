@@ -1,0 +1,44 @@
+[package]
+name = "nexis-context"
+description = "Wisdoverse Nexus context management and windowing"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true, features = ["v5"] }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+
+# Token counting
+tokenizers = { version = "0.23", optional = true }
+
+# AI-powered summarization
+nexis-ai = { path = "../nexis-ai", optional = true }
+
+# Metrics
+prometheus = { version = "0.14", optional = true }
+lazy_static = { version = "1.4", optional = true }
+
+[features]
+default = []
+token-counting = ["tokenizers"]
+ai-summarizer = ["nexis-ai"]
+metrics = ["prometheus", "lazy_static"]
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "context_summarization"
+harness = false
+required-features = ["ai-summarizer"]

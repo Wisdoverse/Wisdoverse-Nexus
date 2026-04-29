@@ -1,0 +1,339 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: 0
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  # ============================================================================
+  # Rust Format Check
+  # ============================================================================
+  fmt:
+    name: Rust Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+  # ============================================================================
+  # Rust Clippy
+  # ============================================================================
+  clippy:
+    name: Rust Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  # ============================================================================
+  # Rust Build & Test
+  # ============================================================================
+  test:
+    name: Rust Test
+    runs-on: ubuntu-latest
+    needs: [fmt, clippy]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --workspace --verbose
+
+      - name: Run tests
+        run: cargo test --workspace --verbose
+
+  # ============================================================================
+  # Rust Documentation
+  # ============================================================================
+  docs:
+    name: Rust Documentation
+    runs-on: ubuntu-latest
+    needs: [fmt, clippy]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build documentation
+        run: cargo doc --workspace --no-deps
+
+  # ============================================================================
+  # Node Workspace Build & Test
+  # ============================================================================
+  node:
+    name: Node Workspace
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Check Expo compatibility
+        run: pnpm --filter @wisdoverse/nexus-mobile exec expo install --check
+
+      - name: Typecheck mobile app
+        run: pnpm --filter @wisdoverse/nexus-mobile typecheck
+
+      - name: Test mobile app
+        run: pnpm --filter @wisdoverse/nexus-mobile test
+
+      - name: Build web app
+        run: pnpm --filter @wisdoverse/nexus-web build
+
+      - name: Build TypeScript SDK
+        run: pnpm --filter @wisdoverse/nexus-sdk build
+
+      - name: Build documentation site
+        run: pnpm --dir docs docs:build
+
+  # ============================================================================
+  # Security Audit
+  # ============================================================================
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    # Allow advisory warnings without blocking CI
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@cargo-audit
+
+      - name: Run security audit
+        run: cargo audit
+
+  # ============================================================================
+  # CodeQL Analysis
+  # ============================================================================
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: rust
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:rust"
+
+  # ============================================================================
+  # Test Coverage
+  # ============================================================================
+  coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install grcov
+        uses: taiki-e/install-action@grcov
+
+      - name: Run tests with coverage
+        env:
+          RUSTFLAGS: "-C instrument-coverage"
+          LLVM_PROFILE_FILE: "coverage-%p-%m.profraw"
+        run: cargo test --workspace
+
+      - name: Generate coverage report
+        run: |
+          grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "*cargo*" -o lcov.info
+
+      - name: Enforce coverage threshold (80%+)
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          total = 0
+          covered = 0
+          with open("lcov.info", "r", encoding="utf-8") as f:
+              for line in f:
+                  if line.startswith("DA:"):
+                      _, data = line.strip().split(":", 1)
+                      lineno, hits = data.split(",", 1)
+                      total += 1
+                      if int(hits) > 0:
+                          covered += 1
+          if total == 0:
+              raise SystemExit("No coverage lines found in lcov.info")
+          ratio = covered / total * 100
+          print(f"Line coverage: {ratio:.2f}% ({covered}/{total})")
+          summary = {
+              "line_coverage_percent": round(ratio, 2),
+              "covered_lines": covered,
+              "total_lines": total,
+              "threshold_percent": 80.0,
+              "passed": ratio >= 80.0,
+          }
+          with open("coverage-summary.json", "w", encoding="utf-8") as out:
+              json.dump(summary, out, indent=2)
+          if ratio < 80.0:
+              raise SystemExit(f"Coverage threshold not met: {ratio:.2f}% < 80.00%")
+          PY
+
+      - name: Publish coverage summary
+        run: |
+          python - <<'PY'
+          import json
+          with open("coverage-summary.json", "r", encoding="utf-8") as f:
+              data = json.load(f)
+          line = (
+              f"| {data['line_coverage_percent']:.2f}% | "
+              f"{data['covered_lines']} / {data['total_lines']} | "
+              f"{data['threshold_percent']:.2f}% |"
+          )
+          markdown = "\n".join(
+              [
+                  "## Coverage Report",
+                  "",
+                  "| Line Coverage | Covered / Total | Threshold |",
+                  "| --- | --- | --- |",
+                  line,
+              ]
+          )
+          with open("coverage-summary.md", "w", encoding="utf-8") as out:
+              out.write(markdown + "\n")
+          print(markdown)
+          PY
+          cat coverage-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: lcov.info
+          fail_ci_if_error: false
+          verbose: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            lcov.info
+            coverage-summary.json
+            coverage-summary.md
+          retention-days: 30
+
+  # ============================================================================
+  # Container Security Scan
+  # ============================================================================
+  container-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build gateway image
+        run: docker build -f docker/Dockerfile.gateway -t nexis-gateway:latest .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: 'nexis-gateway:latest'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+  # ============================================================================
+  # License Check
+  # ============================================================================
+  license-check:
+    name: License Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@cargo-deny
+
+      - name: Check licenses
+        run: cargo deny check licenses

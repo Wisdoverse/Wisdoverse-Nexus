@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="aiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#a855f7"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Circle background -->
+  <circle cx="100" cy="100" r="90" fill="url(#aiGrad)" opacity="0.1"/>
+  
+  <!-- Brain outline -->
+  <g fill="url(#aiGrad)">
+    <!-- Brain shape -->
+    <path d="M100 30 
+             C65 30 45 55 45 80 
+             C45 95 52 105 65 115
+             C52 125 45 140 45 155
+             C45 170 70 180 100 180
+             C130 180 155 170 155 155
+             C155 140 148 125 135 115
+             C148 105 155 95 155 80
+             C155 55 135 30 100 30
+             Z" opacity="0.3"/>
+    
+    <!-- Neural network nodes -->
+    <circle cx="80" cy="70" r="8"/>
+    <circle cx="120" cy="70" r="8"/>
+    <circle cx="100" cy="100" r="10"/>
+    <circle cx="75" cy="120" r="8"/>
+    <circle cx="125" cy="120" r="8"/>
+    <circle cx="100" cy="145" r="8"/>
+  </g>
+  
+  <!-- Neural connections -->
+  <g stroke="white" stroke-width="2" opacity="0.6">
+    <line x1="80" y1="70" x2="100" y2="100"/>
+    <line x1="120" y1="70" x2="100" y2="100"/>
+    <line x1="100" y1="100" x2="75" y2="120"/>
+    <line x1="100" y1="100" x2="125" y2="120"/>
+    <line x1="75" y1="120" x2="100" y2="145"/>
+    <line x1="125" y1="120" x2="100" y2="145"/>
+  </g>
+</svg>

@@ -1,0 +1,24 @@
+[package]
+name = "nexis-cli"
+version.workspace = true
+edition.workspace = true
+description = "Wisdoverse Nexus command line client"
+license-file.workspace = true
+
+[dependencies]
+nexis-protocol = { workspace = true }
+nexis-ai = { workspace = true }
+clap.workspace = true
+futures = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-tungstenite = { workspace = true }
+uuid = { workspace = true }
+rustyline = "18"
+colored = "3"
+
+[dev-dependencies]
+httpmock = { workspace = true }

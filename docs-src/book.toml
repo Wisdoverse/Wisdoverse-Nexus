@@ -1,0 +1,22 @@
+[book]
+authors = ["Wisdoverse Nexus Team"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Wisdoverse Nexus Docs"
+
+[build]
+build-dir = "book"
+create-missing = false
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/Wisdoverse/Wisdoverse-Nexus"
+git-repository-icon = "fa-github"
+edit-url-template = "https://github.com/Wisdoverse/Wisdoverse-Nexus/edit/main/docs-src/{path}"
+additional-css = [
+  "theme/css/variables.css",
+  "theme/css/general.css"
+]
+theme = "src/theme"

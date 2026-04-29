@@ -1,0 +1,29 @@
+{
+  "name": "@wisdoverse/nexus-sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for Wisdoverse Nexus API",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "wisdoverse",
+    "nexus",
+    "sdk",
+    "chat",
+    "realtime"
+  ],
+  "author": "Wisdoverse Nexus Team",
+  "license": "LicenseRef-Wisdoverse-Nexus-BSL-1.1",
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "axios": "^1.15.2",
+    "ws": "^8.20.0"
+  }
+}
