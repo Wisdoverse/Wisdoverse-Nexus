@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="rocketGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#a855f7"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Circle background -->
+  <circle cx="100" cy="100" r="90" fill="url(#rocketGrad)" opacity="0.1"/>
+  
+  <!-- Rocket -->
+  <g fill="url(#rocketGrad)">
+    <!-- Body -->
+    <path d="M100 30 L115 70 L115 120 L100 140 L85 120 L85 70 Z" />
+    
+    <!-- Fins -->
+    <path d="M85 110 L65 140 L85 130 Z" />
+    <path d="M115 110 L135 140 L115 130 Z" />
+    
+    <!-- Window -->
+    <circle cx="100" cy="75" r="12" fill="white" opacity="0.9"/>
+    
+    <!-- Flames -->
+    <path d="M90 140 L100 180 L110 140" fill="#f59e0b" opacity="0.8"/>
+  </g>
+</svg>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="chartGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#a855f7"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Circle background -->
+  <circle cx="100" cy="100" r="90" fill="url(#chartGrad)" opacity="0.1"/>
+  
+  <!-- Chart bars -->
+  <rect x="45" y="100" width="25" height="60" rx="4" fill="url(#chartGrad)"/>
+  <rect x="85" y="70" width="25" height="90" rx="4" fill="url(#chartGrad)"/>
+  <rect x="125" y="50" width="25" height="110" rx="4" fill="url(#chartGrad)"/>
+  
+  <!-- Trend line -->
+  <path d="M57 100 L97 70 L137 50" 
+        stroke="white" 
+        stroke-width="4" 
+        stroke-linecap="round"
+        fill="none"
+        opacity="0.9"/>
+  
+  <!-- Dots -->
+  <circle cx="57" cy="100" r="6" fill="white"/>
+  <circle cx="97" cy="70" r="6" fill="white"/>
+  <circle cx="137" cy="50" r="6" fill="white"/>
+</svg>

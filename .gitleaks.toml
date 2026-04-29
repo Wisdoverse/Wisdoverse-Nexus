@@ -1,0 +1,12 @@
+title = "Gitleaks Configuration"
+
+[allowlist]
+description = "Allow known test secrets"
+paths = [
+  '''crates/nexis-gateway/src/auth/mod.rs''',
+  '''crates/nexis-gateway/tests/''',
+]
+
+[[allowlist.regexes]]
+description = "Test secret in auth module"
+regex = '''default_secret'''

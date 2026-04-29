@@ -1,0 +1,17 @@
+{
+  "name": "wisdoverse-nexus-monorepo",
+  "private": true,
+  "packageManager": "pnpm@10.30.3",
+  "engines": {
+    "node": ">=20.19.0",
+    "pnpm": ">=10.30.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "@expo/metro-config>postcss": "^8.5.12",
+      "esbuild": "^0.25.12",
+      "vitepress>vite": "^6.4.2",
+      "xcode>uuid": "^14.0.0"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+[package]
+name = "nexis-federation"
+description = "Wisdoverse Nexus federation protocol and security primitives"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+hmac = "0.13"
+sha2 = "0.11"
+hex = { workspace = true }
+
+[dev-dependencies]
+tokio-test = { workspace = true }

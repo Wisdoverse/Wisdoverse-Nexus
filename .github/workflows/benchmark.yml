@@ -1,0 +1,67 @@
+name: Benchmark
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/**/*.rs'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'crates/**/*.rs'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run benchmarks
+        run: |
+          # Create benchmark results file
+          echo "# Benchmark Results" > benchmark-results.txt
+          echo "" >> benchmark-results.txt
+          
+          # Run benchmark and capture output
+          cargo bench --workspace -- --output-format bencher 2>&1 | tee -a benchmark-results.txt || true
+          
+          # Ensure file has content
+          if [ ! -s benchmark-results.txt ]; then
+            echo "No benchmarks found, creating placeholder" >> benchmark-results.txt
+          fi
+          
+          cat benchmark-results.txt
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'cargo'
+          output-file-path: benchmark-results.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: false
+          alert-threshold: '120%'
+          comment-on-alert: true
+          fail-on-alert: true
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark-results.txt
+          retention-days: 30

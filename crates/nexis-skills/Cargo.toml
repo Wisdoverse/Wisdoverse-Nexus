@@ -1,0 +1,15 @@
+[package]
+name = "nexis-skills"
+description = "Wisdoverse Nexus skill registry and execution for AI agents"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }

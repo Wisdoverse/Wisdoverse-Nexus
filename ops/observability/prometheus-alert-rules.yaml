@@ -1,0 +1,32 @@
+groups:
+  - name: nexis-gateway-alerts
+    interval: 30s
+    rules:
+      - alert: NexisGatewayHighErrorRate
+        expr: |
+          (
+            sum(rate(nexis_operation_errors_total[5m]))
+            /
+            clamp_min(sum(rate(nexis_operation_throughput_total[5m])), 1)
+          ) > 0.05
+        for: 10m
+        labels:
+          severity: critical
+          service: nexis-gateway
+        annotations:
+          summary: "Wisdoverse Nexus Gateway error rate is high"
+          description: "Error rate has been above 5% for 10 minutes."
+
+      - alert: NexisGatewayHighLatencyP95
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(nexis_operation_latency_seconds_bucket[5m])) by (le, operation)
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          service: nexis-gateway
+        annotations:
+          summary: "Wisdoverse Nexus Gateway p95 latency is high"
+          description: "Operation p95 latency has been above 500ms for 10 minutes."

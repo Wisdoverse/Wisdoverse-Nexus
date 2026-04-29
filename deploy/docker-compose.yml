@@ -1,0 +1,69 @@
+version: "3.9"
+
+# Wisdoverse Nexus 开发环境 — docker compose up
+# 用途：本地开发、联调、可观测性预览
+# 注意：本文件仅限开发使用，禁止直接用于生产部署
+
+services:
+  nexis-gateway:
+    build: ..
+    ports: ["8080:8080"]
+    environment:
+      - NEXIS_ENV=development
+      - NEXIS_JWT_SECRET=dev-secret-change-me
+      - RUST_LOG=nexis=debug
+    volumes:
+      - ../target:/app/target
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: nexis
+      POSTGRES_USER: nexis
+      POSTGRES_PASSWORD: nexis
+    ports: ["5432:5432"]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexis"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    ports: ["9090:9090"]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+
+volumes:
+  postgres-data:
+  redis-data:
+  prometheus-data:
+  grafana-data:

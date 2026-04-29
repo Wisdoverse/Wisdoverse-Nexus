@@ -1,0 +1,27 @@
+{
+  "name": "wisdoverse-nexus-docs",
+  "version": "1.0.0",
+  "description": "Wisdoverse Nexus Documentation",
+  "type": "module",
+  "scripts": {
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "LicenseRef-Wisdoverse-Nexus-BSL-1.1",
+  "devDependencies": {
+    "vitepress": "^1.6.4",
+    "vue": "^3.5.33"
+  },
+  "dependencies": {
+    "@vitejs/plugin-vue": "^6.0.6"
+  },
+  "overrides": {
+    "vite": "^6.4.2",
+    "esbuild": "^0.25.12",
+    "postcss": "^8.5.12",
+    "picomatch": "^4.0.4"
+  }
+}
