@@ -22,7 +22,7 @@ async fn e2e_create_room_and_send_message() {
             }
         }
         if i == 9 {
-            panic!("Gateway not ready after 10 seconds");
+            panic!("Gateway not ready after 10 health checks");
         }
         sleep(Duration::from_millis(1000)).await;
     }

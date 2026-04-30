@@ -68,8 +68,10 @@ impl MemberId {
     }
 
     pub fn identifier(&self) -> &str {
-        let parts: Vec<&str> = self.0.split(':').collect();
-        parts.get(2).unwrap_or(&"")
+        self.0
+            .splitn(3, ':')
+            .nth(2)
+            .unwrap_or("")
     }
 }
 
@@ -418,6 +420,14 @@ mod tests {
 
         let decoded: MemberId = serde_json::from_str(&encoded).unwrap();
         assert_eq!(decoded, original);
+    }
+
+    #[test]
+    fn member_id_preserves_multi_segment_identifier() {
+        let member = "nexis:human:team:alice".parse::<MemberId>().unwrap();
+        assert_eq!(member.member_type().as_str(), "human");
+        assert_eq!(member.identifier(), "team:alice");
+        assert_eq!(member.to_string(), "nexis:human:team:alice");
     }
 
     #[test]
