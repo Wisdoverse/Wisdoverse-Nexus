@@ -67,6 +67,11 @@ Run the checks that match your change. For broad repository work:
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo check --workspace
+```
+
+Before running JS/mobile/docs checks on a fresh checkout, install workspace dependencies:
+
+```bash
 pnpm install --frozen-lockfile --ignore-scripts
 pnpm --filter @wisdoverse/nexus-mobile exec expo install --check
 pnpm --filter @wisdoverse/nexus-mobile typecheck
