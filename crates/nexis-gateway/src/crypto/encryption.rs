@@ -122,9 +122,13 @@ impl DataEncryption {
 mod tests {
     use super::*;
 
+    fn random_key() -> [u8; 32] {
+        rand::random()
+    }
+
     #[test]
     fn test_encrypt_decrypt() {
-        let key = [0u8; 32];
+        let key = random_key();
         let enc = DataEncryption::new(&key);
         let plaintext = b"hello world";
         let ciphertext = enc.encrypt(plaintext).unwrap();
@@ -134,7 +138,7 @@ mod tests {
 
     #[test]
     fn test_encrypt_decrypt_string() {
-        let key = [0u8; 32];
+        let key = random_key();
         let enc = DataEncryption::new(&key);
         let plaintext = "hello world";
         let ciphertext = enc.encrypt_string(plaintext).unwrap();
@@ -144,7 +148,7 @@ mod tests {
 
     #[test]
     fn test_different_nonces() {
-        let key = [0u8; 32];
+        let key = random_key();
         let enc = DataEncryption::new(&key);
         let plaintext = b"hello world";
         let c1 = enc.encrypt(plaintext).unwrap();
@@ -154,7 +158,7 @@ mod tests {
 
     #[test]
     fn test_decrypt_invalid_nonce() {
-        let key = [0u8; 32];
+        let key = random_key();
         let enc = DataEncryption::new(&key);
         let result = enc.decrypt(b"short");
         assert!(matches!(result, Err(CryptoError::InvalidNonce)));

@@ -38,22 +38,40 @@ impl GeminiProvider {
         self
     }
 
-    fn generate_endpoint(&self, model: &str) -> String {
-        format!(
-            "{}/v1beta/models/{}:generateContent?key={}",
-            self.base_url.trim_end_matches('/'),
-            model,
-            self.api_key
-        )
+    fn generate_endpoint(&self, model: &str) -> Result<String, ProviderError> {
+        let base = self.secure_base_url()?;
+        Ok(format!(
+            "{base}/v1beta/models/{model}:generateContent?key={key}",
+            key = self.api_key
+        ))
     }
 
-    fn stream_endpoint(&self, model: &str) -> String {
-        format!(
-            "{}/v1beta/models/{}:streamGenerateContent?alt=sse&key={}",
-            self.base_url.trim_end_matches('/'),
-            model,
-            self.api_key
-        )
+    fn stream_endpoint(&self, model: &str) -> Result<String, ProviderError> {
+        let base = self.secure_base_url()?;
+        Ok(format!(
+            "{base}/v1beta/models/{model}:streamGenerateContent?alt=sse&key={key}",
+            key = self.api_key
+        ))
+    }
+
+    /// Enforce that the configured base URL uses `https://`. Allows
+    /// `http://` only against loopback hosts (for `wiremock`-style mock
+    /// servers used in integration tests). Outbound requests carrying the
+    /// API key never leave the host over an unencrypted channel.
+    fn secure_base_url(&self) -> Result<&str, ProviderError> {
+        let trimmed = self.base_url.trim_end_matches('/');
+        if trimmed.starts_with("https://") {
+            return Ok(trimmed);
+        }
+        if trimmed.starts_with("http://127.0.0.1")
+            || trimmed.starts_with("http://localhost")
+            || trimmed.starts_with("http://[::1]")
+        {
+            return Ok(trimmed);
+        }
+        Err(ProviderError::Transport(format!(
+            "Gemini base_url must use https:// (got {trimmed})"
+        )))
     }
 
     fn payload(&self, req: GenerateRequest) -> (String, GeminiGenerateRequest) {
@@ -102,10 +120,11 @@ impl AIProvider for GeminiProvider {
 
     async fn generate(&self, req: GenerateRequest) -> Result<GenerateResponse, ProviderError> {
         let (model, payload) = self.payload(req);
+        let endpoint = self.generate_endpoint(&model)?;
 
         let response = self
             .client
-            .post(self.generate_endpoint(&model))
+            .post(endpoint)
             .json(&payload)
             .send()
             .await
@@ -143,10 +162,8 @@ impl AIProvider for GeminiProvider {
 
     async fn generate_stream(&self, req: GenerateRequest) -> Result<ProviderStream, ProviderError> {
         let (model, payload) = self.payload(req);
-        let request = self
-            .client
-            .post(self.stream_endpoint(&model))
-            .json(&payload);
+        let endpoint = self.stream_endpoint(&model)?;
+        let request = self.client.post(endpoint).json(&payload);
 
         let mut event_source = request
             .eventsource()
