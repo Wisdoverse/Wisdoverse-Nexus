@@ -2,7 +2,9 @@
 //!
 //! Run with: cargo bench --bench context_summarization
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use std::hint::black_box;
+
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use std::sync::Arc;
 
 // We need to conditionally compile based on features
