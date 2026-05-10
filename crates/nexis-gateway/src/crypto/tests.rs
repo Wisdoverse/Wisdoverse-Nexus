@@ -44,11 +44,10 @@ fn different_nonces_different_ciphertexts() {
 
 #[test]
 fn decrypt_wrong_key_fails() {
+    // Two independent 32-byte random keys: collision probability is 2^-256,
+    // far below any realistic test failure mode. No fallback needed.
     let key1 = random_key();
-    let mut key2 = random_key();
-    if key1 == key2 {
-        key2[0] ^= 0x01;
-    }
+    let key2 = random_key();
     let enc1 = DataEncryption::new(&key1);
     let enc2 = DataEncryption::new(&key2);
     let ciphertext = enc1.encrypt(b"secret").unwrap();

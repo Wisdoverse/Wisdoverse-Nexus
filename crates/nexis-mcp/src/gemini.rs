@@ -24,53 +24,71 @@ pub struct GeminiProvider {
 impl GeminiProvider {
     pub fn new(api_key: impl Into<String>) -> Self {
         Self {
-            client: reqwest::Client::builder()
-                .timeout(Duration::from_secs(60))
-                .build()
-                .expect("reqwest client should build"),
+            client: Self::build_client(true),
             api_key: api_key.into(),
             base_url: DEFAULT_GEMINI_BASE_URL.to_string(),
         }
     }
 
+    /// Override the base URL. Production callers should pass an `https://`
+    /// URL; the client is automatically reconfigured to drop `https_only`
+    /// when a loopback `http://` URL is supplied so that integration tests
+    /// can target `wiremock`-style mock servers.
     pub fn with_base_url(mut self, base_url: impl Into<String>) -> Self {
-        self.base_url = base_url.into();
+        let url = base_url.into();
+        let allow_loopback_http = url.starts_with("http://127.0.0.1")
+            || url.starts_with("http://localhost")
+            || url.starts_with("http://[::1]");
+        self.client = Self::build_client(!allow_loopback_http);
+        self.base_url = url;
         self
     }
 
-    fn generate_endpoint(&self, model: &str) -> Result<String, ProviderError> {
-        let base = self.secure_base_url()?;
+    fn build_client(https_only: bool) -> reqwest::Client {
+        reqwest::Client::builder()
+            .https_only(https_only)
+            .timeout(Duration::from_secs(60))
+            .build()
+            .expect("reqwest client should build")
+    }
+
+    /// Build the endpoint URL after asserting the base URL scheme is safe.
+    /// CodeQL's `rust/cleartext-transmission` query can see the scheme
+    /// guard immediately above the `format!` call that interpolates the
+    /// API key.
+    fn build_endpoint(
+        &self,
+        model: &str,
+        op: &str,
+        extra_query: &str,
+    ) -> Result<String, ProviderError> {
+        let base = self.base_url.trim_end_matches('/');
+        let is_https = base.starts_with("https://");
+        let is_loopback_http = base.starts_with("http://127.0.0.1")
+            || base.starts_with("http://localhost")
+            || base.starts_with("http://[::1]");
+        if !is_https && !is_loopback_http {
+            return Err(ProviderError::Transport(format!(
+                "Gemini base_url must use https:// (got {base})"
+            )));
+        }
+        let extra = if extra_query.is_empty() {
+            String::new()
+        } else {
+            format!("{extra_query}&")
+        };
         Ok(format!(
-            "{base}/v1beta/models/{model}:generateContent?key={key}",
+            "{base}/v1beta/models/{model}:{op}?{extra}key={key}",
             key = self.api_key
         ))
+    }
+
+    fn generate_endpoint(&self, model: &str) -> Result<String, ProviderError> {
+        self.build_endpoint(model, "generateContent", "")
     }
 
     fn stream_endpoint(&self, model: &str) -> Result<String, ProviderError> {
-        let base = self.secure_base_url()?;
-        Ok(format!(
-            "{base}/v1beta/models/{model}:streamGenerateContent?alt=sse&key={key}",
-            key = self.api_key
-        ))
-    }
-
-    /// Enforce that the configured base URL uses `https://`. Allows
-    /// `http://` only against loopback hosts (for `wiremock`-style mock
-    /// servers used in integration tests).
-    fn secure_base_url(&self) -> Result<&str, ProviderError> {
-        let trimmed = self.base_url.trim_end_matches('/');
-        if trimmed.starts_with("https://") {
-            return Ok(trimmed);
-        }
-        if trimmed.starts_with("http://127.0.0.1")
-            || trimmed.starts_with("http://localhost")
-            || trimmed.starts_with("http://[::1]")
-        {
-            return Ok(trimmed);
-        }
-        Err(ProviderError::Transport(format!(
-            "Gemini base_url must use https:// (got {trimmed})"
-        )))
+        self.build_endpoint(model, "streamGenerateContent", "alt=sse")
     }
 
     fn payload(&self, req: GenerateRequest) -> (String, GeminiGenerateRequest) {
