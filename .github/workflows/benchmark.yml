@@ -33,22 +33,30 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Run benchmarks
+        id: bench
         run: |
-          # Create benchmark results file
-          echo "# Benchmark Results" > benchmark-results.txt
-          echo "" >> benchmark-results.txt
-          
-          # Run benchmark and capture output
-          cargo bench --workspace -- --output-format bencher 2>&1 | tee -a benchmark-results.txt || true
-          
-          # Ensure file has content
+          set -o pipefail
+          # Run criterion benches; capture both libtest-bencher-formatted
+          # lines (criterion emits one per bench function when invoked with
+          # `--output-format bencher`) and propagate exit status.
+          cargo bench --workspace -- --output-format bencher 2>&1 \
+            | tee benchmark-output.log
+
+          # Extract `test <name> ... bench: <ns/iter>` lines that
+          # benchmark-action/github-action-benchmark `tool: cargo` consumes.
+          grep -E '^test .* \.\.\. bench:' benchmark-output.log \
+            > benchmark-results.txt || true
+
           if [ ! -s benchmark-results.txt ]; then
-            echo "No benchmarks found, creating placeholder" >> benchmark-results.txt
+            echo "no_results=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::No bencher-formatted benchmark results produced; skipping result storage."
+          else
+            echo "no_results=false" >> "$GITHUB_OUTPUT"
+            cat benchmark-results.txt
           fi
-          
-          cat benchmark-results.txt
 
       - name: Store benchmark result
+        if: steps.bench.outputs.no_results == 'false'
         uses: benchmark-action/github-action-benchmark@v1
         with:
           tool: 'cargo'
