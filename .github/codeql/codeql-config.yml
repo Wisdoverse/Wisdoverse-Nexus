@@ -1,0 +1,35 @@
+# CodeQL configuration for Wisdoverse Nexus.
+# Referenced by .github/workflows/security.yml (CodeQL Analysis matrix).
+#
+# Query suite: `security-and-quality` extends the default with quality lints
+# (unused code, suspicious constructs) in addition to security findings.
+
+name: "Wisdoverse Nexus CodeQL"
+
+# Extend default with the broader `security-and-quality` suite.
+queries:
+  - uses: security-and-quality
+
+# Skip build artifacts, vendored code, and generated files across all languages.
+paths-ignore:
+  - "target/**"
+  - "**/target/**"
+  - "node_modules/**"
+  - "**/node_modules/**"
+  - "dist/**"
+  - "**/dist/**"
+  - "build/**"
+  - "**/build/**"
+  - ".next/**"
+  - "**/.next/**"
+  - "coverage/**"
+  - "**/coverage/**"
+  - "docs/.astro/**"
+  - "apps/web/storybook-static/**"
+  - "**/*.min.js"
+  - "**/*.bundle.js"
+  - "**/*.generated.*"
+  - "**/__generated__/**"
+  - "**/__pb__/**"
+  - "**/*.pb.go"
+  - "examples/**/dist/**"

@@ -1,10 +1,20 @@
-# Dependabot configuration for automated dependency updates
-# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+# Dependabot configuration for automated dependency updates.
+# Docs: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+#
+# Conventions (org-wide standard):
+# - Weekly cadence, Monday 06:00 Asia/Shanghai.
+# - Security updates: ungrouped/grouped per ecosystem, bypass cooldown, immediate.
+# - Version updates: grouped minor+patch, cooldown 3d patch / 7d minor, major ignored.
+# - Conventional Commits prefixes (`chore`, `ci`, `fix`). Scope included.
+# - Rebase strategy: auto. Branch separator: `-`.
+# - Pull request limit per ecosystem: 5 (avoid PR flood; security updates have no cap).
 
 version: 2
 
 updates:
-  # Rust dependencies
+  # ---------------------------------------------------------------------------
+  # Rust workspace crates (root Cargo.toml). Excludes `plugins/*` (handled below).
+  # ---------------------------------------------------------------------------
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
@@ -12,27 +22,87 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
+    rebase-strategy: "auto"
+    pull-request-branch-name:
+      separator: "-"
     commit-message:
       prefix: "chore"
+      prefix-development: "chore"
       include: "scope"
     labels:
       - "dependencies"
       - "rust"
+    cooldown:
+      default-days: 3
+      semver-minor-days: 7
+      semver-patch-days: 3
     groups:
-      # Group all minor/patch updates together
-      minor-and-patch:
+      cargo-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      cargo-minor-patch:
+        applies-to: version-updates
         patterns:
           - "*"
         update-types:
           - "minor"
           - "patch"
     ignore:
-      # Ignore major version updates for stable crates (manual review)
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  # GitHub Actions
+  # ---------------------------------------------------------------------------
+  # Plugin crates (excluded from cargo workspace; built individually).
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "cargo"
+    directories:
+      - "/plugins/github"
+      - "/plugins/jira"
+      - "/plugins/poll"
+      - "/plugins/translate"
+      - "/plugins/welcome"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 5
+    rebase-strategy: "auto"
+    pull-request-branch-name:
+      separator: "-"
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "rust"
+      - "plugins"
+    cooldown:
+      default-days: 3
+      semver-minor-days: 7
+      semver-patch-days: 3
+    groups:
+      plugins-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      plugins-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # ---------------------------------------------------------------------------
+  # GitHub Actions.
+  # ---------------------------------------------------------------------------
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -41,17 +111,35 @@ updates:
       time: "06:00"
       timezone: "Asia/Shanghai"
     open-pull-requests-limit: 5
+    rebase-strategy: "auto"
+    pull-request-branch-name:
+      separator: "-"
     commit-message:
       prefix: "ci"
+      include: "scope"
     labels:
       - "dependencies"
       - "github-actions"
+    cooldown:
+      default-days: 3
+      semver-minor-days: 7
+      semver-patch-days: 3
     groups:
-      actions:
+      actions-security:
+        applies-to: security-updates
         patterns:
           - "*"
+      actions-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
-  # Root Dockerfile
+  # ---------------------------------------------------------------------------
+  # Root Dockerfile.
+  # ---------------------------------------------------------------------------
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
@@ -60,14 +148,38 @@ updates:
       time: "06:00"
       timezone: "Asia/Shanghai"
     open-pull-requests-limit: 3
+    rebase-strategy: "auto"
+    pull-request-branch-name:
+      separator: "-"
     commit-message:
       prefix: "chore"
       include: "scope"
     labels:
       - "dependencies"
       - "docker"
+    cooldown:
+      default-days: 7
+      semver-minor-days: 7
+      semver-patch-days: 3
+    groups:
+      docker-root-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      docker-root-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
-  # Docker dependencies
+  # ---------------------------------------------------------------------------
+  # docker/ stack Dockerfiles.
+  # ---------------------------------------------------------------------------
   - package-ecosystem: "docker"
     directory: "/docker"
     schedule:
@@ -76,14 +188,38 @@ updates:
       time: "06:00"
       timezone: "Asia/Shanghai"
     open-pull-requests-limit: 3
+    rebase-strategy: "auto"
+    pull-request-branch-name:
+      separator: "-"
     commit-message:
       prefix: "chore"
       include: "scope"
     labels:
       - "dependencies"
       - "docker"
+    cooldown:
+      default-days: 7
+      semver-minor-days: 7
+      semver-patch-days: 3
+    groups:
+      docker-stack-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      docker-stack-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
-  # Web app npm dependencies
+  # ---------------------------------------------------------------------------
+  # Web app (Vite + React 19 + Tailwind 4).
+  # ---------------------------------------------------------------------------
   - package-ecosystem: "npm"
     directory: "/apps/web"
     schedule:
@@ -91,14 +227,23 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
+    rebase-strategy: "auto"
+    versioning-strategy: "increase"
+    pull-request-branch-name:
+      separator: "-"
     commit-message:
       prefix: "chore"
+      prefix-development: "chore"
       include: "scope"
     labels:
       - "dependencies"
       - "npm"
       - "web"
+    cooldown:
+      default-days: 3
+      semver-minor-days: 7
+      semver-patch-days: 3
     groups:
       web-security:
         applies-to: security-updates
@@ -115,7 +260,9 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  # Mobile app npm dependencies
+  # ---------------------------------------------------------------------------
+  # Mobile app (Expo 55 + RN 0.83 + React 19).
+  # ---------------------------------------------------------------------------
   - package-ecosystem: "npm"
     directory: "/apps/mobile"
     schedule:
@@ -123,14 +270,23 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
+    rebase-strategy: "auto"
+    versioning-strategy: "increase"
+    pull-request-branch-name:
+      separator: "-"
     commit-message:
       prefix: "chore"
+      prefix-development: "chore"
       include: "scope"
     labels:
       - "dependencies"
       - "npm"
       - "mobile"
+    cooldown:
+      default-days: 5
+      semver-minor-days: 14
+      semver-patch-days: 5
     groups:
       mobile-security:
         applies-to: security-updates
@@ -147,7 +303,9 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  # TypeScript SDK npm dependencies
+  # ---------------------------------------------------------------------------
+  # TypeScript SDK (library — narrow version bumps).
+  # ---------------------------------------------------------------------------
   - package-ecosystem: "npm"
     directory: "/sdk/typescript"
     schedule:
@@ -156,13 +314,22 @@ updates:
       time: "06:00"
       timezone: "Asia/Shanghai"
     open-pull-requests-limit: 5
+    rebase-strategy: "auto"
+    versioning-strategy: "increase-if-necessary"
+    pull-request-branch-name:
+      separator: "-"
     commit-message:
       prefix: "chore"
+      prefix-development: "chore"
       include: "scope"
     labels:
       - "dependencies"
       - "npm"
       - "sdk"
+    cooldown:
+      default-days: 3
+      semver-minor-days: 7
+      semver-patch-days: 3
     groups:
       sdk-security:
         applies-to: security-updates
@@ -179,7 +346,54 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  # Documentation npm dependencies
+  # ---------------------------------------------------------------------------
+  # Python SDK (pip).
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "pip"
+    directory: "/sdk/python"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 5
+    rebase-strategy: "auto"
+    versioning-strategy: "increase-if-necessary"
+    insecure-external-code-execution: "deny"
+    pull-request-branch-name:
+      separator: "-"
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "pip"
+      - "sdk"
+      - "python"
+    cooldown:
+      default-days: 3
+      semver-minor-days: 7
+      semver-patch-days: 3
+    groups:
+      sdk-python-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      sdk-python-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # ---------------------------------------------------------------------------
+  # Documentation site (Astro/Vite).
+  # ---------------------------------------------------------------------------
   - package-ecosystem: "npm"
     directory: "/docs"
     schedule:
@@ -187,14 +401,23 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
+    rebase-strategy: "auto"
+    versioning-strategy: "increase"
+    pull-request-branch-name:
+      separator: "-"
     commit-message:
       prefix: "chore"
+      prefix-development: "chore"
       include: "scope"
     labels:
       - "dependencies"
       - "npm"
       - "docs"
+    cooldown:
+      default-days: 5
+      semver-minor-days: 7
+      semver-patch-days: 5
     groups:
       docs-security:
         applies-to: security-updates
@@ -211,7 +434,9 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  # Web e2e npm dependencies
+  # ---------------------------------------------------------------------------
+  # Web e2e (Playwright; dev-only).
+  # ---------------------------------------------------------------------------
   - package-ecosystem: "npm"
     directory: "/apps/web/e2e"
     schedule:
@@ -219,14 +444,23 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
+    rebase-strategy: "auto"
+    versioning-strategy: "increase"
+    pull-request-branch-name:
+      separator: "-"
     commit-message:
       prefix: "chore"
+      prefix-development: "chore"
       include: "scope"
     labels:
       - "dependencies"
       - "npm"
       - "e2e"
+    cooldown:
+      default-days: 3
+      semver-minor-days: 7
+      semver-patch-days: 3
     groups:
       e2e-security:
         applies-to: security-updates

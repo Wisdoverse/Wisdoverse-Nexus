@@ -93,28 +93,60 @@ jobs:
         run: npm audit --audit-level=moderate
 
   # ============================================================================
-  # CodeQL Analysis
+  # CodeQL Analysis (multi-language matrix; advanced config).
+  # Default code-scanning setup must remain DISABLED at the repo level for this
+  # workflow to succeed. See .github/codeql/codeql-config.yml for query suites
+  # and path exclusions.
   # ============================================================================
   codeql:
-    name: CodeQL Analysis
-    runs-on: ubuntu-latest
+    name: CodeQL Analysis (${{ matrix.language }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: ${{ matrix.language == 'rust' && 60 || 30 }}
     permissions:
       actions: read
       contents: read
+      packages: read
       security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: actions
+            build-mode: none
+            runner: ubuntu-latest
+          - language: javascript-typescript
+            build-mode: none
+            runner: ubuntu-latest
+          - language: python
+            build-mode: none
+            runner: ubuntu-latest
+          - language: rust
+            build-mode: manual
+            runner: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
-          languages: rust
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          config-file: ./.github/codeql/codeql-config.yml
 
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+      - name: Install Rust toolchain
+        if: matrix.language == 'rust'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        if: matrix.language == 'rust'
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build Rust workspace
+        if: matrix.language == 'rust'
+        run: cargo build --workspace --locked
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
-          category: "/language:rust"
+          category: "/language:${{ matrix.language }}"
