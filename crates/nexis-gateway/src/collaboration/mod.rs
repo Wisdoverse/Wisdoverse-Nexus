@@ -313,26 +313,29 @@ where
             post(create_meeting_room),
         )
         .route(
-            "/v1/collaboration/meetings/rooms/:room_id/join",
+            "/v1/collaboration/meetings/rooms/{room_id}/join",
             post(join_meeting_room),
         )
         .route(
-            "/v1/collaboration/meetings/rooms/:room_id/leave",
+            "/v1/collaboration/meetings/rooms/{room_id}/leave",
             post(leave_meeting_room),
         )
         .route("/v1/collaboration/documents", post(create_document))
         .route(
-            "/v1/collaboration/documents/:document_id/sync",
+            "/v1/collaboration/documents/{document_id}/sync",
             post(sync_document),
         )
         .route(
-            "/v1/collaboration/documents/:document_id/content",
+            "/v1/collaboration/documents/{document_id}/content",
             get(get_document_content),
         )
         .route("/v1/collaboration/tasks", post(create_task))
-        .route("/v1/collaboration/tasks/:task_id/assign", post(assign_task))
         .route(
-            "/v1/collaboration/tasks/:task_id/complete",
+            "/v1/collaboration/tasks/{task_id}/assign",
+            post(assign_task),
+        )
+        .route(
+            "/v1/collaboration/tasks/{task_id}/complete",
             post(complete_task),
         )
         .route(

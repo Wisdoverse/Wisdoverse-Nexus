@@ -91,7 +91,7 @@ base64 = "0.22"
 hex = "0.4"
 
 # Security
-jsonwebtoken = "10.3"
+jsonwebtoken = { version = "10.3", features = ["aws_lc_rs"] }
 argon2 = "0.5"
 rand = "0.10"
 
