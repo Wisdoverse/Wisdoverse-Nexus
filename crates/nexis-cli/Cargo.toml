@@ -3,6 +3,7 @@ name = "nexis-cli"
 version.workspace = true
 edition.workspace = true
 description = "Wisdoverse Nexus command line client"
+license.workspace = true
 license-file.workspace = true
 
 [dependencies]

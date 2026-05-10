@@ -2,6 +2,7 @@
 name = "nexis-plugin"
 version = "0.1.0"
 edition = "2021"
+license = "LicenseRef-Wisdoverse-Nexus-BSL-1.1"
 license-file = "../../LICENSE"
 description = "Plugin system for Wisdoverse Nexus gateway"
 

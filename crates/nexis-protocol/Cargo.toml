@@ -3,6 +3,7 @@ name = "nexis-protocol"
 description = "Wisdoverse Nexus protocol definitions - NIP-001, NIP-002, NIP-003"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 license-file.workspace = true
 repository.workspace = true
 authors.workspace = true

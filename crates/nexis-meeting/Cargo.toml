@@ -3,6 +3,7 @@ name = "nexis-meeting"
 description = "Wisdoverse Nexus meeting and video collaboration domain types"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 license-file.workspace = true
 repository.workspace = true
 authors.workspace = true

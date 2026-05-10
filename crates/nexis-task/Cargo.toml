@@ -3,6 +3,7 @@ name = "nexis-task"
 description = "Wisdoverse Nexus task management and tracking domain types"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 license-file.workspace = true
 repository.workspace = true
 authors.workspace = true

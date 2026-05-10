@@ -3,6 +3,7 @@ name = "nexis-vector"
 description = "Wisdoverse Nexus vector storage and semantic search"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 license-file.workspace = true
 repository.workspace = true
 authors.workspace = true

@@ -3,6 +3,7 @@ name = "nexis-context"
 description = "Wisdoverse Nexus context management and windowing"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 license-file.workspace = true
 repository.workspace = true
 authors.workspace = true

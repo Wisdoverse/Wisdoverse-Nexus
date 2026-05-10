@@ -3,6 +3,7 @@ name = "nexis-calendar"
 description = "Wisdoverse Nexus calendar and scheduling domain types"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 license-file.workspace = true
 repository.workspace = true
 authors.workspace = true

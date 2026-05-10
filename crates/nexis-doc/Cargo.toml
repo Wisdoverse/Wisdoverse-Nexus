@@ -3,6 +3,7 @@ name = "nexis-doc"
 description = "Wisdoverse Nexus real-time document collaboration domain types"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 license-file.workspace = true
 repository.workspace = true
 authors.workspace = true
