@@ -73,8 +73,17 @@ jobs:
             cat benchmark-results.txt
           fi
 
+      # Store baselines only on pushes to the protected `main` branch. PR
+      # runs upload the raw output as an artifact (below) so reviewers can
+      # eyeball the numbers without a `gh-pages` write-back. `continue-on-
+      # error: true` keeps the workflow green when the `gh-pages` branch
+      # has not yet been bootstrapped on a fresh repository.
       - name: Store benchmark result
-        if: steps.bench.outputs.no_results == 'false'
+        if: |
+          steps.bench.outputs.no_results == 'false'
+          && github.event_name == 'push'
+          && github.ref == 'refs/heads/main'
+        continue-on-error: true
         uses: benchmark-action/github-action-benchmark@v1
         with:
           tool: 'cargo'
