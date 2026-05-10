@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main, develop]
 
+# Auto-cancel superseded runs on the same ref. Main-branch runs are not
+# cancelled (their `group` is unique per SHA via `github.run_id`).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 # Minimum permissions for all jobs. Override per-job where extra scopes
 # (e.g. `security-events: write`, `packages: write`) are needed.
 permissions:
