@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main, develop]
 
+# Minimum permissions for all jobs. Override per-job where extra scopes
+# (e.g. `security-events: write`, `packages: write`) are needed.
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1

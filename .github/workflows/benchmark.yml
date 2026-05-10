@@ -18,6 +18,12 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+# `github-action-benchmark` posts alert comments on regressions.
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
 jobs:
   benchmark:
     name: Run Benchmarks
