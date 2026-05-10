@@ -14,22 +14,27 @@ use tokio_stream::wrappers::ReceiverStream;
 const DEFAULT_GEMINI_BASE_URL: &str = "https://generativelanguage.googleapis.com";
 const DEFAULT_MODEL: &str = "gemini-1.5-flash";
 
-/// Assert that an outbound URL uses HTTPS (or a loopback `http://` for
-/// test mocks). Called immediately before any `reqwest::Client::post`
-/// that interpolates the Gemini API key so that CodeQL's
-/// `rust/cleartext-transmission` flow analysis sees the guard in the
-/// same lexical scope as the sink.
-fn assert_secure_endpoint(url: &str) -> Result<(), ProviderError> {
-    if url.starts_with("https://")
-        || url.starts_with("http://127.0.0.1")
-        || url.starts_with("http://localhost")
-        || url.starts_with("http://[::1]")
-    {
-        return Ok(());
+/// Parse an outbound URL and verify it uses HTTPS (or a loopback
+/// `http://` for test mocks). Returns the typed `reqwest::Url` so
+/// callers pass a value whose scheme has been validated — CodeQL's
+/// `rust/cleartext-transmission` flow analysis recognises
+/// `url::Url::scheme()` comparisons as a security barrier and tracks
+/// the typed value through to the `client.post(url)` sink.
+fn parse_secure_endpoint(url_str: &str) -> Result<reqwest::Url, ProviderError> {
+    let url = reqwest::Url::parse(url_str)
+        .map_err(|err| ProviderError::Transport(format!("invalid endpoint URL: {err}")))?;
+    match url.scheme() {
+        "https" => Ok(url),
+        "http" => match url.host_str() {
+            Some("127.0.0.1") | Some("localhost") | Some("::1") => Ok(url),
+            _ => Err(ProviderError::Transport(format!(
+                "endpoint must use https:// (got {url_str})"
+            ))),
+        },
+        scheme => Err(ProviderError::Transport(format!(
+            "endpoint must use https:// (got scheme {scheme})"
+        ))),
     }
-    Err(ProviderError::Transport(format!(
-        "endpoint must use https:// (got {url})"
-    )))
 }
 
 #[derive(Debug, Clone)]
@@ -155,15 +160,15 @@ impl AIProvider for GeminiProvider {
 
     async fn generate(&self, req: GenerateRequest) -> Result<GenerateResponse, ProviderError> {
         let (model, payload) = self.payload(req);
-        let endpoint = self.generate_endpoint(&model)?;
-        // Inline scheme assertion immediately before sending — CodeQL's
-        // `rust/cleartext-transmission` flow analysis requires the guard
-        // in the same function as the `client.post` sink.
-        assert_secure_endpoint(&endpoint)?;
+        let endpoint_str = self.generate_endpoint(&model)?;
+        // Parse + scheme-check the endpoint inline; pass the typed
+        // `reqwest::Url` (not the raw string) to `client.post` so CodeQL's
+        // flow analysis tracks the validated URL through to the sink.
+        let endpoint = parse_secure_endpoint(&endpoint_str)?;
 
         let response = self
             .client
-            .post(&endpoint)
+            .post(endpoint)
             .json(&payload)
             .send()
             .await
@@ -201,10 +206,10 @@ impl AIProvider for GeminiProvider {
 
     async fn generate_stream(&self, req: GenerateRequest) -> Result<ProviderStream, ProviderError> {
         let (model, payload) = self.payload(req);
-        let endpoint = self.stream_endpoint(&model)?;
-        // Inline scheme assertion immediately before sending; see `generate`.
-        assert_secure_endpoint(&endpoint)?;
-        let request = self.client.post(&endpoint).json(&payload);
+        let endpoint_str = self.stream_endpoint(&model)?;
+        // See `generate`: parse + validate scheme, then pass typed `Url`.
+        let endpoint = parse_secure_endpoint(&endpoint_str)?;
+        let request = self.client.post(endpoint).json(&payload);
 
         let mut event_source = request
             .eventsource()
