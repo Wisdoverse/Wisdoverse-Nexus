@@ -14,6 +14,24 @@ use tokio_stream::wrappers::ReceiverStream;
 const DEFAULT_GEMINI_BASE_URL: &str = "https://generativelanguage.googleapis.com";
 const DEFAULT_MODEL: &str = "gemini-1.5-flash";
 
+/// Assert that an outbound URL uses HTTPS (or a loopback `http://` for
+/// test mocks). Called immediately before any `reqwest::Client::post`
+/// that interpolates the Gemini API key so that CodeQL's
+/// `rust/cleartext-transmission` flow analysis sees the guard in the
+/// same lexical scope as the sink.
+fn assert_secure_endpoint(url: &str) -> Result<(), ProviderError> {
+    if url.starts_with("https://")
+        || url.starts_with("http://127.0.0.1")
+        || url.starts_with("http://localhost")
+        || url.starts_with("http://[::1]")
+    {
+        return Ok(());
+    }
+    Err(ProviderError::Transport(format!(
+        "endpoint must use https:// (got {url})"
+    )))
+}
+
 #[derive(Debug, Clone)]
 pub struct GeminiProvider {
     client: reqwest::Client,
@@ -138,10 +156,14 @@ impl AIProvider for GeminiProvider {
     async fn generate(&self, req: GenerateRequest) -> Result<GenerateResponse, ProviderError> {
         let (model, payload) = self.payload(req);
         let endpoint = self.generate_endpoint(&model)?;
+        // Inline scheme assertion immediately before sending — CodeQL's
+        // `rust/cleartext-transmission` flow analysis requires the guard
+        // in the same function as the `client.post` sink.
+        assert_secure_endpoint(&endpoint)?;
 
         let response = self
             .client
-            .post(endpoint)
+            .post(&endpoint)
             .json(&payload)
             .send()
             .await
@@ -180,7 +202,9 @@ impl AIProvider for GeminiProvider {
     async fn generate_stream(&self, req: GenerateRequest) -> Result<ProviderStream, ProviderError> {
         let (model, payload) = self.payload(req);
         let endpoint = self.stream_endpoint(&model)?;
-        let request = self.client.post(endpoint).json(&payload);
+        // Inline scheme assertion immediately before sending; see `generate`.
+        assert_secure_endpoint(&endpoint)?;
+        let request = self.client.post(&endpoint).json(&payload);
 
         let mut event_source = request
             .eventsource()
