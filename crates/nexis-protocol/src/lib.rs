@@ -68,10 +68,7 @@ impl MemberId {
     }
 
     pub fn identifier(&self) -> &str {
-        self.0
-            .splitn(3, ':')
-            .nth(2)
-            .unwrap_or("")
+        self.0.splitn(3, ':').nth(2).unwrap_or("")
     }
 }
 

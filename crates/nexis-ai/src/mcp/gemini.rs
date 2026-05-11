@@ -14,6 +14,29 @@ use tokio_stream::wrappers::ReceiverStream;
 const DEFAULT_GEMINI_BASE_URL: &str = "https://generativelanguage.googleapis.com";
 const DEFAULT_MODEL: &str = "gemini-1.5-flash";
 
+/// Parse an outbound URL and verify it uses HTTPS (or a loopback
+/// `http://` for test mocks). Returns the typed `reqwest::Url` so
+/// callers pass a value whose scheme has been validated — CodeQL's
+/// `rust/cleartext-transmission` flow analysis recognises
+/// `url::Url::scheme()` comparisons as a security barrier and tracks
+/// the typed value through to the `client.post(url)` sink.
+fn parse_secure_endpoint(url_str: &str) -> Result<reqwest::Url, ProviderError> {
+    let url = reqwest::Url::parse(url_str)
+        .map_err(|err| ProviderError::Transport(format!("invalid endpoint URL: {err}")))?;
+    match url.scheme() {
+        "https" => Ok(url),
+        "http" => match url.host_str() {
+            Some("127.0.0.1") | Some("localhost") | Some("::1") => Ok(url),
+            _ => Err(ProviderError::Transport(format!(
+                "endpoint must use https:// (got {url_str})"
+            ))),
+        },
+        scheme => Err(ProviderError::Transport(format!(
+            "endpoint must use https:// (got scheme {scheme})"
+        ))),
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct GeminiProvider {
     client: reqwest::Client,
@@ -24,36 +47,71 @@ pub struct GeminiProvider {
 impl GeminiProvider {
     pub fn new(api_key: impl Into<String>) -> Self {
         Self {
-            client: reqwest::Client::builder()
-                .timeout(Duration::from_secs(60))
-                .build()
-                .expect("reqwest client should build"),
+            client: Self::build_client(true),
             api_key: api_key.into(),
             base_url: DEFAULT_GEMINI_BASE_URL.to_string(),
         }
     }
 
+    /// Override the base URL. Production callers should pass an `https://`
+    /// URL; the client is automatically reconfigured to drop `https_only`
+    /// when a loopback `http://` URL is supplied so that integration tests
+    /// can target `wiremock`-style mock servers.
     pub fn with_base_url(mut self, base_url: impl Into<String>) -> Self {
-        self.base_url = base_url.into();
+        let url = base_url.into();
+        let allow_loopback_http = url.starts_with("http://127.0.0.1")
+            || url.starts_with("http://localhost")
+            || url.starts_with("http://[::1]");
+        self.client = Self::build_client(!allow_loopback_http);
+        self.base_url = url;
         self
     }
 
-    fn generate_endpoint(&self, model: &str) -> String {
-        format!(
-            "{}/v1beta/models/{}:generateContent?key={}",
-            self.base_url.trim_end_matches('/'),
-            model,
-            self.api_key
-        )
+    fn build_client(https_only: bool) -> reqwest::Client {
+        reqwest::Client::builder()
+            .https_only(https_only)
+            .timeout(Duration::from_secs(60))
+            .build()
+            .expect("reqwest client should build")
     }
 
-    fn stream_endpoint(&self, model: &str) -> String {
-        format!(
-            "{}/v1beta/models/{}:streamGenerateContent?alt=sse&key={}",
-            self.base_url.trim_end_matches('/'),
-            model,
-            self.api_key
-        )
+    /// Build the endpoint URL after asserting the base URL scheme is safe.
+    /// CodeQL's `rust/cleartext-transmission` query can see the scheme
+    /// guard immediately above the `format!` call that interpolates the
+    /// API key.
+    fn build_endpoint(
+        &self,
+        model: &str,
+        op: &str,
+        extra_query: &str,
+    ) -> Result<String, ProviderError> {
+        let base = self.base_url.trim_end_matches('/');
+        let is_https = base.starts_with("https://");
+        let is_loopback_http = base.starts_with("http://127.0.0.1")
+            || base.starts_with("http://localhost")
+            || base.starts_with("http://[::1]");
+        if !is_https && !is_loopback_http {
+            return Err(ProviderError::Transport(format!(
+                "Gemini base_url must use https:// (got {base})"
+            )));
+        }
+        let extra = if extra_query.is_empty() {
+            String::new()
+        } else {
+            format!("{extra_query}&")
+        };
+        Ok(format!(
+            "{base}/v1beta/models/{model}:{op}?{extra}key={key}",
+            key = self.api_key
+        ))
+    }
+
+    fn generate_endpoint(&self, model: &str) -> Result<String, ProviderError> {
+        self.build_endpoint(model, "generateContent", "")
+    }
+
+    fn stream_endpoint(&self, model: &str) -> Result<String, ProviderError> {
+        self.build_endpoint(model, "streamGenerateContent", "alt=sse")
     }
 
     fn payload(&self, req: GenerateRequest) -> (String, GeminiGenerateRequest) {
@@ -102,10 +160,15 @@ impl AIProvider for GeminiProvider {
 
     async fn generate(&self, req: GenerateRequest) -> Result<GenerateResponse, ProviderError> {
         let (model, payload) = self.payload(req);
+        let endpoint_str = self.generate_endpoint(&model)?;
+        // Parse + scheme-check the endpoint inline; pass the typed
+        // `reqwest::Url` (not the raw string) to `client.post` so CodeQL's
+        // flow analysis tracks the validated URL through to the sink.
+        let endpoint = parse_secure_endpoint(&endpoint_str)?;
 
         let response = self
             .client
-            .post(self.generate_endpoint(&model))
+            .post(endpoint)
             .json(&payload)
             .send()
             .await
@@ -143,10 +206,10 @@ impl AIProvider for GeminiProvider {
 
     async fn generate_stream(&self, req: GenerateRequest) -> Result<ProviderStream, ProviderError> {
         let (model, payload) = self.payload(req);
-        let request = self
-            .client
-            .post(self.stream_endpoint(&model))
-            .json(&payload);
+        let endpoint_str = self.stream_endpoint(&model)?;
+        // See `generate`: parse + validate scheme, then pass typed `Url`.
+        let endpoint = parse_secure_endpoint(&endpoint_str)?;
+        let request = self.client.post(endpoint).json(&payload);
 
         let mut event_source = request
             .eventsource()

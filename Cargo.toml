@@ -29,6 +29,7 @@ resolver = "2"
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
+license = "LicenseRef-Wisdoverse-Nexus-BSL-1.1"
 license-file = "LICENSE"
 repository = "https://github.com/Wisdoverse/Wisdoverse-Nexus"
 homepage = "https://github.com/Wisdoverse/Wisdoverse-Nexus"
@@ -91,7 +92,7 @@ base64 = "0.22"
 hex = "0.4"
 
 # Security
-jsonwebtoken = "10.3"
+jsonwebtoken = { version = "10.3", features = ["aws_lc_rs"] }
 argon2 = "0.5"
 rand = "0.10"
 

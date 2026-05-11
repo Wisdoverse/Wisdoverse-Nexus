@@ -1,9 +1,15 @@
 //! Encryption and key derivation tests.
 use super::*;
 
+/// Helper: fresh random 32-byte key per test invocation (avoid hard-coded
+/// fixtures flagged by CodeQL `rust/hard-coded-cryptographic-value`).
+fn random_key() -> [u8; 32] {
+    rand::random()
+}
+
 #[test]
 fn encrypt_decrypt_bytes_roundtrip() {
-    let key = [42u8; 32];
+    let key = random_key();
     let enc = DataEncryption::new(&key);
     let plaintext = b"hello, world!";
     let ciphertext = enc.encrypt(plaintext).expect("encrypt should succeed");
@@ -14,7 +20,7 @@ fn encrypt_decrypt_bytes_roundtrip() {
 
 #[test]
 fn encrypt_decrypt_string_roundtrip() {
-    let key = [42u8; 32];
+    let key = random_key();
     let enc = DataEncryption::new(&key);
     let plaintext = "hello, world!";
     let ciphertext = enc
@@ -28,7 +34,7 @@ fn encrypt_decrypt_string_roundtrip() {
 
 #[test]
 fn different_nonces_different_ciphertexts() {
-    let key = [42u8; 32];
+    let key = random_key();
     let enc = DataEncryption::new(&key);
     let plaintext = b"hello, world!";
     let c1 = enc.encrypt(plaintext).unwrap();
@@ -38,8 +44,10 @@ fn different_nonces_different_ciphertexts() {
 
 #[test]
 fn decrypt_wrong_key_fails() {
-    let key1 = [42u8; 32];
-    let key2 = [99u8; 32];
+    // Two independent 32-byte random keys: collision probability is 2^-256,
+    // far below any realistic test failure mode. No fallback needed.
+    let key1 = random_key();
+    let key2 = random_key();
     let enc1 = DataEncryption::new(&key1);
     let enc2 = DataEncryption::new(&key2);
     let ciphertext = enc1.encrypt(b"secret").unwrap();
@@ -49,7 +57,7 @@ fn decrypt_wrong_key_fails() {
 
 #[test]
 fn truncated_ciphertext_fails() {
-    let key = [42u8; 32];
+    let key = random_key();
     let enc = DataEncryption::new(&key);
     let mut ciphertext = enc.encrypt(b"important data").unwrap();
     ciphertext[15] ^= 0xFF;

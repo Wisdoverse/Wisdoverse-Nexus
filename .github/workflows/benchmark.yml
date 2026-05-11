@@ -15,8 +15,18 @@ on:
       - 'Cargo.lock'
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   CARGO_TERM_COLOR: always
+
+# `github-action-benchmark` posts alert comments on regressions.
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
 
 jobs:
   benchmark:
@@ -33,22 +43,51 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Run benchmarks
+        id: bench
         run: |
-          # Create benchmark results file
-          echo "# Benchmark Results" > benchmark-results.txt
-          echo "" >> benchmark-results.txt
-          
-          # Run benchmark and capture output
-          cargo bench --workspace -- --output-format bencher 2>&1 | tee -a benchmark-results.txt || true
-          
-          # Ensure file has content
-          if [ ! -s benchmark-results.txt ]; then
-            echo "No benchmarks found, creating placeholder" >> benchmark-results.txt
-          fi
-          
-          cat benchmark-results.txt
+          set -o pipefail
+          # Only criterion benches accept `--output-format bencher`. Run
+          # each known criterion bench by name; libtest-harness benches
+          # (e.g. nexis-ai lib `#[bench]` tests) reject the flag.
+          : > benchmark-output.log
+          BENCHES=(
+            "-p nexis-doc --bench crdt_benchmark"
+            "-p nexis-gateway --bench routing"
+            "-p nexis-gateway --bench message_throughput"
+            "-p nexis-gateway --bench websocket_connections"
+            "-p nexis-meeting --bench sfu_benchmark"
+          )
+          for SPEC in "${BENCHES[@]}"; do
+            echo "::group::cargo bench $SPEC"
+            cargo bench $SPEC -- --output-format bencher 2>&1 \
+              | tee -a benchmark-output.log || echo "::warning::bench '$SPEC' failed; continuing"
+            echo "::endgroup::"
+          done
 
+          # Extract `test <name> ... bench: <ns/iter>` lines that
+          # benchmark-action/github-action-benchmark (`tool: cargo`) consumes.
+          grep -E '^test .* \.\.\. bench:' benchmark-output.log \
+            > benchmark-results.txt || true
+
+          if [ ! -s benchmark-results.txt ]; then
+            echo "no_results=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::No bencher-formatted benchmark results produced; skipping result storage."
+          else
+            echo "no_results=false" >> "$GITHUB_OUTPUT"
+            cat benchmark-results.txt
+          fi
+
+      # Store baselines only on pushes to the protected `main` branch. PR
+      # runs upload the raw output as an artifact (below) so reviewers can
+      # eyeball the numbers without a `gh-pages` write-back. `continue-on-
+      # error: true` keeps the workflow green when the `gh-pages` branch
+      # has not yet been bootstrapped on a fresh repository.
       - name: Store benchmark result
+        if: |
+          steps.bench.outputs.no_results == 'false'
+          && github.event_name == 'push'
+          && github.ref == 'refs/heads/main'
+        continue-on-error: true
         uses: benchmark-action/github-action-benchmark@v1
         with:
           tool: 'cargo'

@@ -466,6 +466,10 @@ pub async fn connect_websocket_once(
 }
 
 /// Run interactive WebSocket client with JWT auth
+// `clippy::collapsible_match` fires on the `Ok(Message::Text(text))` arm
+// containing a single conditional break. The natural refactor is a `match`
+// guard, but `.await` is not permitted in match guards.
+#[allow(clippy::collapsible_match)]
 pub async fn run_ws_client(url: &str, token: &str, default_room: &str) -> Result<String, CliError> {
     use futures::stream::{SplitSink, SplitStream};
     use std::io::{self, BufRead, Write};

@@ -1,7 +1,6 @@
 //! Key derivation using Argon2id.
 
 use argon2::{Algorithm, Argon2, Params, Version};
-use rand::Rng;
 
 /// Key derivation helper.
 pub struct KeyDerivation;
@@ -18,11 +17,9 @@ impl KeyDerivation {
         key
     }
 
-    /// Generate a random 8-byte salt.
+    /// Generate a random 8-byte salt drawn directly from the OS RNG.
     pub fn generate_salt() -> [u8; 8] {
-        let mut salt = [0u8; 8];
-        rand::rng().fill_bytes(&mut salt);
-        salt
+        rand::random()
     }
 
     /// Derive a key from a password, generating a fresh salt.

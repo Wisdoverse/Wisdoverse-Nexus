@@ -300,8 +300,8 @@ impl From<SearchError> for ErrorResponse {
 fn v1_routes() -> Router<AppState> {
     Router::new()
         .route("/v1/rooms", get(list_rooms).post(create_room))
-        .route("/v1/rooms/:id", get(get_room).delete(delete_room))
-        .route("/v1/rooms/:id/invite", post(invite_member))
+        .route("/v1/rooms/{id}", get(get_room).delete(delete_room))
+        .route("/v1/rooms/{id}/invite", post(invite_member))
         .route("/v1/messages", post(send_message))
         .route("/v1/search", get(search_messages_get).post(search_messages))
         .route(

@@ -3,6 +3,7 @@ name = "nexis-memory"
 description = "Wisdoverse Nexus long-term memory and context persistence"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 license-file.workspace = true
 repository.workspace = true
 authors.workspace = true
