@@ -302,6 +302,13 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      # Expo SDK 55 bundles these at specific versions (bundledNativeModules.json).
+      # Bumping them out-of-band breaks `expo install --check`. Pin until SDK 56.
+      - dependency-name: "react-native"
+      - dependency-name: "react"
+      - dependency-name: "react-dom"
+      - dependency-name: "react-native-safe-area-context"
+      - dependency-name: "react-native-screens"
 
   # ---------------------------------------------------------------------------
   # TypeScript SDK (library — narrow version bumps).
