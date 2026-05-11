@@ -8,7 +8,15 @@ versions. Breaking changes must be called out in release notes.
 
 ## [Unreleased]
 
-No unreleased changes yet.
+### Changed
+
+- TypeScript SDK now depends on `axios` `^1.16.0` (previously `^1.15.2`).
+  Downstream consumers receive axios 1.16's behavior changes: the fetch
+  adapter enforces `maxBodyLength` / `maxContentLength` (previously
+  ignored), the proxy adapter preserves the original `Host` header,
+  URL-encoded credentials in basic-auth are decoded before being sent,
+  and `parseProtocol` is stricter about malformed schemes. Review your
+  request size limits and proxy assumptions if you set them explicitly.
 
 ## [0.1.0] - 2026-04-29
 
