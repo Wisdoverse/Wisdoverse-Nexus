@@ -92,7 +92,7 @@ jobs:
           && github.event_name == 'push'
           && github.ref == 'refs/heads/main'
         continue-on-error: true
-        uses: benchmark-action/github-action-benchmark@v1
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba  # v1
         with:
           tool: 'cargo'
           output-file-path: benchmark-results.txt

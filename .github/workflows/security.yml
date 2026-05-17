@@ -37,7 +37,7 @@ jobs:
           fetch-depth: 0
 
       - name: TruffleHog OSS
-        uses: trufflesecurity/trufflehog@v3.95.2
+        uses: trufflesecurity/trufflehog@17456f8c7d042d8c82c9a8ca9e937231f9f42e26  # v3.95.2
         with:
           path: ./
           base: ${{ github.event.repository.default_branch }}
@@ -60,7 +60,7 @@ jobs:
           cache: 'false'
 
       - name: Install cargo-audit
-        uses: taiki-e/install-action@cargo-audit
+        uses: taiki-e/install-action@f7ae479469b4c4fb5c1818615346605e61b5dc27  # cargo-audit
 
       - name: Run audit
         run: cargo audit --deny warnings
