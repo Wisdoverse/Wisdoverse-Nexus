@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useMessagesStore } from '../messagesStore'
-import { useAuthStore, resetAuthStore } from '../../auth/authStore'
+import { resetAuthStore, useAuthStore } from '../../../entities/session'
 import { httpClient } from '../../../shared/api/httpClient'
 
 vi.mock('../../../shared/api/httpClient', () => ({

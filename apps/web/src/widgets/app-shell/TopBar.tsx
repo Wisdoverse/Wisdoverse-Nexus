@@ -1,4 +1,4 @@
-import { useAuthStore } from '../../features/auth/authStore'
+import { useAuthStore } from '../../entities/session'
 import { TenantSwitcher } from '../../features/tenant/TenantSwitcher'
 import styles from './TopBar.module.css'
 

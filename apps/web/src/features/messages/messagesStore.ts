@@ -1,7 +1,7 @@
 import { create } from 'zustand'
+import { useAuthStore } from '../../entities/session'
 import type { Message } from '../../shared/api/endpoints/messages'
 import { httpClient } from '../../shared/api/httpClient'
-import { useAuthStore } from '../auth/authStore'
 import { wsClient } from '../../shared/ws/wsClient'
 import type {
   ConnectionState,

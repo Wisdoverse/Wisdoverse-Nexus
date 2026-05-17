@@ -231,6 +231,8 @@ async fn ws_auth_with_expired_token_returns_error() {
         iss: "nexis".to_string(),
         aud: "nexis".to_string(),
         member_type: "human".to_string(),
+        #[cfg(feature = "multi-tenant")]
+        tenant_id: None,
     };
     let token = jsonwebtoken::encode(
         &jsonwebtoken::Header::default(),

@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios'
-import { useAuthStore } from '../../features/auth/authStore'
 import { sessionManager, isRecoverable401, handleRefreshSuccess, handleRefreshFailure } from './sessionManager'
+import { getSessionSnapshot, logoutSession } from '../session/sessionAccess'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 
@@ -41,8 +41,7 @@ class HttpClient {
   private setupInterceptors() {
     this.instance.interceptors.request.use(
       async (config: InternalAxiosRequestConfig) => {
-        const state = useAuthStore.getState()
-        const { token, tenantId, needsRefresh, isAuthenticated } = state
+        const { token, tenantId, needsRefresh, isAuthenticated } = getSessionSnapshot()
 
         if (isAuthenticated && needsRefresh() && !config.url?.includes('/auth/')) {
           const newToken = await sessionManager.executeWithRefreshLock(async () => {
@@ -102,7 +101,7 @@ class HttpClient {
             }
           }
 
-          useAuthStore.getState().logout()
+          logoutSession()
           if (typeof window !== 'undefined') {
             window.location.href = '/login'
           }

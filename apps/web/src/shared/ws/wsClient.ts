@@ -1,4 +1,4 @@
-import { useAuthStore } from '../../features/auth/authStore'
+import { getSessionSnapshot } from '../session/sessionAccess'
 import type { ConnectionState, WebSocketClientOptions, WebSocketMessage } from './types'
 
 const WS_URL = import.meta.env.VITE_WS_URL || `ws://${window.location.host}/ws`
@@ -52,7 +52,7 @@ export class WebSocketClient {
     this.clearHeartbeatTimers()
     this.setState(this.reconnectAttempts > 0 ? 'reconnecting' : 'connecting')
 
-    const { token } = useAuthStore.getState()
+    const { token } = getSessionSnapshot()
     let url = WS_URL
     if (token) {
       url += `?token=${encodeURIComponent(token)}`

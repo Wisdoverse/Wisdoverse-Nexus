@@ -45,6 +45,12 @@ Rust: edition 2021, 4-space indent, Unix newlines, 100-col, `unsafe_code = "forb
 Crate names: `nexis-*` kebab/snake.
 TypeScript: strict tsconfig, PascalCase React components, camelCase functions/vars, colocated CSS modules where used.
 
+## Architecture
+
+Frontend must follow Feature-Sliced Design (FSD). Organize application code by layers in dependency order: `app` -> `pages` -> `widgets` -> `features` -> `entities` -> `shared`. A layer may import only from lower layers, never from a higher layer or sideways through another feature. Keep public APIs explicit through local `index.ts` barrels; avoid deep cross-slice imports. Place reusable UI, API clients, config, and primitives in `shared`; domain objects and stores in `entities`; user actions in `features`; composed surfaces in `widgets`; route-level screens in `pages`; providers, routing, and app bootstrapping in `app`.
+
+Backend must follow Domain-Driven Design (DDD). Keep domain models, value objects, aggregates, domain errors, and domain services free of transport, database, and framework concerns. Put use-case orchestration in application services; keep Axum handlers, SQL/storage adapters, external providers, queues, and observability in infrastructure/interface layers. Crate boundaries should preserve bounded contexts (`nexis-*`), and cross-context communication should use explicit contracts/events rather than shared mutable internals. Do not leak database row models or HTTP DTOs into domain APIs.
+
 ## Testing
 
 Rust integration tests in `tests/`; crate-local tests for crate-specific behavior. Name by behavior: `rejects_invalid_tenant_token`. Mobile unit tests: Vitest in `__tests__/`. Web e2e: `apps/web/e2e/tests/`.

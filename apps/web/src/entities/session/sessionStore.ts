@@ -1,6 +1,7 @@
 import { create, StateCreator } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { Session, User, SessionStatus } from '../../app/types'
+import type { Session, User, SessionStatus } from '../../shared/api/endpoints/auth'
+import { configureSessionAccess } from '../../shared/session/sessionAccess'
 
 const REFRESH_THRESHOLD_MS = 60 * 1000
 const STORAGE_KEY = 'nexis-auth'
@@ -234,6 +235,19 @@ export const useAuthStore = new Proxy({} as ReturnType<typeof createAuthStore>, 
     const store = getStore()
     if (!store) return undefined
     return store[prop as keyof typeof store]
+  },
+})
+
+configureSessionAccess({
+  getSnapshot: () => {
+    const { token, tenantId, isAuthenticated, needsRefresh } = getStore().getState()
+    return { token, tenantId, isAuthenticated, needsRefresh }
+  },
+  updateSession: (session) => {
+    getStore().getState().updateSession(session)
+  },
+  logout: () => {
+    getStore().getState().logout()
   },
 })
 

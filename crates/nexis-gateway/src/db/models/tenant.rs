@@ -7,10 +7,11 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Subscription plan types for tenants.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Plan {
     /// Free tier with limited resources.
+    #[default]
     Free,
     /// Professional tier with more resources.
     Pro,
@@ -18,12 +19,6 @@ pub enum Plan {
     Enterprise,
     /// Custom plan for special arrangements.
     Custom,
-}
-
-impl Default for Plan {
-    fn default() -> Self {
-        Self::Free
-    }
 }
 
 impl std::fmt::Display for Plan {

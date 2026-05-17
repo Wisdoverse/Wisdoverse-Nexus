@@ -15,6 +15,8 @@ fn auth_header() -> String {
         iss: "nexis".to_string(),
         aud: "nexis".to_string(),
         member_type: "human".to_string(),
+        #[cfg(feature = "multi-tenant")]
+        tenant_id: None,
     };
     let token = jsonwebtoken::encode(
         &jsonwebtoken::Header::default(),

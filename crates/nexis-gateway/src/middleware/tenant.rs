@@ -35,19 +35,21 @@ impl IntoResponse for TenantResolutionError {
     fn into_response(self) -> Response {
         use axum::http::StatusCode;
         let (status, message) = match &self {
-            TenantResolutionError::MissingTenant => {
-                (StatusCode::BAD_REQUEST, "Missing tenant context")
-            }
+            TenantResolutionError::MissingTenant => (
+                StatusCode::BAD_REQUEST,
+                "Missing tenant context".to_string(),
+            ),
             TenantResolutionError::InvalidIdentifier(id) => (
                 StatusCode::BAD_REQUEST,
-                &format!("Invalid tenant identifier: {}", id),
+                format!("Invalid tenant identifier: {}", id),
             ),
             TenantResolutionError::TenantNotFound(id) => {
-                (StatusCode::NOT_FOUND, &format!("Tenant not found: {}", id))
+                (StatusCode::NOT_FOUND, format!("Tenant not found: {}", id))
             }
-            TenantResolutionError::InvalidHeaderFormat => {
-                (StatusCode::BAD_REQUEST, "Invalid tenant header format")
-            }
+            TenantResolutionError::InvalidHeaderFormat => (
+                StatusCode::BAD_REQUEST,
+                "Invalid tenant header format".to_string(),
+            ),
         };
         (status, Json(serde_json::json!({ "error": message }))).into_response()
     }
@@ -93,20 +95,15 @@ pub enum TenantSource {
 }
 
 /// Strategy for resolving tenant from a request.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum ResolutionStrategy {
     /// Try subdomain first, then header, then path.
+    #[default]
     SubdomainFirst,
     /// Try header first, then subdomain, then path.
     HeaderFirst,
     /// Only use explicit tenant ID (from auth).
     ExplicitOnly,
-}
-
-impl Default for ResolutionStrategy {
-    fn default() -> Self {
-        Self::SubdomainFirst
-    }
 }
 
 /// Configuration for tenant resolution.
@@ -137,7 +134,7 @@ impl Default for TenantResolutionConfig {
 }
 
 /// Tenant resolver that extracts tenant context from requests.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct TenantResolver {
     config: TenantResolutionConfig,
     /// Optional tenant lookup function (for validating slugs/IDs).
@@ -175,21 +172,21 @@ impl TenantResolver {
     ) -> Result<ResolvedTenant, TenantResolutionError> {
         match self.config.strategy {
             ResolutionStrategy::SubdomainFirst => self
-                .from_subdomain(parts)
-                .or_else(|_| self.from_header(parts))
-                .or_else(|_| self.from_path(parts))
-                .or_else(|_| self.from_query(parts)),
+                .resolve_subdomain(parts)
+                .or_else(|_| self.resolve_header(parts))
+                .or_else(|_| self.resolve_path(parts))
+                .or_else(|_| self.resolve_query(parts)),
             ResolutionStrategy::HeaderFirst => self
-                .from_header(parts)
-                .or_else(|_| self.from_subdomain(parts))
-                .or_else(|_| self.from_path(parts))
-                .or_else(|_| self.from_query(parts)),
+                .resolve_header(parts)
+                .or_else(|_| self.resolve_subdomain(parts))
+                .or_else(|_| self.resolve_path(parts))
+                .or_else(|_| self.resolve_query(parts)),
             ResolutionStrategy::ExplicitOnly => Err(TenantResolutionError::MissingTenant),
         }
     }
 
     /// Extract tenant from subdomain.
-    fn from_subdomain(&self, parts: &Parts) -> Result<ResolvedTenant, TenantResolutionError> {
+    fn resolve_subdomain(&self, parts: &Parts) -> Result<ResolvedTenant, TenantResolutionError> {
         let host = parts
             .headers
             .get("host")
@@ -231,7 +228,7 @@ impl TenantResolver {
     }
 
     /// Extract tenant from headers.
-    fn from_header(&self, parts: &Parts) -> Result<ResolvedTenant, TenantResolutionError> {
+    fn resolve_header(&self, parts: &Parts) -> Result<ResolvedTenant, TenantResolutionError> {
         // Try tenant ID header first
         if let Some(id_str) = parts
             .headers
@@ -261,14 +258,14 @@ impl TenantResolver {
     }
 
     /// Extract tenant from URL path.
-    fn from_path(&self, _parts: &Parts) -> Result<ResolvedTenant, TenantResolutionError> {
+    fn resolve_path(&self, _parts: &Parts) -> Result<ResolvedTenant, TenantResolutionError> {
         // This would need path extraction; typically done via Path extractor
         // For now, return Missing to allow fallback
         Err(TenantResolutionError::MissingTenant)
     }
 
     /// Extract tenant from query parameters.
-    fn from_query(&self, parts: &Parts) -> Result<ResolvedTenant, TenantResolutionError> {
+    fn resolve_query(&self, parts: &Parts) -> Result<ResolvedTenant, TenantResolutionError> {
         let uri = &parts.uri;
         let query = uri.query().unwrap_or("");
 
@@ -320,12 +317,12 @@ pub trait TenantLookup {
 
 /// Extractor that provides resolved tenant context.
 #[derive(Debug, Clone)]
-pub struct MiddlewareMiddlewareMiddlewareTenantContext {
+pub struct MiddlewareTenantContext {
     pub tenant: ResolvedTenant,
     pub source: TenantSource,
 }
 
-impl<S> FromRequestParts<S> for TenantContext
+impl<S> FromRequestParts<S> for MiddlewareTenantContext
 where
     S: Send + Sync,
     TenantResolver: FromRef<S>,
@@ -340,7 +337,7 @@ where
         // This is simplified; in practice you'd track the source
         let source = TenantSource::Header; // Default assumption
 
-        Ok(MiddlewareMiddlewareTenantContext { tenant, source })
+        Ok(MiddlewareTenantContext { tenant, source })
     }
 }
 

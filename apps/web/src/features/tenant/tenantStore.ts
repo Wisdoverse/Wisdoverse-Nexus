@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { useAuthStore } from '../auth/authStore'
+import { useAuthStore } from '../../entities/session'
 
 export interface Tenant {
   id: string

@@ -8,13 +8,12 @@
 //! - `tenant`: Multi-tenant context resolution
 
 pub mod logging;
-pub mod rate_limit;
 pub mod request_id;
 pub mod security_headers;
 
 pub use logging::{request_logging, RequestLog, RequestLoggingLayer};
 
-pub use rate_limit::{
+pub use crate::rate_limit::{
     rate_limit_middleware, register_metrics, RateLimitConfig, RateLimitResponse, RateLimiter,
     TokenBucket,
 };

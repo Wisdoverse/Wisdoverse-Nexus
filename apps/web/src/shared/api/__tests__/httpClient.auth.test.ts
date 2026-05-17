@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { useAuthStore, resetAuthStore } from '../../../features/auth/authStore'
+import { resetAuthStore, useAuthStore } from '../../../entities/session'
 
 const createMockSession = (overrides = {}) => ({
   token: 'test-token',

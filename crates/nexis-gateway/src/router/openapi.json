@@ -3,7 +3,7 @@
   "info": {
     "title": "Wisdoverse Nexus Gateway API",
     "version": "0.1.0",
-    "description": "Control plane API for room management, messaging, and semantic search."
+    "description": "Control plane API for room management, messaging, semantic search, privacy self-service, and collaboration."
   },
   "paths": {
     "/health": {
@@ -26,47 +26,176 @@
         }
       }
     },
+    "/openapi.json": {
+      "get": {
+        "summary": "OpenAPI contract",
+        "responses": {
+          "200": {
+            "description": "OpenAPI document"
+          }
+        }
+      }
+    },
+    "/docs": {
+      "get": {
+        "summary": "Swagger UI",
+        "responses": {
+          "200": {
+            "description": "Swagger UI HTML"
+          }
+        }
+      }
+    },
+    "/ws": {
+      "get": {
+        "summary": "WebSocket upgrade endpoint",
+        "responses": {
+          "101": {
+            "description": "WebSocket connection established"
+          }
+        }
+      }
+    },
     "/v1/rooms": {
       "get": {
         "summary": "List rooms",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Room list"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       },
       "post": {
         "summary": "Create room",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "201": {
             "description": "Room created"
           },
           "400": {
-            "description": "Validation error"
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
         }
       }
     },
     "/v1/rooms/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/RoomId"
+        }
+      ],
       "get": {
         "summary": "Get room details",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Room details"
           },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "404": {
-            "description": "Room not found"
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
         }
       },
       "delete": {
         "summary": "Delete room",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "204": {
             "description": "Room deleted"
           },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "404": {
-            "description": "Room not found"
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/v1/rooms/{id}/invite": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/RoomId"
+        }
+      ],
+      "post": {
+        "summary": "Invite member to room",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Member invited"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
         }
       }
@@ -74,162 +203,544 @@
     "/v1/messages": {
       "post": {
         "summary": "Send message",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "201": {
             "description": "Message created"
           },
           "400": {
-            "description": "Validation error"
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           },
           "404": {
-            "description": "Room not found"
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
         }
       }
     },
     "/v1/search": {
       "get": {
-        "summary": "Search messages (query params)",
+        "summary": "Search messages with query parameters",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Search response"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
         }
       },
       "post": {
-        "summary": "Search messages (JSON body)",
+        "summary": "Search messages with JSON body",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Search response"
-          }
-        }
-      }
-    },
-    "/collaboration/meetings": {
-      "post": {
-        "summary": "Create collaboration room",
-        "responses": {
-          "201": {
-            "description": "Meeting created"
           },
           "400": {
-            "description": "Validation error"
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
         }
       }
     },
-    "/collaboration/meetings/{id}/join": {
-      "post": {
-        "summary": "Join collaboration room",
+    "/v1/members/me/export": {
+      "get": {
+        "summary": "Export authenticated member data",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Joined meeting"
+            "description": "Member data export"
           },
-          "404": {
-            "description": "Meeting not found"
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
     },
-    "/collaboration/meetings/{id}/leave": {
+    "/v1/members/me": {
+      "delete": {
+        "summary": "Delete authenticated member data",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Deletion accepted"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v1/collaboration/meetings/rooms": {
       "post": {
-        "summary": "Leave collaboration room",
+        "summary": "Create meeting room",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiVersion"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Meeting room created"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v1/collaboration/meetings/rooms/{room_id}/join": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/CollaborationRoomId"
+        }
+      ],
+      "post": {
+        "summary": "Join meeting room",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiVersion"
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Left meeting"
+            "description": "Joined meeting room"
           },
-          "404": {
-            "description": "Meeting not found"
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
     },
-    "/collaboration/documents": {
+    "/v1/collaboration/meetings/rooms/{room_id}/leave": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/CollaborationRoomId"
+        }
+      ],
+      "post": {
+        "summary": "Leave meeting room",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiVersion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Left meeting room"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v1/collaboration/documents": {
       "post": {
         "summary": "Create collaborative document",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiVersion"
+          }
+        ],
         "responses": {
           "201": {
             "description": "Document created"
           },
           "400": {
-            "description": "Validation error"
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
     },
-    "/collaboration/documents/{id}": {
-      "get": {
-        "summary": "Get collaborative document",
+    "/v1/collaboration/documents/{document_id}/sync": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/DocumentId"
+        }
+      ],
+      "post": {
+        "summary": "Sync collaborative document content",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiVersion"
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Document details"
+            "description": "Document synchronized"
           },
-          "404": {
-            "description": "Document not found"
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
     },
-    "/collaboration/tasks": {
+    "/v1/collaboration/documents/{document_id}/content": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/DocumentId"
+        }
+      ],
+      "get": {
+        "summary": "Get collaborative document content",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiVersion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document content"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v1/collaboration/tasks": {
       "post": {
         "summary": "Create collaboration task",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiVersion"
+          }
+        ],
         "responses": {
           "201": {
             "description": "Task created"
           },
           "400": {
-            "description": "Validation error"
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
     },
-    "/collaboration/tasks/{id}/assign": {
-      "put": {
+    "/v1/collaboration/tasks/{task_id}/assign": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/TaskId"
+        }
+      ],
+      "post": {
         "summary": "Assign collaboration task",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiVersion"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Task assigned"
           },
-          "404": {
-            "description": "Task not found"
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
     },
-    "/collaboration/tasks/{id}/complete": {
-      "put": {
+    "/v1/collaboration/tasks/{task_id}/complete": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/TaskId"
+        }
+      ],
+      "post": {
         "summary": "Complete collaboration task",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiVersion"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Task completed"
           },
-          "404": {
-            "description": "Task not found"
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
     },
-    "/collaboration/calendar/events": {
+    "/v1/collaboration/calendar/events": {
       "post": {
         "summary": "Create calendar event",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiVersion"
+          }
+        ],
         "responses": {
           "201": {
-            "description": "Event created"
+            "description": "Calendar event created"
           },
           "400": {
-            "description": "Validation error"
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
     },
-    "/collaboration/calendar/conflicts": {
-      "get": {
+    "/v1/collaboration/calendar/conflicts": {
+      "post": {
         "summary": "Check calendar conflicts",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiVersion"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Conflict check response"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "parameters": {
+      "ApiVersion": {
+        "name": "x-api-version",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "1"
+          ]
+        }
+      },
+      "RoomId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "CollaborationRoomId": {
+        "name": "room_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "DocumentId": {
+        "name": "document_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "TaskId": {
+        "name": "task_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Validation or request contract error"
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid authorization token"
+      },
+      "NotFound": {
+        "description": "Resource not found"
+      },
+      "RateLimited": {
+        "description": "Rate limit exceeded"
+      },
+      "ServiceUnavailable": {
+        "description": "Dependent service unavailable"
       }
     }
   }
