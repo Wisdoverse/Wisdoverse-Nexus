@@ -14,30 +14,31 @@ concurrency:
   group: "pages"
   cancel-in-progress: false
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
     name: Build Documentation
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: docs/package-lock.json
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
 
-      - name: Install dependencies
-        working-directory: docs
-        run: npm ci
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          cache-key: docs-pages
 
       - name: Build VitePress site
-        working-directory: docs
-        run: npm run docs:build
+        run: pnpm --dir docs docs:build
 
       - name: Build Rust API documentation
         run: cargo doc --workspace --no-deps
@@ -59,6 +60,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: build
     steps:
       - name: Deploy to GitHub Pages

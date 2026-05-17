@@ -13,26 +13,106 @@ concurrency:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   coverage:
+    name: coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      COVERAGE_THRESHOLD: '60'
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v6
       
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
         with:
           components: llvm-tools-preview
+          cache-key: coverage-workflow
       
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       
       - name: Generate coverage
-        run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+        run: |
+          cargo llvm-cov --workspace \
+            --lcov \
+            --output-path lcov.info
+
+      - name: Enforce coverage threshold
+        run: |
+          python - <<'PY'
+          import json
+          total = 0
+          covered = 0
+          with open("lcov.info", "r", encoding="utf-8") as f:
+              for line in f:
+                  if line.startswith("DA:"):
+                      _, data = line.strip().split(":", 1)
+                      _, hits = data.split(",", 1)
+                      total += 1
+                      if int(hits) > 0:
+                          covered += 1
+          if total == 0:
+              raise SystemExit("No coverage lines found in lcov.info")
+          threshold = float("${{ env.COVERAGE_THRESHOLD }}")
+          ratio = covered / total * 100
+          summary = {
+              "line_coverage_percent": round(ratio, 2),
+              "covered_lines": covered,
+              "total_lines": total,
+              "threshold_percent": threshold,
+              "passed": ratio >= threshold,
+          }
+          with open("coverage-summary.json", "w", encoding="utf-8") as out:
+              json.dump(summary, out, indent=2)
+          print(f"Line coverage: {ratio:.2f}% ({covered}/{total}); threshold: {threshold:.2f}%")
+          if ratio < threshold:
+              raise SystemExit(f"Coverage threshold not met: {ratio:.2f}% < {threshold:.2f}%")
+          PY
+
+      - name: Publish coverage summary
+        run: |
+          python - <<'PY'
+          import json
+          with open("coverage-summary.json", "r", encoding="utf-8") as f:
+              data = json.load(f)
+          markdown = "\n".join(
+              [
+                  "## Coverage Report",
+                  "",
+                  "| Line Coverage | Covered / Total | Threshold |",
+                  "| --- | --- | --- |",
+                  (
+                      f"| {data['line_coverage_percent']:.2f}% | "
+                      f"{data['covered_lines']} / {data['total_lines']} | "
+                      f"{data['threshold_percent']:.2f}% |"
+                  ),
+              ]
+          )
+          with open("coverage-summary.md", "w", encoding="utf-8") as out:
+              out.write(markdown + "\n")
+          print(markdown)
+          PY
+          cat coverage-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-lcov
+          path: |
+            lcov.info
+            coverage-summary.json
+            coverage-summary.md
+          retention-days: 30
       
       - name: Upload to Codecov
         # SHA-pinned per `actions/unpinned-tag` CodeQL recommendation. The
-        # current tag is `v4` — refresh both the SHA and the comment when
+        # current tag is `v6.0.0` — refresh both the SHA and the comment when
         # upgrading.
         uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2  # v6.0.0
         with:

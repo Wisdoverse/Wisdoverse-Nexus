@@ -23,6 +23,10 @@ env:
   CARGO_INCREMENTAL: 0
   RUSTFLAGS: "-D warnings"
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   # ============================================================================
   # Rust Format Check
@@ -30,14 +34,16 @@ jobs:
   fmt:
     name: Rust Format
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
         with:
           components: rustfmt
+          cache: 'false'
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -48,17 +54,16 @@ jobs:
   clippy:
     name: Rust Clippy
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
         with:
           components: clippy
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
+          cache-key: clippy
 
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
@@ -69,16 +74,16 @@ jobs:
   test:
     name: Rust Test
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     needs: [fmt, clippy]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          cache-key: test
 
       - name: Build
         run: cargo build --workspace --verbose
@@ -92,16 +97,16 @@ jobs:
   docs:
     name: Rust Documentation
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [fmt, clippy]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          cache-key: docs
 
       - name: Build documentation
         run: cargo doc --workspace --no-deps
@@ -112,24 +117,13 @@ jobs:
   node:
     name: Node Workspace
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 10.30.3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
 
       - name: Check Expo compatibility
         run: pnpm --filter @wisdoverse/nexus-mobile exec expo install --check
@@ -155,20 +149,21 @@ jobs:
   audit:
     name: Security Audit
     runs-on: ubuntu-latest
-    # Allow advisory warnings without blocking CI
-    continue-on-error: true
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          cache: 'false'
 
       - name: Install cargo-audit
         uses: taiki-e/install-action@cargo-audit
 
       - name: Run security audit
-        run: cargo audit
+        run: cargo audit --deny warnings
 
   # ============================================================================
   # Test Coverage
@@ -176,18 +171,17 @@ jobs:
   coverage:
     name: Test Coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     needs: [test]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
         with:
           components: llvm-tools-preview
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
+          cache-key: coverage
 
       - name: Install grcov
         uses: taiki-e/install-action@grcov
@@ -287,13 +281,24 @@ jobs:
   container-scan:
     name: Container Security Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     needs: [test]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
       - name: Build gateway image
-        run: docker build -f docker/Dockerfile.gateway -t nexis-gateway:latest .
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile.gateway
+          load: true
+          tags: nexis-gateway:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,ignore-error=true
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@v0.36.0
@@ -311,15 +316,18 @@ jobs:
   license-check:
     name: License Check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          cache: 'false'
 
       - name: Install cargo-deny
         uses: taiki-e/install-action@cargo-deny
 
-      - name: Check licenses
-        run: cargo deny check licenses
+      - name: Check dependency policy
+        run: cargo deny check advisories bans licenses sources --hide-inclusion-graph
