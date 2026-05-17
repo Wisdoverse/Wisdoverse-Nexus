@@ -21,11 +21,14 @@ runs:
     - name: Install Rust
       if: inputs.components == ''
       uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
+      with:
+        toolchain: stable
 
     - name: Install Rust
       if: inputs.components != ''
       uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
       with:
+        toolchain: stable
         components: ${{ inputs.components }}
 
     - name: Cache cargo
