@@ -200,18 +200,7 @@ mod tests {
         let entry = make_entry();
         assert!(logger.try_log(entry));
 
-        // Give the consumer time
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-
-        // Verify
-        let count: i64 = db
-            .spawn_blocking(|conn| {
-                conn.query_row("SELECT COUNT(*) FROM request_logs", [], |row| {
-                    row.get::<_, i64>(0)
-                })
-            })
-            .await
-            .unwrap();
+        let count = wait_for_request_log_count(&db, 1).await;
         assert_eq!(count, 1);
 
         let cost: f64 = db
@@ -260,5 +249,25 @@ mod tests {
             None,
         );
         assert_eq!(entry.prompt_snippet.len(), 500);
+    }
+
+    async fn wait_for_request_log_count(db: &DbPool, expected: i64) -> i64 {
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(2);
+        loop {
+            let count: i64 = db
+                .spawn_blocking(|conn| {
+                    conn.query_row("SELECT COUNT(*) FROM request_logs", [], |row| {
+                        row.get::<_, i64>(0)
+                    })
+                })
+                .await
+                .unwrap();
+
+            if count >= expected || tokio::time::Instant::now() >= deadline {
+                return count;
+            }
+
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
     }
 }
