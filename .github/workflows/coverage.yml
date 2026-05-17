@@ -35,7 +35,7 @@ jobs:
           cache-key: coverage-workflow
       
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
+        uses: taiki-e/install-action@db5f2b269964e5b65b66c95c5abab5f79a135fc3  # cargo-llvm-cov
       
       - name: Generate coverage
         run: |

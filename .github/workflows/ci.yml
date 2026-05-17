@@ -160,7 +160,7 @@ jobs:
           cache: 'false'
 
       - name: Install cargo-audit
-        uses: taiki-e/install-action@cargo-audit
+        uses: taiki-e/install-action@f7ae479469b4c4fb5c1818615346605e61b5dc27  # cargo-audit
 
       - name: Run security audit
         run: cargo audit --deny warnings
@@ -184,7 +184,7 @@ jobs:
           cache-key: coverage
 
       - name: Install grcov
-        uses: taiki-e/install-action@grcov
+        uses: taiki-e/install-action@97e6819a4de46f2621824d82cabdc01ba8d47986  # grcov
 
       - name: Run tests with coverage
         env:
@@ -301,7 +301,7 @@ jobs:
           cache-to: type=gha,mode=max,ignore-error=true
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
         with:
           image-ref: 'nexis-gateway:latest'
           format: 'table'
@@ -327,7 +327,7 @@ jobs:
           cache: 'false'
 
       - name: Install cargo-deny
-        uses: taiki-e/install-action@cargo-deny
+        uses: taiki-e/install-action@c2b65b593ef1c5bdc7cf3c376f10ecad42f37240  # cargo-deny
 
       - name: Check dependency policy
         run: cargo deny check advisories bans licenses sources --hide-inclusion-graph
