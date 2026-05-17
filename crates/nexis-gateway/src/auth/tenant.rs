@@ -88,7 +88,7 @@ pub fn extract_tenant_from_headers(headers: &HeaderMap) -> Result<TenantExtracto
 }
 
 pub fn tenant_extractor(claims: &crate::auth::Claims) -> Option<TenantContext> {
-    claims.tenant_id.as_ref().map(|tid| TenantContext::new(tid))
+    claims.tenant_id.as_deref().map(TenantContext::new)
 }
 
 #[derive(Debug, Clone)]

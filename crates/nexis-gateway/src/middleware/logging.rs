@@ -11,18 +11,19 @@
 use std::time::Instant;
 
 use axum::{
-    body::Body,
     extract::Request,
-    http::{header, HeaderValue, StatusCode},
+    http::{header, HeaderValue},
     middleware::Next,
     response::Response,
 };
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use tracing::{info, warn};
+use tracing::{info, warn, Instrument};
 use uuid::Uuid;
 
 use crate::metrics::{HTTP_LATENCY, HTTP_RESPONSES};
+
+use super::request_id::X_REQUEST_ID;
 
 // ---------------------------------------------------------------------------
 // RequestLog
@@ -70,15 +71,15 @@ pub async fn request_logging(mut req: Request, next: Next) -> Response {
     // --- Request-ID --------------------------------------------------------
     let request_id = req
         .headers()
-        .get(header::X_REQUEST_ID)
+        .get(X_REQUEST_ID)
         .and_then(|v| v.to_str().ok())
         .filter(|s| !s.is_empty())
         .map(String::from)
         .unwrap_or_else(|| Uuid::new_v4().hyphenated().to_string());
 
-    if req.headers().get(header::X_REQUEST_ID).is_none() {
+    if req.headers().get(X_REQUEST_ID).is_none() {
         if let Ok(val) = HeaderValue::from_str(&request_id) {
-            req.headers_mut().insert(header::X_REQUEST_ID, val);
+            req.headers_mut().insert(X_REQUEST_ID, val);
         }
     }
 
@@ -103,8 +104,11 @@ pub async fn request_logging(mut req: Request, next: Next) -> Response {
     );
 
     let log = async {
-        let response = next.run(req).await;
+        let mut response = next.run(req).await;
         let status = response.status().as_u16();
+        if let Ok(val) = HeaderValue::from_str(&request_id) {
+            response.headers_mut().insert(X_REQUEST_ID, val);
+        }
 
         // Extract user_id from response extensions (set by auth middleware).
         let user_id = response.extensions().get::<UserId>().map(|u| u.0.clone());
@@ -188,16 +192,6 @@ pub fn attach_user_id(response: &mut Response, user_id: String) {
 #[derive(Clone)]
 pub struct RequestLoggingLayer;
 
-impl<S> tower::Layer<S> for RequestLoggingLayer {
-    type Service = tower::ServiceBuilder<S>;
-
-    fn layer(&self, service: S) -> Self::Service {
-        tower::ServiceBuilder::new()
-            .layer(axum::middleware::from_fn(request_logging))
-            .service(service)
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -205,7 +199,7 @@ impl<S> tower::Layer<S> for RequestLoggingLayer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{routing::get, Router};
+    use axum::{body::Body, http::StatusCode, routing::get, Router};
     use tower::ServiceExt;
 
     fn test_app() -> Router {
@@ -226,7 +220,7 @@ mod tests {
             .body(Body::empty())
             .unwrap();
         let res = app.oneshot(req).await.unwrap();
-        assert!(res.headers().contains_key(header::X_REQUEST_ID));
+        assert!(res.headers().contains_key(X_REQUEST_ID));
     }
 
     #[tokio::test]
@@ -234,13 +228,10 @@ mod tests {
         let app = test_app();
         let req = Request::builder()
             .uri("/health")
-            .header(header::X_REQUEST_ID, "test-id-123")
+            .header(X_REQUEST_ID, "test-id-123")
             .body(Body::empty())
             .unwrap();
         let res = app.oneshot(req).await.unwrap();
-        assert_eq!(
-            res.headers().get(header::X_REQUEST_ID).unwrap(),
-            "test-id-123"
-        );
+        assert_eq!(res.headers().get(X_REQUEST_ID).unwrap(), "test-id-123");
     }
 }

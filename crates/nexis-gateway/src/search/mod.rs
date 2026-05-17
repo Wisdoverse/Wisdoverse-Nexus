@@ -5,8 +5,14 @@
 //! - Room-scoped search
 //! - Search result ranking and filtering
 
+mod application;
+mod infrastructure;
+mod interfaces;
 mod service;
 
-pub use service::{
-    SearchError, SearchRequest, SearchResponse, SearchService, SemanticSearchService,
+pub use application::{
+    SearchApplication, SearchApplicationError, SearchMessagesQuery, SearchMessagesResult,
 };
+pub use infrastructure::SemanticSearchService;
+pub use interfaces::{routes, SearchInterfaceState};
+pub use service::{SearchError, SearchRequest, SearchResponse, SearchService};

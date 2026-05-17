@@ -4,311 +4,85 @@ pub mod ws_router;
 
 use axum::{
     extract::ws::WebSocketUpgrade,
-    extract::{Path, Query, State},
+    extract::{Query, State},
     http::{HeaderValue, Request, StatusCode},
     middleware::{self, Next},
     response::{Html, IntoResponse, Response},
-    routing::{delete, get, post},
-    Json, Router,
+    routing::get,
+    Router,
 };
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use serde::Deserialize;
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::{RwLock, Semaphore};
 use tracing::Instrument;
 use uuid::Uuid;
 
-use crate::auth::AuthenticatedUser;
 use crate::connection::WebSocketState;
-use crate::crypto::DataEncryption;
 use crate::metrics::{
-    export as export_metrics, HTTP_LATENCY, HTTP_REQUESTS_TOTAL, HTTP_RESPONSES, MESSAGES_SENT,
-    OPERATION_ERRORS_TOTAL, OPERATION_LATENCY, OPERATION_THROUGHPUT_TOTAL, ROOMS_ACTIVE,
-    ROOMS_CREATED_TOTAL,
+    export as export_metrics, HTTP_LATENCY, HTTP_REQUESTS_TOTAL, HTTP_RESPONSES,
+    OPERATION_ERRORS_TOTAL,
 };
-use crate::search::{SearchError, SearchRequest, SearchService};
-
-#[cfg(feature = "multi-tenant")]
-use crate::auth::TenantStore;
+use crate::privacy::{PrivacyApplication, PrivacyInterfaceState};
+use crate::rooms::{RoomApplication, RoomInterfaceState};
+use crate::search::{SearchApplication, SearchInterfaceState, SearchService};
 
 #[derive(Clone)]
 pub(crate) struct AppState {
-    rooms: Arc<RwLock<HashMap<String, Room>>>,
-    room_messages: Arc<RwLock<HashMap<String, Vec<StoredMessage>>>>,
-    room_members: Arc<RwLock<HashMap<String, Vec<String>>>>,
-    write_gate: Arc<Semaphore>,
-    search_service: Option<Arc<dyn SearchService>>,
-    encryption: Option<DataEncryption>,
+    rooms: RoomApplication,
+    privacy: PrivacyApplication,
+    search_application: Option<SearchApplication>,
     ws_state: WebSocketState,
-    #[cfg(feature = "multi-tenant")]
-    tenant_store: TenantStore,
 }
 
 impl Default for AppState {
     fn default() -> Self {
+        let rooms = RoomApplication::default();
         Self {
-            rooms: Arc::new(RwLock::new(HashMap::new())),
-            room_messages: Arc::new(RwLock::new(HashMap::new())),
-            room_members: Arc::new(RwLock::new(HashMap::new())),
-            write_gate: Arc::new(Semaphore::new(2_048)),
-            search_service: None,
-            encryption: DataEncryption::from_env(),
-            ws_state: WebSocketState::new(),
-            #[cfg(feature = "multi-tenant")]
-            tenant_store: TenantStore::new(),
+            privacy: PrivacyApplication::new(rooms.clone()),
+            rooms,
+            search_application: None,
+            ws_state: WebSocketState::default(),
         }
     }
 }
 
 impl AppState {
-    pub fn rooms(&self) -> &Arc<RwLock<HashMap<String, Room>>> {
-        &self.rooms
-    }
-    pub fn room_messages(&self) -> &Arc<RwLock<HashMap<String, Vec<StoredMessage>>>> {
-        &self.room_messages
-    }
-    pub fn room_members(&self) -> &Arc<RwLock<HashMap<String, Vec<String>>>> {
-        &self.room_members
-    }
-    #[allow(dead_code)]
-    pub fn write_gate(&self) -> &Arc<Semaphore> {
-        &self.write_gate
-    }
-    #[allow(dead_code)]
-    pub fn encryption(&self) -> &Option<DataEncryption> {
-        &self.encryption
-    }
-    #[allow(dead_code)]
-    pub fn search_service(&self) -> &Option<Arc<dyn SearchService>> {
-        &self.search_service
-    }
     #[allow(dead_code)]
     pub fn ws_state(&self) -> &WebSocketState {
         &self.ws_state
     }
     fn with_search_service(mut self, service: Arc<dyn SearchService>) -> Self {
-        self.search_service = Some(service);
+        self.search_application = Some(SearchApplication::new(service));
         self
     }
 }
 
+impl RoomInterfaceState for AppState {
+    fn rooms(&self) -> &RoomApplication {
+        &self.rooms
+    }
+}
+
+impl SearchInterfaceState for AppState {
+    fn search_application(&self) -> Option<&SearchApplication> {
+        self.search_application.as_ref()
+    }
+}
+
+impl PrivacyInterfaceState for AppState {
+    fn privacy(&self) -> &PrivacyApplication {
+        &self.privacy
+    }
+}
+
 type SharedState = AppState;
-const MAX_MESSAGE_TEXT_LEN: usize = 32 * 1024;
 const OPENAPI_JSON: &str = include_str!("openapi.json");
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct Room {
-    pub(crate) id: String,
-    pub(crate) name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) topic: Option<String>,
-    #[cfg(feature = "multi-tenant")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    tenant_id: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct CreateRoomRequest {
-    name: String,
-    #[serde(default)]
-    topic: Option<String>,
-    #[cfg(feature = "multi-tenant")]
-    #[serde(default)]
-    tenant_id: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct CreateRoomResponse {
-    pub(crate) id: String,
-    name: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct SendMessageRequest {
-    #[serde(rename = "roomId")]
-    room_id: String,
-    sender: String,
-    text: String,
-    #[serde(rename = "replyTo", default)]
-    reply_to: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct SendMessageResponse {
-    pub(crate) id: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct StoredMessage {
-    pub(crate) id: String,
-    pub(crate) sender: String,
-    pub(crate) text: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) reply_to: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct RoomInfoResponse {
-    pub(crate) id: String,
-    name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    topic: Option<String>,
-    messages: Vec<StoredMessage>,
-    #[cfg(feature = "multi-tenant")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    tenant_id: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct InviteMemberRequest {
-    #[serde(rename = "memberId")]
-    member_id: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct InviteMemberResponse {
-    room_id: String,
-    member_id: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct ListRoomsResponse {
-    rooms: Vec<RoomSummary>,
-    total: usize,
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct RoomSummary {
-    pub(crate) id: String,
-    name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    topic: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    member_count: Option<usize>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct ListRoomsQuery {
-    #[serde(default)]
-    limit: Option<usize>,
-    #[serde(default)]
-    offset: Option<usize>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct SearchQueryParams {
-    q: String,
-    #[serde(default = "default_limit")]
-    limit: usize,
-    #[serde(default)]
-    min_score: Option<f32>,
-    #[serde(default)]
-    room_id: Option<Uuid>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct SearchApiRequest {
-    query: String,
-    #[serde(default = "default_limit")]
-    limit: usize,
-    #[serde(default)]
-    min_score: Option<f32>,
-    #[serde(default)]
-    room_id: Option<Uuid>,
-}
-
-fn default_limit() -> usize {
-    10
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct SearchApiResponse {
-    query: String,
-    results: Vec<SearchResultItem>,
-    total: usize,
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct SearchResultItem {
-    id: Uuid,
-    score: f32,
-    content: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    room_id: Option<Uuid>,
-}
-
-mod error_codes {
-    pub const BAD_REQUEST: &str = "BAD_REQUEST";
-    pub const NOT_FOUND: &str = "NOT_FOUND";
-    pub const INTERNAL_ERROR: &str = "INTERNAL_ERROR";
-    pub const SERVICE_UNAVAILABLE: &str = "SERVICE_UNAVAILABLE";
-    pub const INVALID_QUERY: &str = "INVALID_QUERY";
-    pub const SEARCH_UNAVAILABLE: &str = "SEARCH_UNAVAILABLE";
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct ErrorResponse {
-    error: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    code: Option<&'static str>,
-}
-
-impl ErrorResponse {
-    fn bad_request(message: impl Into<String>) -> Self {
-        Self {
-            error: message.into(),
-            code: Some(error_codes::BAD_REQUEST),
-        }
-    }
-
-    fn not_found(message: impl Into<String>) -> Self {
-        Self {
-            error: message.into(),
-            code: Some(error_codes::NOT_FOUND),
-        }
-    }
-
-    fn internal_error() -> Self {
-        Self {
-            error: "An internal error occurred. Please try again later.".to_string(),
-            code: Some(error_codes::INTERNAL_ERROR),
-        }
-    }
-
-    fn service_unavailable(message: impl Into<String>) -> Self {
-        Self {
-            error: message.into(),
-            code: Some(error_codes::SERVICE_UNAVAILABLE),
-        }
-    }
-}
-
-impl From<SearchError> for ErrorResponse {
-    fn from(err: SearchError) -> Self {
-        tracing::error!("Search error: {}", err);
-        match err {
-            SearchError::InvalidQuery(_) => Self {
-                error: "Invalid search query".to_string(),
-                code: Some("INVALID_QUERY"),
-            },
-            SearchError::EmbeddingError(_) | SearchError::VectorError(_) => Self::internal_error(),
-        }
-    }
-}
 
 fn v1_routes() -> Router<AppState> {
     Router::new()
-        .route("/v1/rooms", get(list_rooms).post(create_room))
-        .route("/v1/rooms/{id}", get(get_room).delete(delete_room))
-        .route("/v1/rooms/{id}/invite", post(invite_member))
-        .route("/v1/messages", post(send_message))
-        .route("/v1/search", get(search_messages_get).post(search_messages))
-        .route(
-            "/v1/members/me/export",
-            get(crate::handlers::gdpr::export_data),
-        )
-        .route("/v1/members/me", delete(crate::handlers::gdpr::delete_data))
+        .merge(crate::rooms::routes())
+        .merge(crate::search::routes())
+        .merge(crate::privacy::routes())
         .merge(crate::collaboration::routes())
 }
 
@@ -398,24 +172,6 @@ async fn swagger_ui() -> impl IntoResponse {
     Html(SWAGGER_HTML)
 }
 
-fn record_operation_success(operation: &str, start: Instant) {
-    OPERATION_THROUGHPUT_TOTAL
-        .with_label_values(&[operation])
-        .inc();
-    OPERATION_LATENCY
-        .with_label_values(&[operation])
-        .observe(start.elapsed().as_secs_f64());
-}
-
-fn record_operation_error(operation: &str, error_type: &str, start: Instant) {
-    OPERATION_ERRORS_TOTAL
-        .with_label_values(&[operation, error_type])
-        .inc();
-    OPERATION_LATENCY
-        .with_label_values(&[operation])
-        .observe(start.elapsed().as_secs_f64());
-}
-
 async fn correlation_id_middleware(request: Request<axum::body::Body>, next: Next) -> Response {
     let started = Instant::now();
     let method = request.method().to_string();
@@ -495,482 +251,6 @@ async fn websocket_handler(
     .await
 }
 
-#[tracing::instrument(
-    name = "gateway.create_room",
-    skip(state, _user, payload),
-    fields(room_name = %payload.name)
-)]
-async fn create_room(
-    State(state): State<SharedState>,
-    _user: AuthenticatedUser,
-    Json(payload): Json<CreateRoomRequest>,
-) -> impl IntoResponse {
-    let started = Instant::now();
-    let operation = "create_room";
-    if payload.name.trim().is_empty() {
-        record_operation_error(operation, "validation", started);
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse::bad_request("room name cannot be empty")),
-        )
-            .into_response();
-    }
-
-    #[cfg(feature = "multi-tenant")]
-    let tenant_id = payload.tenant_id.clone();
-
-    #[cfg(not(feature = "multi-tenant"))]
-    let _tenant_id: Option<String> = None;
-
-    let room = Room {
-        id: format!("room_{}", Uuid::new_v4().simple()),
-        name: payload.name,
-        topic: payload.topic,
-        #[cfg(feature = "multi-tenant")]
-        tenant_id,
-    };
-
-    let response = CreateRoomResponse {
-        id: room.id.clone(),
-        name: room.name.clone(),
-    };
-
-    let Ok(_permit) = state.write_gate.clone().acquire_owned().await else {
-        record_operation_error(operation, "unavailable", started);
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(ErrorResponse::service_unavailable("service unavailable")),
-        )
-            .into_response();
-    };
-
-    let mut rooms = state.rooms.write().await;
-    rooms.insert(room.id.clone(), room);
-    ROOMS_CREATED_TOTAL.inc();
-    ROOMS_ACTIVE.set(rooms.len() as f64);
-    record_operation_success(operation, started);
-
-    (StatusCode::CREATED, Json(response)).into_response()
-}
-
-#[tracing::instrument(
-    name = "gateway.send_message",
-    skip(state, _user, payload),
-    fields(room_id = %payload.room_id, sender = %payload.sender)
-)]
-async fn send_message(
-    State(state): State<SharedState>,
-    _user: AuthenticatedUser,
-    Json(payload): Json<SendMessageRequest>,
-) -> impl IntoResponse {
-    let started = Instant::now();
-    let operation = "send_message";
-    if payload.room_id.trim().is_empty()
-        || payload.sender.trim().is_empty()
-        || payload.text.trim().is_empty()
-    {
-        record_operation_error(operation, "validation", started);
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse::bad_request(
-                "roomId, sender, and text are required",
-            )),
-        )
-            .into_response();
-    }
-    if payload.text.len() > MAX_MESSAGE_TEXT_LEN {
-        record_operation_error(operation, "validation", started);
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse::bad_request(
-                "text exceeds maximum length of 32768 characters",
-            )),
-        )
-            .into_response();
-    }
-
-    let rooms = state.rooms.read().await;
-    if !rooms.contains_key(&payload.room_id) {
-        record_operation_error(operation, "room_not_found", started);
-        return (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse::not_found("room not found")),
-        )
-            .into_response();
-    }
-    drop(rooms);
-
-    let message = StoredMessage {
-        id: format!("msg_{}", Uuid::new_v4().simple()),
-        sender: payload.sender,
-        text: if let Some(ref enc) = state.encryption {
-            enc.encrypt_string(&payload.text).unwrap_or_else(|e| {
-                tracing::error!("encryption failed: {}\n", e);
-                payload.text.clone()
-            })
-        } else {
-            payload.text
-        },
-        reply_to: payload.reply_to,
-    };
-    let response = SendMessageResponse {
-        id: message.id.clone(),
-    };
-
-    let Ok(_permit) = state.write_gate.clone().acquire_owned().await else {
-        record_operation_error(operation, "unavailable", started);
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(ErrorResponse::service_unavailable("service unavailable")),
-        )
-            .into_response();
-    };
-
-    let mut messages = state.room_messages.write().await;
-    messages.entry(payload.room_id).or_default().push(message);
-    MESSAGES_SENT.inc();
-    record_operation_success(operation, started);
-
-    (StatusCode::CREATED, Json(response)).into_response()
-}
-
-#[tracing::instrument(
-    name = "gateway.get_room",
-    skip(state, _user),
-    fields(room_id = %id)
-)]
-async fn get_room(
-    State(state): State<SharedState>,
-    _user: AuthenticatedUser,
-    Path(id): Path<String>,
-) -> impl IntoResponse {
-    let rooms = state.rooms.read().await;
-    let Some(room) = rooms.get(&id) else {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse::not_found("room not found")),
-        )
-            .into_response();
-    };
-    let room = room.clone();
-    drop(rooms);
-
-    let raw_messages = state
-        .room_messages
-        .read()
-        .await
-        .get(&id)
-        .cloned()
-        .unwrap_or_default();
-
-    // Decrypt messages if encryption is enabled
-    let messages: Vec<StoredMessage> = if let Some(ref enc) = state.encryption {
-        raw_messages
-            .into_iter()
-            .map(|mut msg| {
-                msg.text = enc.decrypt_string(&msg.text).unwrap_or_else(|e| {
-                    tracing::warn!("failed to decrypt message {}: {}", msg.id, e);
-                    msg.text.clone()
-                });
-                msg
-            })
-            .collect()
-    } else {
-        raw_messages
-    };
-
-    #[cfg(feature = "multi-tenant")]
-    let tenant_id = room.tenant_id.clone();
-    #[cfg(not(feature = "multi-tenant"))]
-    let _tenant_id: Option<String> = None;
-
-    let response = RoomInfoResponse {
-        id: room.id,
-        name: room.name,
-        topic: room.topic,
-        messages,
-        #[cfg(feature = "multi-tenant")]
-        tenant_id,
-    };
-
-    (StatusCode::OK, Json(response)).into_response()
-}
-
-#[tracing::instrument(
-    name = "gateway.invite_member",
-    skip(state, _user, payload),
-    fields(room_id = %id, member_id = %payload.member_id)
-)]
-async fn invite_member(
-    State(state): State<SharedState>,
-    _user: AuthenticatedUser,
-    Path(id): Path<String>,
-    Json(payload): Json<InviteMemberRequest>,
-) -> impl IntoResponse {
-    if payload.member_id.trim().is_empty() {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse::bad_request("memberId is required")),
-        )
-            .into_response();
-    }
-
-    let rooms = state.rooms.read().await;
-    if !rooms.contains_key(&id) {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse::not_found("room not found")),
-        )
-            .into_response();
-    }
-    drop(rooms);
-
-    let member_id = payload.member_id.clone();
-    let Ok(_permit) = state.write_gate.clone().acquire_owned().await else {
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(ErrorResponse::service_unavailable("service unavailable")),
-        )
-            .into_response();
-    };
-
-    let mut members = state.room_members.write().await;
-    let room_members = members.entry(id.clone()).or_default();
-    if !room_members.contains(&member_id) {
-        room_members.push(member_id.clone());
-    }
-
-    let response = InviteMemberResponse {
-        room_id: id,
-        member_id,
-    };
-
-    (StatusCode::OK, Json(response)).into_response()
-}
-
-#[tracing::instrument(
-    name = "gateway.search_messages.post",
-    skip(state, _user, payload),
-    fields(limit = payload.limit)
-)]
-async fn search_messages(
-    State(state): State<SharedState>,
-    _user: AuthenticatedUser,
-    Json(payload): Json<SearchApiRequest>,
-) -> impl IntoResponse {
-    let Some(search_service) = state.search_service.as_ref() else {
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(ErrorResponse {
-                error: "Search service not configured".to_string(),
-                code: Some(error_codes::SEARCH_UNAVAILABLE),
-            }),
-        )
-            .into_response();
-    };
-
-    if payload.query.trim().is_empty() {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "Query cannot be empty".to_string(),
-                code: Some(error_codes::INVALID_QUERY),
-            }),
-        )
-            .into_response();
-    }
-
-    let mut request = SearchRequest::new(&payload.query).with_limit(payload.limit);
-
-    if let Some(min_score) = payload.min_score {
-        request = request.with_min_score(min_score);
-    }
-
-    if let Some(room_id) = payload.room_id {
-        request = request.in_room(room_id);
-    }
-
-    match search_service.search(request).await {
-        Ok(response) => {
-            let items: Vec<SearchResultItem> = response
-                .results
-                .into_iter()
-                .filter_map(|r| {
-                    r.content.map(|content| SearchResultItem {
-                        id: r.id,
-                        score: r.score,
-                        content,
-                        room_id: r.room_id,
-                    })
-                })
-                .collect();
-            let total = items.len();
-            let api_response = SearchApiResponse {
-                query: response.query,
-                results: items,
-                total,
-            };
-            (StatusCode::OK, Json(api_response)).into_response()
-        }
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::from(e)),
-        )
-            .into_response(),
-    }
-}
-
-#[tracing::instrument(
-    name = "gateway.search_messages.get",
-    skip(state, _user, params),
-    fields(limit = params.limit)
-)]
-async fn search_messages_get(
-    State(state): State<SharedState>,
-    _user: AuthenticatedUser,
-    Query(params): Query<SearchQueryParams>,
-) -> impl IntoResponse {
-    let Some(search_service) = state.search_service.as_ref() else {
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(ErrorResponse {
-                error: "Search service not configured".to_string(),
-                code: Some(error_codes::SEARCH_UNAVAILABLE),
-            }),
-        )
-            .into_response();
-    };
-
-    if params.q.trim().is_empty() {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "Query parameter 'q' is required".to_string(),
-                code: Some(error_codes::INVALID_QUERY),
-            }),
-        )
-            .into_response();
-    }
-
-    let mut request = SearchRequest::new(&params.q).with_limit(params.limit);
-
-    if let Some(min_score) = params.min_score {
-        request = request.with_min_score(min_score);
-    }
-
-    if let Some(room_id) = params.room_id {
-        request = request.in_room(room_id);
-    }
-
-    match search_service.search(request).await {
-        Ok(response) => {
-            let items: Vec<SearchResultItem> = response
-                .results
-                .into_iter()
-                .filter_map(|r| {
-                    r.content.map(|content| SearchResultItem {
-                        id: r.id,
-                        score: r.score,
-                        content,
-                        room_id: r.room_id,
-                    })
-                })
-                .collect();
-            let total = items.len();
-            let api_response = SearchApiResponse {
-                query: response.query,
-                results: items,
-                total,
-            };
-            (StatusCode::OK, Json(api_response)).into_response()
-        }
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::from(e)),
-        )
-            .into_response(),
-    }
-}
-
-#[tracing::instrument(
-    name = "gateway.list_rooms",
-    skip(state, _user, query),
-    fields(limit = ?query.limit, offset = ?query.offset)
-)]
-async fn list_rooms(
-    State(state): State<SharedState>,
-    _user: AuthenticatedUser,
-    Query(query): Query<ListRoomsQuery>,
-) -> impl IntoResponse {
-    let limit = query.limit.unwrap_or(100).min(1000);
-    let offset = query.offset.unwrap_or(0);
-
-    let rooms = state.rooms.read().await;
-    let members = state.room_members.read().await;
-
-    let all_rooms: Vec<RoomSummary> = rooms
-        .values()
-        .skip(offset)
-        .take(limit)
-        .map(|room| {
-            let member_count = members.get(&room.id).map(|m| m.len());
-            RoomSummary {
-                id: room.id.clone(),
-                name: room.name.clone(),
-                topic: room.topic.clone(),
-                member_count,
-            }
-        })
-        .collect();
-
-    let total = rooms.len();
-
-    let response = ListRoomsResponse {
-        rooms: all_rooms,
-        total,
-    };
-
-    (StatusCode::OK, Json(response)).into_response()
-}
-
-#[tracing::instrument(
-    name = "gateway.delete_room",
-    skip(state, _user),
-    fields(room_id = %id)
-)]
-async fn delete_room(
-    State(state): State<SharedState>,
-    _user: AuthenticatedUser,
-    Path(id): Path<String>,
-) -> impl IntoResponse {
-    let Ok(_permit) = state.write_gate.clone().acquire_owned().await else {
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(ErrorResponse::service_unavailable("service unavailable")),
-        )
-            .into_response();
-    };
-
-    let mut rooms = state.rooms.write().await;
-    if rooms.remove(&id).is_none() {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse::not_found("room not found")),
-        )
-            .into_response();
-    }
-    drop(rooms);
-
-    let mut messages = state.room_messages.write().await;
-    messages.remove(&id);
-    drop(messages);
-
-    let mut members = state.room_members.write().await;
-    members.remove(&id);
-
-    (StatusCode::NO_CONTENT, ()).into_response()
-}
-
 /// Handle WebSocket connection
 #[cfg(test)]
 mod tests {
@@ -979,6 +259,8 @@ mod tests {
     use axum::http::{Request, StatusCode};
     use serde_json::{json, Value};
     use tower::ServiceExt;
+
+    use crate::metrics::{OPERATION_THROUGHPUT_TOTAL, ROOMS_CREATED_TOTAL};
 
     #[tokio::test]
     async fn health_check_returns_ok() {
@@ -1022,6 +304,104 @@ mod tests {
             .unwrap();
         let payload: Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(payload["openapi"], "3.0.3");
+    }
+
+    #[tokio::test]
+    async fn openapi_contract_matches_gateway_routes() {
+        let app = build_routes();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/openapi.json")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: Value = serde_json::from_slice(&body).unwrap();
+        let paths = payload["paths"].as_object().unwrap();
+
+        let expected_paths = [
+            "/health",
+            "/metrics",
+            "/openapi.json",
+            "/docs",
+            "/ws",
+            "/v1/rooms",
+            "/v1/rooms/{id}",
+            "/v1/rooms/{id}/invite",
+            "/v1/messages",
+            "/v1/search",
+            "/v1/members/me/export",
+            "/v1/members/me",
+            "/v1/collaboration/meetings/rooms",
+            "/v1/collaboration/meetings/rooms/{room_id}/join",
+            "/v1/collaboration/meetings/rooms/{room_id}/leave",
+            "/v1/collaboration/documents",
+            "/v1/collaboration/documents/{document_id}/sync",
+            "/v1/collaboration/documents/{document_id}/content",
+            "/v1/collaboration/tasks",
+            "/v1/collaboration/tasks/{task_id}/assign",
+            "/v1/collaboration/tasks/{task_id}/complete",
+            "/v1/collaboration/calendar/events",
+            "/v1/collaboration/calendar/conflicts",
+        ];
+
+        for path in expected_paths {
+            assert!(paths.contains_key(path), "missing OpenAPI path {path}");
+        }
+
+        let expected_methods = [
+            ("/v1/rooms", "get"),
+            ("/v1/rooms", "post"),
+            ("/v1/rooms/{id}", "get"),
+            ("/v1/rooms/{id}", "delete"),
+            ("/v1/rooms/{id}/invite", "post"),
+            ("/v1/messages", "post"),
+            ("/v1/search", "get"),
+            ("/v1/search", "post"),
+            ("/v1/members/me/export", "get"),
+            ("/v1/members/me", "delete"),
+            ("/v1/collaboration/meetings/rooms", "post"),
+            ("/v1/collaboration/meetings/rooms/{room_id}/join", "post"),
+            ("/v1/collaboration/meetings/rooms/{room_id}/leave", "post"),
+            ("/v1/collaboration/documents", "post"),
+            ("/v1/collaboration/documents/{document_id}/sync", "post"),
+            ("/v1/collaboration/documents/{document_id}/content", "get"),
+            ("/v1/collaboration/tasks", "post"),
+            ("/v1/collaboration/tasks/{task_id}/assign", "post"),
+            ("/v1/collaboration/tasks/{task_id}/complete", "post"),
+            ("/v1/collaboration/calendar/events", "post"),
+            ("/v1/collaboration/calendar/conflicts", "post"),
+        ];
+
+        for (path, method) in expected_methods {
+            let path_item = paths[path].as_object().unwrap();
+            assert!(
+                path_item.contains_key(method),
+                "missing OpenAPI method {method} for {path}"
+            );
+        }
+
+        let stale_paths = [
+            "/collaboration/meetings",
+            "/collaboration/meetings/{id}/join",
+            "/collaboration/meetings/{id}/leave",
+            "/collaboration/documents/{id}",
+            "/collaboration/tasks/{id}/assign",
+            "/collaboration/tasks/{id}/complete",
+            "/collaboration/calendar/conflicts",
+        ];
+
+        for path in stale_paths {
+            assert!(
+                !paths.contains_key(path),
+                "stale unversioned OpenAPI path {path}"
+            );
+        }
     }
 
     #[tokio::test]
@@ -1271,13 +651,17 @@ mod tests {
 
         #[tokio::test]
         async fn create_room_with_tenant_includes_tenant_id() {
+            use crate::auth::JwtConfig;
+
             let app = build_routes();
+            let token = JwtConfig::test_token("test-user");
             let response = app
                 .oneshot(
                     Request::builder()
                         .method("POST")
                         .uri("/v1/rooms")
                         .header("content-type", "application/json")
+                        .header("authorization", format!("Bearer {}", token))
                         .body(Body::from(
                             json!({
                                 "name": "tenant-room",

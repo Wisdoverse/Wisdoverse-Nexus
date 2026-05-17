@@ -7,10 +7,11 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Types of members in the system.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum MemberType {
     /// Human user.
+    #[default]
     Human,
     /// AI agent (e.g., Claude, GPT).
     Agent,
@@ -42,12 +43,6 @@ impl std::str::FromStr for MemberType {
             "system" => Ok(MemberType::System),
             _ => Err(format!("Unknown member type: {}", s)),
         }
-    }
-}
-
-impl Default for MemberType {
-    fn default() -> Self {
-        Self::Human
     }
 }
 

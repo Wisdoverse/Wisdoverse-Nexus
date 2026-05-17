@@ -110,7 +110,6 @@ mod tests {
     use super::*;
     use axum::{
         body::Body,
-        extract::State,
         http::{Request, StatusCode},
         routing::get,
         Router,

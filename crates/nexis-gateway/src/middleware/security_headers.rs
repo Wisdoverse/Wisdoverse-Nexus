@@ -62,7 +62,7 @@ impl Default for SecurityHeadersConfig {
 }
 
 /// X-Frame-Options header values
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum FrameOptions {
     Deny,
     SameOrigin,

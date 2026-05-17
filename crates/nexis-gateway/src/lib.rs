@@ -9,6 +9,7 @@
 //! - Metrics and monitoring
 //! - Multi-tenant isolation (with `multi-tenant` feature)
 
+pub mod ai;
 pub mod auth;
 pub mod collaboration;
 pub mod connection;
@@ -20,8 +21,10 @@ pub mod metrics;
 #[cfg(feature = "multi-tenant")]
 pub mod middleware;
 pub mod observability;
+pub mod privacy;
 #[path = "middleware/rate_limit.rs"]
 pub mod rate_limit;
+pub mod rooms;
 pub mod router;
 pub mod search;
 pub mod server;
