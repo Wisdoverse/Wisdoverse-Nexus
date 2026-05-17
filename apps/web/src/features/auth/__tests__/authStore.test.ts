@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { useAuthStore, resetAuthStore, setRememberMe } from '../authStore'
-import type { Session } from '../../../app/types'
+import { resetAuthStore, setRememberMe, useAuthStore } from '../../../entities/session'
+import type { Session } from '../../../shared/api/endpoints/auth'
 
 const createMockSession = (overrides?: Partial<Session> & {
   expiresAt?: number

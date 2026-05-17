@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { useAuthStore, resetAuthStore } from '../authStore'
+import { resetAuthStore, useAuthStore } from '../../../entities/session'
 import { sessionTimers, IDLE_TIMEOUT_MS, EXPIRY_CHECK_INTERVAL_MS } from '../sessionTimers'
 
 const createMockSession = (overrides = {}) => ({

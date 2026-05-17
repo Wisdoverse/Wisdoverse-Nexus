@@ -1,8 +1,13 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useState } from 'react'
-import { useAuthStore } from './authStore'
-import type { LoginCredentials } from './types'
+import { useAuthStore } from '../../entities/session'
 import styles from './LoginPage.module.css'
+
+interface LoginCredentials {
+  token: string
+  memberId: string
+  tenantId?: string
+}
 
 export function LoginPage() {
   const navigate = useNavigate()

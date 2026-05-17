@@ -1,11 +1,11 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { ProtectedRoute } from './routes/ProtectedRoute'
-import { AppShell } from './layout/AppShell'
-import { LoginPage } from '../features/auth/LoginPage'
-import { RoomListPage } from '../features/rooms/RoomListPage'
-import { RoomDetailPage } from '../features/messages/RoomDetailPage'
-import { MembersPage } from '../features/members/MembersPage'
-import { SearchPage } from '../features/search/SearchPage'
+import { AppShell } from '../widgets/app-shell'
+import LoginPage from '../pages/Login'
+import MembersPage from '../pages/MembersPage'
+import RoomPage from '../pages/RoomPage'
+import RoomsPage from '../pages/Home'
+import SearchPage from '../pages/SearchPage'
 
 export const router = createBrowserRouter([
   {
@@ -26,11 +26,11 @@ export const router = createBrowserRouter([
       },
       {
         path: 'rooms',
-        element: <RoomListPage />,
+        element: <RoomsPage />,
       },
       {
         path: 'rooms/:roomId',
-        element: <RoomDetailPage />,
+        element: <RoomPage />,
       },
       {
         path: 'members',

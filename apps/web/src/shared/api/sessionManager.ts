@@ -1,4 +1,4 @@
-import { useAuthStore } from '../../features/auth/authStore'
+import { logoutSession, updateSession } from '../session/sessionAccess'
 
 interface RefreshResult {
   token: string
@@ -51,7 +51,6 @@ export function isRecoverable401(errorData: unknown): boolean {
 }
 
 export function handleRefreshSuccess(result: RefreshResult): void {
-  const { updateSession } = useAuthStore.getState()
   updateSession({
     token: result.token,
     expiresAt: result.expiresAt,
@@ -60,7 +59,6 @@ export function handleRefreshSuccess(result: RefreshResult): void {
 }
 
 export function handleRefreshFailure(): void {
-  const { logout } = useAuthStore.getState()
-  logout()
+  logoutSession()
   sessionManager.clearRefreshLock()
 }

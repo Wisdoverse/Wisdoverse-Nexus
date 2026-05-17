@@ -1,4 +1,4 @@
-import { useAuthStore } from './authStore'
+import { useAuthStore } from '../../entities/session'
 
 export const IDLE_TIMEOUT_MS = 30 * 60 * 1000
 export const EXPIRY_CHECK_INTERVAL_MS = 10 * 1000

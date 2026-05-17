@@ -1,17 +1,11 @@
 import axios from 'axios'
-import type { Session } from '../../app/types'
+import type { RefreshTokenResponse, Session } from './endpoints/auth'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 
-interface RefreshResponse {
-  token: string
-  expiresAt: number
-  refreshExpiresAt?: number
-}
-
 export const authApi = {
-  async refreshToken(): Promise<RefreshResponse> {
-    const response = await axios.post<RefreshResponse>(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true })
+  async refreshToken(): Promise<RefreshTokenResponse> {
+    const response = await axios.post<RefreshTokenResponse>(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true })
     return response.data
   },
 

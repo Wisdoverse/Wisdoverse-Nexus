@@ -1,1 +1,1 @@
-export { RoomListPage as default } from '../features/rooms/RoomListPage'
+export { RoomListPage as default } from '../features/rooms'
