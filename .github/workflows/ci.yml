@@ -184,7 +184,7 @@ jobs:
           cache-key: coverage
 
       - name: Install grcov
-        uses: taiki-e/install-action@97e6819a4de46f2621824d82cabdc01ba8d47986  # grcov
+        uses: taiki-e/install-action@f7ae479469b4c4fb5c1818615346605e61b5dc27  # grcov
 
       - name: Run tests with coverage
         env:
@@ -327,7 +327,7 @@ jobs:
           cache: 'false'
 
       - name: Install cargo-deny
-        uses: taiki-e/install-action@c2b65b593ef1c5bdc7cf3c376f10ecad42f37240  # cargo-deny
+        uses: taiki-e/install-action@f7ae479469b4c4fb5c1818615346605e61b5dc27  # cargo-deny
 
       - name: Check dependency policy
         run: cargo deny check advisories bans licenses sources --hide-inclusion-graph
