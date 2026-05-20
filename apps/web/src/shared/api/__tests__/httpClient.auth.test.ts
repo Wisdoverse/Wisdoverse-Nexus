@@ -1,17 +1,41 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { resetAuthStore, useAuthStore } from '../../../entities/session'
+import {
+  configureSessionAccess,
+  type RefreshSessionResult,
+  type SessionSnapshot,
+} from '../../session/sessionAccess'
 
-const createMockSession = (overrides = {}) => ({
+let sessionState: SessionSnapshot
+let updatedSession: RefreshSessionResult | null
+let logoutCalls: number
+
+const createSessionSnapshot = (overrides: Partial<SessionSnapshot> = {}): SessionSnapshot => ({
   token: 'test-token',
-  memberId: 'member-123',
   tenantId: 'tenant-456',
-  expiresAt: Date.now() + 3600000,
+  isAuthenticated: true,
+  needsRefresh: () => false,
   ...overrides,
 })
 
 describe('httpClient auth refresh', () => {
   beforeEach(() => {
-    resetAuthStore()
+    sessionState = createSessionSnapshot()
+    updatedSession = null
+    logoutCalls = 0
+    configureSessionAccess({
+      getSnapshot: () => sessionState,
+      updateSession: (session) => {
+        updatedSession = session
+      },
+      logout: () => {
+        logoutCalls += 1
+        sessionState = createSessionSnapshot({
+          token: null,
+          tenantId: null,
+          isAuthenticated: false,
+        })
+      },
+    })
     localStorage.clear()
     sessionStorage.clear()
   })
@@ -95,62 +119,49 @@ describe('httpClient auth refresh', () => {
 
   describe('token needs refresh detection', () => {
     it('should detect token needs refresh when expiring soon', () => {
-      const { login } = useAuthStore.getState()
-      login(createMockSession({ expiresAt: Date.now() + 30000 }))
+      sessionState = createSessionSnapshot({
+        needsRefresh: () => true,
+      })
 
-      const { needsRefresh } = useAuthStore.getState()
-      expect(needsRefresh()).toBe(true)
+      expect(sessionState.needsRefresh()).toBe(true)
     })
 
     it('should not need refresh when token has plenty of time', () => {
-      const { login } = useAuthStore.getState()
-      login(createMockSession({ expiresAt: Date.now() + 3600000 }))
+      sessionState = createSessionSnapshot({
+        needsRefresh: () => false,
+      })
 
-      const { needsRefresh } = useAuthStore.getState()
-      expect(needsRefresh()).toBe(false)
+      expect(sessionState.needsRefresh()).toBe(false)
     })
   })
 
   describe('session update after refresh', () => {
     it('should update token and expiresAt after refresh', async () => {
-      const { login } = useAuthStore.getState()
-      login(createMockSession())
-
       const newExpiresAt = Date.now() + 7200000
-      const { updateSession } = useAuthStore.getState()
-      updateSession({ token: 'new-token', expiresAt: newExpiresAt })
+      const { handleRefreshSuccess } = await import('../sessionManager')
+      handleRefreshSuccess({ token: 'new-token', expiresAt: newExpiresAt })
 
-      const state = useAuthStore.getState()
-      expect(state.token).toBe('new-token')
-      expect(state.expiresAt).toBe(newExpiresAt)
+      expect(updatedSession).toEqual({ token: 'new-token', expiresAt: newExpiresAt })
     })
   })
 
   describe('handleRefreshSuccess and handleRefreshFailure', () => {
     it('should update session on refresh success', async () => {
-      const { login } = useAuthStore.getState()
-      login(createMockSession())
-
       const { handleRefreshSuccess } = await import('../sessionManager')
       const newExpiresAt = Date.now() + 7200000
 
       handleRefreshSuccess({ token: 'refreshed-token', expiresAt: newExpiresAt })
 
-      const state = useAuthStore.getState()
-      expect(state.token).toBe('refreshed-token')
-      expect(state.expiresAt).toBe(newExpiresAt)
+      expect(updatedSession).toEqual({ token: 'refreshed-token', expiresAt: newExpiresAt })
     })
 
     it('should logout on refresh failure', async () => {
-      const { login } = useAuthStore.getState()
-      login(createMockSession())
-
       const { handleRefreshFailure } = await import('../sessionManager')
       handleRefreshFailure()
 
-      const state = useAuthStore.getState()
-      expect(state.isAuthenticated).toBe(false)
-      expect(state.token).toBeNull()
+      expect(logoutCalls).toBe(1)
+      expect(sessionState.isAuthenticated).toBe(false)
+      expect(sessionState.token).toBeNull()
     })
   })
 })
