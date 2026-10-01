@@ -176,6 +176,33 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  web-browser:
+    name: Web Token Login Browser Paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+      - name: Install locked browser test dependencies
+        run: npm ci --ignore-scripts
+        working-directory: apps/web/e2e
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/web/e2e
+      - name: Verify accepted and rejected token login
+        run: npx playwright test
+        working-directory: apps/web/e2e
+      - name: Retain browser failure traces
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: m1-web-browser-traces
+          path: apps/web/e2e/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
   # ============================================================================
   # Security Audit
   # ============================================================================

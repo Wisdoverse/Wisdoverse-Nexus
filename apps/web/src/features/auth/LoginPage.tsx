@@ -6,8 +6,6 @@ import styles from './LoginPage.module.css'
 
 interface LoginCredentials {
   token: string
-  memberId: string
-  tenantId?: string
 }
 
 export function LoginPage() {
@@ -16,8 +14,6 @@ export function LoginPage() {
   const { login } = useAuthStore()
   const [credentials, setCredentials] = useState<LoginCredentials>({
     token: '',
-    memberId: '',
-    tenantId: '',
   })
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -56,7 +52,7 @@ export function LoginPage() {
         <h1 className={styles.title}>Sign in to Wisdoverse Nexus</h1>
         <p className={styles.subtitle}>Enter your credentials to continue</p>
 
-        {error && <div className={styles.error}>{error}</div>}
+        {error && <div role="alert" className={styles.error}>{error}</div>}
 
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.field}>

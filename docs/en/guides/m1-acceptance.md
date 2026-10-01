@@ -1,6 +1,12 @@
 # M1 implementation and acceptance evidence
 
-Status: **implementation complete; public CI and reviewer acceptance pending**.
+Status: **implementation complete; initial public CI passed, final browser gate and reviewer acceptance pending**.
+[PR #110](https://github.com/Wisdoverse/Wisdoverse-Nexus/pull/110) tracks final acceptance.
+The initial runtime commit `acd5c99870aca7bd9ae38261b65a7ccdb2a853aa` passed
+[CI](https://github.com/Wisdoverse/Wisdoverse-Nexus/actions/runs/36838572843),
+[security](https://github.com/Wisdoverse/Wisdoverse-Nexus/actions/runs/36838572974),
+[coverage](https://github.com/Wisdoverse/Wisdoverse-Nexus/actions/runs/36838572806), and
+[benchmark](https://github.com/Wisdoverse/Wisdoverse-Nexus/actions/runs/36838572842).
 Scope: RD-001–RD-004 / QG-01, based on main `e47f55b` on 2026-10-01.
 This is engineering-preview qualification, not a production release, performance
 certification, or confirmation of the planned 80% changed-line coverage target.
@@ -30,7 +36,7 @@ features, single tenant, in-memory storage, synthetic users and rooms.
   tests passed** and typecheck passed. TypeScript SDK and documentation builds passed.
 - Expo's offline metadata check reports up-to-date, but cannot establish online
   compatibility. The online service is blocked by the execution environment proxy;
-  the unchanged compatibility gate must run in public CI.
+  the unchanged compatibility gate passed on the initial public CI run.
 
 ## Reproduce and retain evidence
 
@@ -56,8 +62,10 @@ The recovery window is the current process lifetime for history and 60 minutes
 for retry keys, with 10,000 active keys. Explicitly unsupported multi-tenant core
 flows fail closed with 503. Persistent crash/restart safety, performance/load
 objectives, broader deployments, and AI workflows belong to later milestones.
-Native-device and browser UI interaction were not exercised by the transport
-suites; the report validates the adapters and unit/build checks.
+Native-device UI interaction is not covered. The transport suites validate
+adapters; two browser user paths additionally verify accepted/rejected token
+login and the room-list contract using synthetic HTTP fixtures. Their CI job
+is required because browser downloads are blocked by the local proxy.
 
 Before marking M1 complete, attach the public PR and green CI run for its final
 commit, assign the responsible reviewer, and record acceptance. No reviewer or
