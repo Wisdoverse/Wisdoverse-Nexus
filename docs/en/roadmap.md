@@ -70,6 +70,28 @@ or pull request. Priority indicates order, not a release date. M1 precedes M2;
 M3 must pass before expanding deployment scope, and M4 requires M2 and M3.
 M5 follows a validated M4 workflow.
 
+## Execution and Quality Gates
+
+The [execution standard](guides/roadmap-execution.md) decomposes M1–M5 into
+20 planned work packages (RD-001–RD-020), with dependencies, proposed
+responsibility roles, readiness/completion rules, and required evidence.
+Assign actual owners before Ready; publish dates only with reviewed estimates.
+
+Proposed qualification targets include a fixed single-node load profile,
+HTTP p95 ≤200 ms, a 99.9% gateway success objective, explicit error budgets,
+crash/restore checks, and a 50-case AI evaluation set. Every target must be
+reported with its sample count, environment, observed value, and tested commit.
+The guide separates the current CI floor of 60% workspace line coverage from
+planned changed-line coverage and live-gateway gates. These targets remain
+unverified until the relevant measurement work and acceptance checks pass.
+
+Trusted alpha, evaluation beta, and 1.0 candidate gates require progressively
+stronger artifact, recovery, pilot, and operational evidence. Use the
+roadmap work item template to track blockers and outcomes. Authorize every
+agent action; require human approval for writes and external side effects.
+
+## Milestone Acceptance
+
 ### M1 / P0: Core Collaboration Workflow
 
 Align the gateway, API documentation, Web/mobile clients, and both SDKs around
@@ -220,6 +242,8 @@ Before a stable release, maintainers should record evidence for:
 - A repeatable release workflow with verified container and SDK artifacts.
 - Documented deployment requirements, persistence, backup/restore, and upgrades.
 - Client and SDK examples validated against the gateway in CI.
+- The applicable execution-standard gate reports, named owners/reviewers,
+  capacity/support matrix, error-budget policy, and rehearsed rollout/recovery.
 
 The existing release workflow and deployment documentation are a baseline;
 successful release and recovery checks are still required.
