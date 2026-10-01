@@ -14,7 +14,7 @@ these numbers are project choices and are not a company certification or SLA.
 
 | Area | Current repository check | Planned addition |
 | --- | --- | --- |
-| Build and correctness | Rust format/Clippy/workspace tests, mobile checks, Web/SDK/docs builds | Live-gateway contracts for clients and both SDKs, including negative and reconnect cases (RD-004) |
+| Build and correctness | Rust format/Clippy/workspace tests, mobile checks, Web/SDK/docs builds, M1 live-gateway and browser jobs | Extend qualified contracts and profiles as supported behavior grows |
 | Coverage | Workspace line coverage floor is 60% in CI | Retain that floor; add at least 80% coverage of changed executable lines in auth, tenant, tool/approval, and persistence paths, plus mandatory behavior tests (RD-004, RD-008, RD-012) |
 | Security | Dependency/advisory, license, secret, CodeQL, and container checks | Permission-revocation, context leakage, prompt-injection, and side-effect approval tests (RD-005, RD-007, RD-010, RD-015) |
 | Performance | Benchmark entry points and generic gateway metrics exist | Versioned end-to-end load profile, SLI instrumentation, budgets, and regression gates (RD-008, RD-012) |
@@ -29,8 +29,11 @@ mitigation, and expiry or upstream re-evaluation condition.
 
 ## Execution Packages
 
-Every row is **planned and unassigned**. Responsibility names are proposed
-roles. A maintainer assigns one publicly identified directly responsible
+RD-001–RD-004 are **in review**, with passed automated evidence in
+[PR #110](https://github.com/Wisdoverse/Wisdoverse-Nexus/pull/110) and the
+[M1 report](m1-acceptance.md). Remaining packages are **planned**. Human DRI and
+acceptance-reviewer assignments remain unrecorded; responsibility names below
+are proposed roles, not completed governance assignments. A maintainer assigns one publicly identified directly responsible
 individual (DRI) and an appropriate reviewer before a package becomes Ready.
 These are local planning IDs, not existing GitHub issue numbers. Split packages
 into small, independently reviewable PRs and link them from the work item.

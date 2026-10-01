@@ -1,72 +1,100 @@
 # M1 implementation and acceptance evidence
 
-Status: **implementation complete; initial public CI passed, final browser gate and reviewer acceptance pending**.
-[PR #110](https://github.com/Wisdoverse/Wisdoverse-Nexus/pull/110) tracks final acceptance.
-The initial runtime commit `acd5c99870aca7bd9ae38261b65a7ccdb2a853aa` passed
-[CI](https://github.com/Wisdoverse/Wisdoverse-Nexus/actions/runs/36838572843),
-[security](https://github.com/Wisdoverse/Wisdoverse-Nexus/actions/runs/36838572974),
-[coverage](https://github.com/Wisdoverse/Wisdoverse-Nexus/actions/runs/36838572806), and
-[benchmark](https://github.com/Wisdoverse/Wisdoverse-Nexus/actions/runs/36838572842).
-Scope: RD-001–RD-004 / QG-01, based on main `e47f55b` on 2026-10-01.
-This is engineering-preview qualification, not a production release, performance
-certification, or confirmation of the planned 80% changed-line coverage target.
+Status as of 2026-10-01: **implementation and automated checks passed; human
+reviewer acceptance and merge pending** in [PR #110](https://github.com/Wisdoverse/Wisdoverse-Nexus/pull/110).
+Scope: RD-001–RD-004 / QG-01. The supported profile is one gateway process,
+default features, single tenant, and in-memory room/message state.
 
-## Implemented behavior
+## Revision and public evidence
 
-| Work item | Implementation | Evidence |
+| Evidence field | Recorded value |
+| --- | --- |
+| Base revision | `e47f55bd70d413098fc6de9ed19fe285232b980e` |
+| Tested PR head | `e98e9c1c4d769dcc2a142d36b89ff239e2332815` |
+| CI checkout recorded by live runner | `9d1e8a4a52352b3b01f3b565fd991b74976f59df` (GitHub-generated PR merge revision) |
+| CI | [36851322165](https://github.com/Wisdoverse/Wisdoverse-Nexus/actions/runs/36851322165): passed, including live gateway and browser paths |
+| Security | [36851322042](https://github.com/Wisdoverse/Wisdoverse-Nexus/actions/runs/36851322042): passed |
+| Coverage | [CI coverage job](https://github.com/Wisdoverse/Wisdoverse-Nexus/actions/runs/36851322165/job/110334386732): 67.50% workspace lines (9,052/13,410), above the 60% floor; [coverage workflow](https://github.com/Wisdoverse/Wisdoverse-Nexus/actions/runs/36851322090) also passed |
+| Benchmark | [36851322075](https://github.com/Wisdoverse/Wisdoverse-Nexus/actions/runs/36851322075): passed existing benchmark job |
+| Contract artifact | `m1-live-gateway-contracts`, ID `11156225724`, in the linked CI run; retained for 30 days |
+| Human DRI / acceptance reviewer | Assignment and acceptance remain to be recorded by the maintainer |
+
+The head revision identifies the proposed changes; the runner records the
+actual checkout tested by GitHub. Later documentation commits do not change
+this historical evidence. A behavior change requires a fresh report for its
+own revision. Workspace coverage and benchmark success do not demonstrate the
+planned 80% changed-line target or the QP-1 load/soak and operational objectives.
+
+## Work-package traceability
+
+The IDs and responsibilities follow the [execution standard](roadmap-execution.md).
+
+| Work item | Implemented outcome | Executable evidence |
 | --- | --- | --- |
-| RD-001: authentication | Verified external JWT session; invalid/expired/issuer/audience/empty-subject rejection; token expiry closes sockets; tenant-scoped tokens rejected in single-tenant mode | Real HTTP/WS negative cases, auth timeout and expiry cases |
-| RD-002: rooms/messages | Creator/member permissions, creator-only administration, shared HTTP/WS writes, stable sender/message/reply identity, ordered history, one-hour scoped retry keys | Cross-room denials, invitations, concurrent retry and conflict cases; failed-write and ledger-capacity unit cases |
-| RD-003: contracts/clients | Served OpenAPI response schemas; actual Web/mobile HTTP and WS adapters; Python/TypeScript SDK authentication, events, retry IDs, and reconnect | Served-schema assertions and all four client suites against the same real gateway |
-| RD-004: live CI | Isolated synthetic gateway process, deterministic credentials, lifecycle cleanup, bounded waits, sanitized evidence retention | `scripts/m1_smoke.sh`; `M1 Live Gateway Contracts` CI job; JSON summary and client/gateway logs |
+| RD-001: protocol/gateway contracts | Verified external JWT session, room membership/administration, shared HTTP/WS contracts and served OpenAPI schemas; rejected and expired credentials and unsupported tenant scope | HTTP/WS negative cases and served-schema assertions in `tests/smoke/m1_gateway.py` |
+| RD-002: client/SDK workflow | Web, mobile, TypeScript and Python authenticate, create/list a room, send/receive and recover history through the same gateway | `apps/web/smoke/collaboration.test.ts`, `apps/mobile/smoke/collaboration.test.ts`, `sdk/typescript/tests/live_gateway.cjs`, Python SDK checks in the live runner |
+| RD-003: message safety/recovery | Stable sender/message/reply references, ordered writes/history, scoped one-hour retry deduplication, conflict responses and reconnect recovery | Concurrent HTTP and WS retry/ack/history cases; application tests for membership, failed writes, ledger capacity/expiry and cross-room replies |
+| RD-004: live CI | Fresh-checkout isolated gateway, synthetic credentials/data, bounded waits, cleanup and sanitized retained results | `scripts/m1_smoke.sh`, `M1 Live Gateway Contracts` CI job, JSON summary and logs |
 
-## Observed local results
+## Observed results and profile
 
-Validated on Linux x86_64, Rust 1.98.1, Node 24.19.0, pnpm 10.30.3,
-Python 3.12.14. The live profile is one ephemeral loopback gateway, default
-features, single tenant, in-memory storage, synthetic users and rooms.
+Local qualification used Linux x86_64, Rust 1.98.1, Node 24.19.0,
+pnpm 10.30.3 and Python 3.12.14. The live runner builds a locked development
+binary and starts an ephemeral loopback gateway with synthetic users/rooms.
+CI toolchain selection is defined in the workflow: Ubuntu runner, Rust stable,
+Node 24, Python 3.12 and tracked dependency locks.
 
-- Live gateway runner: **21 of 21 scenario groups passed**, including both SDKs,
-  Web/mobile adapters, actual forced reconnect, permission denials, expiry,
-  concurrent retry deduplication, acknowledgements, and history recovery.
-- Rust workspace tests and strict workspace/all-target Clippy passed. Gateway
-  tests were rerun after adding concurrency, failed-write, membership, and retry
-  capacity/expiry regression cases; the multi-tenant/persistence feature combination compiles.
-- Web: **56 unit tests passed** and production build passed. Mobile: **6 unit
-  tests passed** and typecheck passed. TypeScript SDK and documentation builds passed.
-- Expo's offline metadata check reports up-to-date, but cannot establish online
-  compatibility. The online service is blocked by the execution environment proxy;
-  the unchanged compatibility gate passed on the initial public CI run.
+| Check | Observed result | Interpretation |
+| --- | --- | --- |
+| Real gateway | 21/21 scenario groups passed locally and in public CI | Four clients; expiry/access denials; concurrent retries; actual SDK reconnect; acknowledgements and ordered history |
+| Browser user paths | 2/2 Chromium tests passed in public CI | Accepted/rejected token login and room-list rendering; synthetic HTTP fixtures |
+| Web | 56 unit tests and production build passed | Client/store regression and compilation checks |
+| Mobile | 6 unit tests and typecheck passed | Adapter/store checks; native-device UI is outside this result |
+| Rust | Workspace tests, strict all-target Clippy and formatting passed | Gateway failure/concurrency regressions included; experimental multi-tenant/persistence feature combination compiles |
+| SDK/docs | TypeScript SDK and VitePress builds passed | Published contracts/examples and internal links remain buildable |
+| Expo | Online compatibility gate passed in public CI | Local proxy blocked online metadata; offline metadata was not counted as a pass |
+
+The local combined preview of M1 with [dependency PR #111](https://github.com/Wisdoverse/Wisdoverse-Nexus/pull/111)
+(head `98c8ff6172ba58bdb90db6dde1b5172300e7da52`) passed the same 21 live groups,
+56 Web tests and mobile typecheck. Its recorded local merge revision is
+`ad0b1a98bee51e43f101bae429011c1fbf569ebd`; this is local integration evidence,
+separate from the public per-PR checks.
 
 ## Reproduce and retain evidence
 
-Follow the [fresh-checkout commands](core-collaboration.md#m1-acceptance), or run
-`NEXIS_SMOKE_PYTHON=<prepared-python> bash scripts/m1_smoke.sh` after installing
-workspace dependencies. The script builds the locked gateway and SDK, launches
-the real gateway, and runs all client suites. No production credentials or
-external services are needed.
+Use the [fresh-checkout setup](core-collaboration.md#m1-acceptance), then:
 
-`artifacts/m1/summary.json` records the tested commit, working-tree fingerprint,
-configuration, sample count, and each scenario result. CI uploads this summary
-and sanitized logs for 30 days, including on failure. Generated artifacts are
-ignored locally; link the public CI run and download before retention expires.
+```bash
+NEXIS_SMOKE_PYTHON=<prepared-python> bash scripts/m1_smoke.sh
+cargo fmt --all -- --check
+cargo check --locked --workspace
+cargo test --locked --workspace
+cargo clippy --locked --workspace --all-targets -- -D warnings
+pnpm --filter @wisdoverse/nexus-web exec vitest run
+pnpm --filter @wisdoverse/nexus-web build
+pnpm --filter @wisdoverse/nexus-mobile typecheck
+pnpm --filter @wisdoverse/nexus-mobile test
+pnpm --dir docs docs:build
+```
 
-Also run `cargo fmt --all -- --check`, `cargo check --locked --workspace`,
-`cargo test --locked --workspace`, and
-`cargo clippy --locked --workspace --all-targets -- -D warnings`, plus the
-Web/mobile/SDK/docs commands in the repository guidelines.
+For browser checks, use the [testing guide](testing.md#web-browser-paths).
+`artifacts/m1/summary.json` records the actual checkout, working-tree fingerprint,
+configuration, sample count and each result. Download the linked run's artifact
+before its 30-day retention expires; retain the original ZIP/summary and checksum
+with release evidence when acceptance or publication is recorded. Synthetic
+credentials and private deployment addresses must remain absent from public logs.
 
-## Acceptance limits and remaining gates
+## Limits and remaining acceptance
 
-The recovery window is the current process lifetime for history and 60 minutes
-for retry keys, with 10,000 active keys. Explicitly unsupported multi-tenant core
-flows fail closed with 503. Persistent crash/restart safety, performance/load
-objectives, broader deployments, and AI workflows belong to later milestones.
-Native-device UI interaction is not covered. The transport suites validate
-adapters; two browser user paths additionally verify accepted/rejected token
-login and the room-list contract using synthetic HTTP fixtures. Their CI job
-is required because browser downloads are blocked by the local proxy.
+History recovery lasts for the current gateway process; restarting clears the
+store. Retry keys last 60 minutes, up to 10,000 active keys, and do not survive
+restart. Multi-tenant core routes fail closed with 503; tenant-scoped tokens are
+rejected in the supported single-tenant mode. Broader tenancy, durable recovery,
+load/soak and rollout qualification belong to later milestone evidence.
 
-Before marking M1 complete, attach the public PR and green CI run for its final
-commit, assign the responsible reviewer, and record acceptance. No reviewer or
-release approval is implied by these local results. Keep M2–M5 planned.
+[ADR-008](../architecture/adr/008-fsd-ddd-cloud-native-services.md) requires FSD,
+DDD and cloud-native service evolution. These tests do not certify every import
+boundary, independent service deployment, native-device UX or production scaling.
+Before marking M1 complete, record the responsible human reviewer and acceptance
+against the pinned evidence, then merge and apply the relevant release gates.
+M2–M5 remain planned.

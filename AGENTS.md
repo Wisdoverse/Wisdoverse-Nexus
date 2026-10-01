@@ -47,9 +47,17 @@ TypeScript: strict tsconfig, PascalCase React components, camelCase functions/va
 
 ## Architecture
 
+Required architecture: frontend follows Feature-Sliced Design (FSD), backend follows Domain-Driven Design (DDD), and service design follows cloud-native microservices. Apply these requirements to Web, mobile, backend services, and new deployment work.
+
 Frontend must follow Feature-Sliced Design (FSD). Organize application code by layers in dependency order: `app` -> `pages` -> `widgets` -> `features` -> `entities` -> `shared`. A layer may import only from lower layers, never from a higher layer or sideways through another feature. Keep public APIs explicit through local `index.ts` barrels; avoid deep cross-slice imports. Place reusable UI, API clients, config, and primitives in `shared`; domain objects and stores in `entities`; user actions in `features`; composed surfaces in `widgets`; route-level screens in `pages`; providers, routing, and app bootstrapping in `app`.
 
 Backend must follow Domain-Driven Design (DDD). Keep domain models, value objects, aggregates, domain errors, and domain services free of transport, database, and framework concerns. Put use-case orchestration in application services; keep Axum handlers, SQL/storage adapters, external providers, queues, and observability in infrastructure/interface layers. Crate boundaries should preserve bounded contexts (`nexis-*`), and cross-context communication should use explicit contracts/events rather than shared mutable internals. Do not leak database row models or HTTP DTOs into domain APIs.
+
+Cloud-native microservices must have explicit bounded-context ownership, versioned API/event contracts, and independently buildable and deployable service artifacts. Each service owns its data and migrations; access another service's data through its published contracts. Keep durable state outside replaceable service instances in qualified deployment profiles. Define timeouts, bounded queues, retry/backoff and idempotency at service boundaries.
+
+Container and Kubernetes changes must use reproducible locked builds, compatible base/runtime images, non-root execution, external configuration and secret injection, resource requests/limits, startup/readiness/liveness probes, graceful shutdown and request draining. Provide structured logs, metrics and propagated trace/correlation IDs; redact credentials and private content. Document rollout, rollback and schema compatibility for affected services.
+
+Architecture changes must update the relevant ADR, contracts and developer/deployment documentation, with verification evidence in the PR. Document current implementation gaps and migration plans explicitly. The M1 single-process, in-memory preview remains a documented evaluation profile; cloud-native requirements do not establish production, persistence or horizontal-scaling support without acceptance evidence.
 
 ## Testing
 

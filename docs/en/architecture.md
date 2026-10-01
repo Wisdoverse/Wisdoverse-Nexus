@@ -4,6 +4,16 @@ Wisdoverse Nexus is a Rust-first collaboration platform organized as a
 monorepo. The public architecture is intentionally described from the repository
 state, not from future product plans.
 
+## Required architecture
+
+[AGENTS.md](https://github.com/Wisdoverse/Wisdoverse-Nexus/blob/main/AGENTS.md)
+and [ADR-008](architecture/adr/008-fsd-ddd-cloud-native-services.md) require FSD
+for Web/mobile, DDD for backend domains, and cloud-native microservices for
+service/deployment evolution. Services own their data and expose versioned
+contracts; service artifacts, operation, recovery and rollout must be verified.
+The diagram below describes the current gateway and domain modules. M1 qualifies
+one process with in-memory state; distributed operation is a separate acceptance scope.
+
 ## System Shape
 
 ```text
@@ -60,9 +70,12 @@ The gateway currently exposes:
 | `GET /openapi.json` | Gateway OpenAPI document |
 | `GET /docs` | Swagger UI for the OpenAPI document |
 | `GET /ws` | WebSocket upgrade endpoint |
+| `GET /v1/auth/session` | Verify an externally issued JWT session |
 | `POST /v1/rooms` | Create a room |
 | `GET /v1/rooms` | List rooms |
 | `GET /v1/rooms/:id` | Read room state |
+| `GET /v1/rooms/:id/messages` | Read ordered message history |
+| `POST /v1/rooms/:id/invite` | Creator-authorized invitation |
 | `DELETE /v1/rooms/:id` | Delete a room |
 | `POST /v1/messages` | Send a message |
 | `GET/POST /v1/search` | Search messages when search service is configured |
@@ -78,7 +91,8 @@ can be logged by infrastructure.
 
 ## Local Deployment Model
 
-The root `docker-compose.yml` runs the gateway with local persistent storage:
+The root `docker-compose.yml` starts the gateway with a data volume. M1 rooms
+and messages remain in memory; a mounted volume does not demonstrate durability.
 
 ```bash
 docker compose up -d
@@ -94,8 +108,9 @@ docker compose -f deploy/docker-compose.yml up -d
 
 ## Production Guidance
 
-Production operators should treat this repository as deployable source and
-complete their own environment-specific hardening:
+The project remains an engineering preview. Before expanding deployment scope,
+qualify M3 storage, tenant, recovery and operational gates. Deployment work must
+implement the architecture requirements and environment-specific controls:
 
 - TLS termination and HSTS at the edge
 - Secret injection through a secrets manager

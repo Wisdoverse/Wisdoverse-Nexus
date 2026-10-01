@@ -63,9 +63,28 @@ pnpm --filter @wisdoverse/nexus-sdk build
 pnpm --dir docs docs:build
 ```
 
+## Architecture requirements
+
+The [repository instructions](https://github.com/Wisdoverse/Wisdoverse-Nexus/blob/main/AGENTS.md)
+and [ADR-008](../architecture/adr/008-fsd-ddd-cloud-native-services.md) require:
+
+- FSD for Web/mobile: downward imports through slice public APIs; domain state
+  in entities, user actions in features, and reusable transport/config/UI in shared.
+- DDD for backends: framework-free domains, application use cases, and explicit
+  infrastructure/interface adapters with bounded-context contracts.
+- Cloud-native microservices: service-owned data, independent artifacts,
+  versioned API/event contracts, bounded failure handling, non-root containers,
+  injected secrets, probes/resource limits, graceful shutdown, telemetry and
+  evidenced rollout/recovery/rollback.
+
+Record implementation gaps and migration scope in the PR. M1 currently qualifies
+one single-tenant, in-memory process; these requirements guide service evolution.
+
 ## Local Docker
 
-The root `docker-compose.yml` runs the gateway with local persistent storage:
+The root `docker-compose.yml` starts the gateway and mounts a data volume.
+M1 room/message state uses in-memory storage: a volume does not establish
+restart durability. Persistence/recovery acceptance belongs to M3.
 
 ```bash
 docker compose up -d

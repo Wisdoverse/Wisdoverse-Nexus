@@ -3,7 +3,7 @@
 The gateway exposes `/ws` for flat JSON events. M1 supports default features,
 one process, single-tenant in-memory storage. Multi-tenant core endpoints fail
 with HTTP 503 pending M3. See the [collaboration guide](../guides/core-collaboration.md)
-for JWT issuance, HTTP contracts, and client migration.
+for external JWT signing, HTTP contracts, and client migration.
 
 ## Authenticate and subscribe
 

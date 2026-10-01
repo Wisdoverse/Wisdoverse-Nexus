@@ -8,3 +8,5 @@
 - [ADR-005: Phase 6 Collaboration Domain Modules](005-phase6-collaboration-domain-modules.md)
 - [ADR-006: Phase 6 Collaboration Input Validation](006-phase6-collaboration-input-validation.md)
 - [ADR-007: Phase 6 CI Quality Gates for Performance and Coverage](007-phase6-ci-quality-gates.md)
+
+- [ADR-008: FSD, DDD, and Cloud-Native Services](008-fsd-ddd-cloud-native-services.md)

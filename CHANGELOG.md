@@ -16,10 +16,16 @@ versions. Breaking changes must be called out in release notes.
   credentials, OpenAPI response validation and retained scenario evidence.
 
 - Documented the M1 collaboration guide covering externally issued JWT
-  sessions, HTTP and WebSocket message flows, reconnect recovery, and planned
+  sessions, HTTP and WebSocket message flows, reconnect recovery, and linked
   real-gateway acceptance evidence.
 
 ### Changed
+
+- Codified FSD for Web/mobile, DDD for backends, and cloud-native microservice
+  requirements in AGENTS.md and ADR-008; developer docs distinguish the current
+  M1 in-memory preview from qualified service/deployment targets.
+- Updated bilingual roadmap tracking and M1 evidence with pinned successful CI
+  revisions, browser checks, reproduction commands and remaining review gates.
 
 - Aligned Web/mobile and SDK collaboration contracts; reconnect restores subscriptions
   and HTTP history recovers gaps in the documented in-memory support window.

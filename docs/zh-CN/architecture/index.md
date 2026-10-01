@@ -2,6 +2,10 @@
 
 Wisdoverse Nexus 是一个模块化的 AI 原生协作平台，采用 Rust 异步架构。
 
+当前实现由 HTTP/WebSocket 网关和模块化领域 crate 构成；云原生微服务是必须遵循的演进约束，不代表服务已经拆分或生产部署能力已验证。前端代码按 FSD 层级单向依赖，后端按 DDD 隔离领域模型与传输、存储和框架层。演进为独立服务时，每个服务必须拥有自己的数据和迁移，并通过发布的契约访问其他服务数据。
+
+容器与 Kubernetes 部署须使用可复现的锁定构建、非 root 运行、外部配置和密钥注入、资源请求与限制、启动/就绪/存活探针、优雅关闭及请求排空。服务还须提供结构化日志、指标、传播的 trace/correlation ID，定义超时、有限队列、重试退避和幂等边界，并记录发布、回滚和 schema 兼容方案。当前 M1 是单进程、单租户、内存存储预览；云原生约束不构成持久化、水平扩展或生产就绪的验收证明。详见[根目录 AGENTS.md](https://github.com/Wisdoverse/Wisdoverse-Nexus/blob/main/AGENTS.md)和[架构 ADR 008](../../en/architecture/adr/008-fsd-ddd-cloud-native-services.md)。
+
 ## 核心设计原则
 
 1. **可扩展性能** — 基于 Tokio 异步运行时，并通过 benchmark 验证容量边界

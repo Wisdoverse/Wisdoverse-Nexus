@@ -75,14 +75,17 @@ const message = await client.sendMessage(room.id, "Hello", undefined);
 const history = await client.getMessages(room.id);
 
 client.connect(room.id);
-client.on("new_message", (event) => console.log(event));
+client.on("new_message", (event) => {
+  // Merge new_message into the view by its stable message_id.
+});
 // ...when the application session ends:
 client.logout();
 ```
 
 `session` contains member identity and expiry but no refresh capability.
-`Room` contains `id`, `name`, optional `topic`, `messages`, and
-`member_count`. `Message` contains `id`, `roomId`, `sender`, `text`, and
+Room models contain `id` and `name`; `topic`, `messages`, and `member_count`
+depend on the operation. Creation returns `id`/`name`; listing includes summaries;
+room detail includes history. `Message` contains `id`, `roomId`, `sender`, `text`, and
 optional `reply_to`. Python equivalents are `create_room(CreateRoomData(...))`,
 `list_rooms(limit=100, offset=0)`, `get_room`,
 `send_message(room_id, text, reply_to=None)`, `get_messages`, `delete_room`,
@@ -127,6 +130,20 @@ the client view. The complete history is the recovery window for the lifetime
 of the gateway process; restarting the default in-memory process clears it.
 Explicit logout/close terminates the connection and stops reconnection.
 
+## Failure handling
+
+| Result | Client action |
+| --- | --- |
+| HTTP 401 / WS auth error or expiry | Obtain a new externally issued token; authenticate again |
+| HTTP 403 / WS `FORBIDDEN` | Stop the operation and verify creator/member access |
+| HTTP 409 / WS `CONFLICT` | A retry key was reused with different content; investigate the original write |
+| HTTP 503 / write overload | Back off; retain the original key when retrying an ambiguous write |
+| Disconnect / `SYNC_REQUIRED` | Reauthenticate, resubscribe, then fetch and merge history by message ID |
+
+Explicit logout stops reconnection. A new socket for the same member replaces
+its previous socket. SDK applications explicitly fetch history after restoring
+the subscription; Web/mobile stores do so automatically.
+
 ## Migration from earlier examples
 
 Examples with `login(email, password)`, `register(...)`, `RegisterData`, or
@@ -149,9 +166,9 @@ python3 -m venv .venv
 NEXIS_SMOKE_PYTHON=.venv/bin/python bash scripts/m1_smoke.sh
 ```
 
-The script builds and starts an isolated real gateway, then smoke
+The script builds and starts an isolated real gateway, then exercises
 the TypeScript SDK, Python SDK, and Web/mobile APIs. It reports results
 in `artifacts/m1/summary.json` and gateway output in
 `artifacts/m1/gateway.log`; reports and logs must not record tokens or secrets.
-Use those artifacts to determine acceptance status. This guide does not claim
-that the command has passed.
+The [acceptance report](m1-acceptance.md) links observed results to a pinned
+runtime revision; use fresh artifacts when validating a later revision.

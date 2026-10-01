@@ -25,7 +25,7 @@ Authorization: Bearer <token>
 Unauthenticated requests to protected endpoints return `401 Unauthorized`.
 The supported M1 mode is one process with default features and in-memory,
 single-tenant storage. Tenant-scoped credentials are rejected. See the
-[core collaboration guide](../guides/core-collaboration.md) for token issuance,
+[core collaboration guide](../guides/core-collaboration.md) for external JWT signing,
 retry limits, and migration. The served `/openapi.json` is the schema source.
 
 ### Verify session
@@ -115,8 +115,7 @@ Response:
       "id": "msg_xyz",
       "roomId": "room_abc123",
       "sender": "alice",
-      "text": "Hello!",
-      "reply_to": null
+      "text": "Hello!"
     }
   ]
 }
@@ -162,6 +161,8 @@ content returns 409; keys are retained for 60 minutes within one process.
 
 ### Search API
 
+Search requires a configured search service and is outside the M1 qualification profile.
+
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
 | GET | /v1/search | Semantic search | Yes |
@@ -203,7 +204,10 @@ See the [WebSocket contract](websocket.md) for flat JSON event shapes and recove
 
 ## Error Handling
 
-All errors return a consistent JSON format:
+Room/message application errors return the following JSON shape. Authentication
+failures and Axum request extraction can return plain-text bodies; parse the
+HTTP status first and handle either representation. WebSocket errors use the
+event shapes in the [WebSocket contract](websocket.md).
 
 ```json
 {
@@ -217,9 +221,11 @@ All errors return a consistent JSON format:
 | Code | HTTP Status | Description |
 |------|-------------|-------------|
 | BAD_REQUEST | 400 | Invalid request parameters |
-| UNAUTHORIZED | 401 | Missing or invalid authentication |
+| — | 401 | Missing, invalid or expired authentication; body may be plain text |
 | FORBIDDEN | 403 | Insufficient permissions |
 | NOT_FOUND | 404 | Resource not found |
+| CONFLICT | 409 | Retry key reused with different content |
+| UNSUPPORTED_MODE | 503 | Multi-tenant core flow is outside M1 support |
 | SERVICE_UNAVAILABLE | 503 | Service temporarily unavailable |
 | INTERNAL_ERROR | 500 | Internal server error |
 | INVALID_QUERY | 400 | Invalid search query |

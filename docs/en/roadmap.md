@@ -73,7 +73,7 @@ M5 follows a validated M4 workflow.
 ## Execution and Quality Gates
 
 The [execution standard](guides/roadmap-execution.md) decomposes M1–M5 into
-20 planned work packages (RD-001–RD-020), with dependencies, proposed
+20 work packages (RD-001–RD-020): RD-001–RD-004 are in review; the remainder are planned, with dependencies, proposed
 responsibility roles, readiness/completion rules, and required evidence.
 Assign actual owners before Ready; publish dates only with reviewed estimates.
 
@@ -82,8 +82,9 @@ HTTP p95 ≤200 ms, a 99.9% gateway success objective, explicit error budgets,
 crash/restore checks, and a 50-case AI evaluation set. Every target must be
 reported with its sample count, environment, observed value, and tested commit.
 The guide separates the current CI floor of 60% workspace line coverage from
-planned changed-line coverage and live-gateway gates. These targets remain
-unverified until the relevant measurement work and acceptance checks pass.
+planned changed-line coverage targets. The live-gateway gate passed for the
+pinned [M1 revision](guides/m1-acceptance.md); load/soak, operational and
+changed-line targets remain unverified.
 
 Trusted alpha, evaluation beta, and 1.0 candidate gates require progressively
 stronger artifact, recovery, pilot, and operational evidence. Use the
@@ -94,10 +95,10 @@ agent action; require human approval for writes and external side effects.
 
 ### M1 / P0: Core Collaboration Workflow
 
-Implementation and local acceptance evidence are available in the
-[M1 report](guides/m1-acceptance.md). M1 is **in review**: public CI and reviewer
-acceptance remain required before marking it complete. Other milestones remain planned.
-
+Implementation, successful public CI and reproducible acceptance evidence are
+linked in the [M1 report](guides/m1-acceptance.md) and
+[PR #110](https://github.com/Wisdoverse/Wisdoverse-Nexus/pull/110). M1 is **in review**:
+human reviewer acceptance and merge remain pending. Other milestones remain planned.
 
 Align the gateway, API documentation, Web/mobile clients, and both SDKs around
 the supported authentication, room, message, and WebSocket contracts.
