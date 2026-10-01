@@ -10,6 +10,9 @@ versions. Breaking changes must be called out in release notes.
 
 ### Changed
 
+- CI pins the qualified Rust 1.98.1 compiler instead of floating `stable`; compiler
+  upgrades require a fresh qualification before changing the strict lint baseline.
+
 - Consolidated pending compatible Rust, Web, SDK, docs, Playwright, Docker Rust
   builder and GitHub Actions updates on the current main baseline; preserved
   Expo 55 / React Native 0.83 constraints and newer existing dependency versions.
