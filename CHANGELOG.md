@@ -16,13 +16,25 @@ versions. Breaking changes must be called out in release notes.
   place of organization-specific service URLs and internal-looking hostnames.
 - Contribution guides and issue/PR templates now describe privacy review and
   redaction requirements for public examples, logs, screenshots, and configuration.
-- TypeScript SDK now depends on `axios` `^1.16.0` (previously `^1.15.2`).
-  Downstream consumers receive axios 1.16's behavior changes: the fetch
+- Aligned Expo 55 dependencies with the SDK compatibility recommendations,
+  including React Native `0.83.10`, and refreshed the pnpm and npm lockfiles
+  to resolve dependency audit findings.
+- Updated the TypeScript SDK and apps to `axios` `^1.20.0`, and the SDK to
+  `ws` `^8.22.0`. Consumers upgrading from the initial release also receive
+  axios 1.16's behavior changes: the fetch
   adapter enforces `maxBodyLength` / `maxContentLength` (previously
   ignored), the proxy adapter preserves the original `Host` header,
   URL-encoded credentials in basic-auth are decoded before being sent,
   and `parseProtocol` is stricter about malformed schemes. Review your
   request size limits and proxy assumptions if you set them explicitly.
+
+### Security
+
+- Updated vulnerable Rust dependencies and replaced yanked locked versions.
+- Documented a scoped maintenance-only exception for the transitive `smallstr`
+  advisory `RUSTSEC-2026-0215`: `yrs` still requires it and no patched version
+  exists. Revisit the exception when upstream migrates; vulnerability checks
+  remain enabled.
 
 ## [0.1.0] - 2026-04-29
 

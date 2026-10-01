@@ -66,4 +66,8 @@ ignore = [
     "RUSTSEC-2024-0436",  # paste — via tokenizers
     "RUSTSEC-2025-0119",  # number_prefix — via tokenizers
     "RUSTSEC-2025-0134",  # rustls-pemfile — via qdrant-client
+    # Maintenance-only advisory: yrs 0.25 requires smallstr 0.3, and even
+    # yrs 0.28 still uses it. No patched smallstr version exists. Revisit this
+    # exception when yrs migrates; vulnerability advisories remain enforced.
+    "RUSTSEC-2026-0215",  # smallstr — via yrs
 ]
