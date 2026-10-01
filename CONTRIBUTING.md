@@ -20,10 +20,13 @@ or evaluate the request.
 
 ## Development Requirements
 
-- Rust stable
+- Rust 1.98.1 (qualified repository toolchain)
 - Node.js `24.x`
 - pnpm `>=10.30.0`
 - Docker or Docker Compose for containerized local runs
+
+The repository's `rust-toolchain.toml` automatically selects Rust 1.98.1,
+including in CI. Compiler upgrades require separate qualification.
 
 Install Node dependencies from the repository root:
 

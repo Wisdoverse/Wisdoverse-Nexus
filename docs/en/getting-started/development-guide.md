@@ -5,15 +5,18 @@ model for the source-available repository.
 
 ## Prerequisites
 
-- Rust stable with `rustfmt` and `clippy`
+- Rust 1.98.1 with `rustfmt` and `clippy` (qualified repository toolchain)
 - Node.js `24.x`
 - pnpm `>=10.30.0`
 - Docker or Docker Compose when testing containerized services
 
 ```bash
-rustup component add rustfmt clippy
+rustup toolchain install 1.98.1 --profile minimal --component rustfmt --component clippy
 corepack enable
 ```
+
+The repository's `rust-toolchain.toml` automatically selects Rust 1.98.1,
+including in CI. Compiler upgrades require separate qualification.
 
 ## Clone and Install
 

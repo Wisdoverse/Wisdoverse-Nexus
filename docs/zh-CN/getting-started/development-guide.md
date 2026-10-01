@@ -6,15 +6,17 @@
 
 ## 环境要求
 
-- Rust stable，并安装 `rustfmt` 和 `clippy`
+- Rust 1.98.1，并安装 `rustfmt` 和 `clippy`（仓库已验收的工具链版本）
 - Node.js `24.x`
 - pnpm `>=10.30.0`
 - Docker 或 Docker Compose，用于测试容器化服务
 
 ```bash
-rustup component add rustfmt clippy
+rustup toolchain install 1.98.1 --profile minimal --component rustfmt --component clippy
 corepack enable
 ```
+
+仓库的 `rust-toolchain.toml` 会自动选择 Rust 1.98.1，CI 也固定使用此版本。编译器升级需要单独验收。
 
 ## 克隆与安装
 
