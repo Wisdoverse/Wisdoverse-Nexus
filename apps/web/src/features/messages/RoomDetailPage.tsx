@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMessagesStore } from './messagesStore'
-import { useRoomsStore } from '../rooms/roomsStore'
+import { useRoomsStore } from '../../entities/room'
 import { ConnectionState } from './ConnectionState'
 import styles from './RoomDetailPage.module.css'
 

@@ -10,6 +10,8 @@ versions. Breaking changes must be called out in release notes.
 
 ### Added
 
+- Added static FSD/DDD boundary checks with behavior tests and CI enforcement for
+  covered Web/mobile and gateway domain modules.
 - Verified JWT session and room history endpoints, creator/member permission checks,
   stable retry keys and shared HTTP/WebSocket message acknowledgements.
 - Real-gateway CI acceptance for both SDKs and Web/mobile adapters, with synthetic
@@ -21,6 +23,17 @@ versions. Breaking changes must be called out in release notes.
 
 ### Changed
 
+- M1 Kubernetes/Helm profiles now use one instance and Recreate upgrades, inject
+  JWT keys through an existing Secret, support image digests, and include startup
+  probes. Helm rejects unqualified multi-replica or autoscaling configurations.
+- Gateway HTTP shutdown drains accepted requests; local health probes remain
+  reachable when HTTPS redirect is enabled. Cluster runtime, durable restart and
+  WebSocket drain qualification remain future deployment gates.
+- Production gateway startup now requires a nonblank `JWT_SECRET`. Mobile session
+  restoration validates saved tokens before entering protected routes and keeps
+  retryable sessions on network failures.
+- Moved mobile session and Web room state into entities, moved mobile navigation
+  types into shared, and removed frontend cross-slice and reverse-layer imports.
 - Codified FSD for Web/mobile, DDD for backends, and cloud-native microservice
   requirements in AGENTS.md and ADR-008; developer docs distinguish the current
   M1 in-memory preview from qualified service/deployment targets.
@@ -29,6 +42,13 @@ versions. Breaking changes must be called out in release notes.
 
 - Aligned Web/mobile and SDK collaboration contracts; reconnect restores subscriptions
   and HTTP history recovers gaps in the documented in-memory support window.
+- Consolidated pending compatible Rust, Web, SDK, docs, Playwright, Docker Rust
+  builder and GitHub Actions updates on the current main baseline; preserved
+  Expo 55 / React Native 0.83 constraints and newer existing dependency versions.
+- Synchronized pnpm and tracked npm lockfiles, raised PostCSS override floors,
+  and resolved React type and Expo DOM peer requirements. Docker builders use
+  Bookworm to match the runtime; locked builds and health-check dependencies
+  prevent unreviewed resolution and missing runtime probes.
 
 - Reworked the English and Chinese roadmaps using a source-linked comparison
   of related collaboration/AI projects. Priorities now connect a governed

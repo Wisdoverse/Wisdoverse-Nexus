@@ -63,8 +63,10 @@ async def protocol_checks(base: str, ws_url: str, tokens: dict[str, str], secret
                            token(secret, "bad-audience", aud="other"), token(secret, "", member_type="human"),
                            token(secret, "tenant-scoped", tenant_id="synthetic-tenant")]:
             headers = {} if credential is None else {"Authorization": f"Bearer {credential}"}
-            assert (await http.get("/v1/auth/session", headers=headers)).status_code == 401
-            assert (await http.get("/v1/rooms", headers=headers)).status_code == 401
+            session_response = await http.get("/v1/auth/session", headers=headers)
+            rooms_response = await http.get("/v1/rooms", headers=headers)
+            assert session_response.status_code == 401
+            assert rooms_response.status_code == 401
         passed("HTTP rejects missing, invalid, expired, issuer/audience, empty-subject and tenant-scoped credentials")
         session = await http.get("/v1/auth/session", headers=owner)
         assert session.status_code == 200
@@ -78,17 +80,21 @@ async def protocol_checks(base: str, ws_url: str, tokens: dict[str, str], secret
         listing = await http.get("/v1/rooms", headers=owner)
         validate("/v1/rooms", "get", 200, listing.json())
         assert listing.json()["rooms"][0]["id"] == room_id
-        assert (await http.get("/v1/rooms", headers=peer)).json()["rooms"] == []
+        peer_listing = await http.get("/v1/rooms", headers=peer)
+        assert peer_listing.json()["rooms"] == []
         passed("room create/list and member visibility match OpenAPI")
         for method, path, body in [("GET", f"/v1/rooms/{room_id}", None),
                                    ("GET", f"/v1/rooms/{room_id}/messages", None),
                                    ("POST", "/v1/messages", {"roomId": room_id, "text": "denied"}),
                                    ("POST", f"/v1/rooms/{room_id}/invite", {"memberId": "other"}),
                                    ("DELETE", f"/v1/rooms/{room_id}", None)]:
-            assert (await http.request(method, path, headers=peer, json=body)).status_code == 403
+            response = await http.request(method, path, headers=peer, json=body)
+            assert response.status_code == 403
         passed("HTTP denies nonmember reads, writes and administration")
-        assert (await http.post(f"/v1/rooms/{room_id}/invite", headers=owner, json={"memberId": "m1-peer"})).status_code == 200
-        assert (await http.delete(f"/v1/rooms/{room_id}", headers=peer)).status_code == 403
+        invite_response = await http.post(f"/v1/rooms/{room_id}/invite", headers=owner, json={"memberId": "m1-peer"})
+        assert invite_response.status_code == 200
+        denied_delete = await http.delete(f"/v1/rooms/{room_id}", headers=peer)
+        assert denied_delete.status_code == 403
         passed("invited member can collaborate but cannot administer")
         for credential, expected in [("invalid-token", "AUTH_FAILED"), (tokens["expired"], "TOKEN_EXPIRED")]:
             async with websockets.connect(ws_url) as ws:
@@ -97,7 +103,8 @@ async def protocol_checks(base: str, ws_url: str, tokens: dict[str, str], secret
                 assert event["type"] == "auth_error" and event["code"] == expected
         async with websockets.connect(ws_url) as ws:
             await ws.send(json.dumps({"type": "join_room", "room_id": room_id}))
-            assert json.loads(await ws.recv())["type"] == "auth_required"
+            event = json.loads(await ws.recv())
+            assert event["type"] == "auth_required"
         passed("WebSocket rejects invalid/expired credentials and operations before auth")
         async with websockets.connect(ws_url) as ws:
             short = token(secret, "m1-owner", exp=int(time.time()) + 2)
@@ -131,6 +138,7 @@ async def protocol_checks(base: str, ws_url: str, tokens: dict[str, str], secret
                 await asyncio.wait_for(outsider.recv(), .2)
                 raise AssertionError("Unsubscribed member received a room event")
             except TimeoutError:
+                # No frame before the deadline confirms the outsider was not subscribed.
                 pass
             passed("nonmember WebSocket receives no room message")
             payload = {"roomId": room_id, "text": "HTTP to WS", "clientMessageId": "http-stable"}
@@ -140,9 +148,11 @@ async def protocol_checks(base: str, ws_url: str, tokens: dict[str, str], secret
                 await asyncio.wait_for(observer.recv(), .2)
                 raise AssertionError("Retry broadcast a duplicate")
             except TimeoutError:
+                # No frame before the deadline confirms idempotent retries were not rebroadcast.
                 pass
             payload["text"] = "changed"
-            assert (await http.post("/v1/messages", headers=peer, json=payload)).status_code == 409
+            conflict = await http.post("/v1/messages", headers=peer, json=payload)
+            assert conflict.status_code == 409
             passed("concurrent HTTP retries return one stable message without duplicate broadcast; changed payload conflicts")
             ws_payload = {"type": "send_message", "room_id": room_id, "content": "WS to HTTP", "reply_to": message["id"], "client_message_id": "ws-stable"}
             await observer.send(json.dumps(ws_payload))
@@ -150,13 +160,15 @@ async def protocol_checks(base: str, ws_url: str, tokens: dict[str, str], secret
             event = await receive(observer, "new_message")
             assert ack["message_id"] == event["message_id"] and event["reply_to"] == message["id"]
             await observer.send(json.dumps(ws_payload))
-            assert (await receive(observer, "message_accepted"))["message_id"] == ack["message_id"]
+            retry_ack = await receive(observer, "message_accepted")
+            assert retry_ack["message_id"] == ack["message_id"]
             history = await http.get(f"/v1/rooms/{room_id}/messages", headers=owner)
             validate("/v1/rooms/{id}/messages", "get", 200, history.json())
             assert [item["id"] for item in history.json()] == [message["id"], ack["message_id"]]
             passed("WebSocket commit/retry acknowledgements match ordered HTTP history and reply references")
             await observer.send(json.dumps({"type": "heartbeat", "timestamp": 123}))
-            assert (await receive(observer, "heartbeat_ack"))["timestamp"] == 123
+            heartbeat = await receive(observer, "heartbeat_ack")
+            assert heartbeat["timestamp"] == 123
             passed("heartbeat matches documented flat contract")
             await observer.send(json.dumps({"type": "leave_room", "room_id": room_id}))
             await receive(observer, "room_left")
@@ -165,13 +177,16 @@ async def protocol_checks(base: str, ws_url: str, tokens: dict[str, str], secret
                 await asyncio.wait_for(observer.recv(), .2)
                 raise AssertionError("Left room still received a message")
             except TimeoutError:
+                # No frame before the deadline confirms leaving the room stopped delivery.
                 pass
             passed("leave stops live delivery; HTTP retains recoverable history")
         for body in [{"roomId": room_id, "text": " "}, {"roomId": room_id, "text": "x" * 32769},
                      {"roomId": room_id, "text": "bad reply", "replyTo": "missing-message"},
                      {"roomId": room_id, "text": "bad key", "clientMessageId": " "}]:
-            assert (await http.post("/v1/messages", headers=owner, json=body)).status_code == 400
-        assert (await http.get("/v1/rooms/missing/messages", headers=owner)).status_code == 404
+            response = await http.post("/v1/messages", headers=owner, json=body)
+            assert response.status_code == 400
+        missing_history = await http.get("/v1/rooms/missing/messages", headers=owner)
+        assert missing_history.status_code == 404
         passed("invalid text/reply/retry inputs and missing rooms fail explicitly")
 
 
@@ -180,7 +195,8 @@ async def python_sdk_checks(base: str, ws_url: str, tokens: dict[str, str]) -> N
         await client.authenticate(tokens["owner"])
         await peer.authenticate(tokens["peer"])
         room = await client.create_room(CreateRoomData("python-smoke", "synthetic"))
-        assert room.id in [item.id for item in await client.list_rooms()]
+        rooms = await client.list_rooms()
+        assert room.id in [item.id for item in rooms]
         await client.invite_member(room.id, "m1-peer")
         ws = WebSocketConnection(ws_url, tokens["owner"], room_id=room.id, reconnect_delay=.05)
         try:
@@ -189,8 +205,10 @@ async def python_sdk_checks(base: str, ws_url: str, tokens: dict[str, str]) -> N
             message = await peer.send_message(room.id, "python event", client_message_id="python-stable")
             event = await asyncio.wait_for(anext(stream), 5)
             assert event["message_id"] == message.id and event["content"] == message.text
-            assert (await peer.send_message(room.id, "python event", client_message_id="python-stable")).id == message.id
-            assert len(await client.get_messages(room.id)) == 1
+            retry = await peer.send_message(room.id, "python event", client_message_id="python-stable")
+            assert retry.id == message.id
+            history = await client.get_messages(room.id)
+            assert len(history) == 1
             passed("Python SDK auth/create/list/send/history/retry observe the live gateway")
             async with websockets.connect(ws_url) as replacement:
                 await replacement.send(json.dumps({"type": "auth", "token": tokens["owner"]}))
@@ -240,7 +258,9 @@ async def main() -> None:
                             raise RuntimeError("Isolated gateway exited before readiness")
                         try:
                             if (await client.get(base + "/health", timeout=1)).text == "OK": break
-                        except httpx.TransportError: pass
+                        except httpx.TransportError:
+                            # The isolated gateway is still starting; retry until ready or deadline.
+                            pass
                         await asyncio.sleep(.05)
             await protocol_checks(base, ws_url, tokens, secret)
             await python_sdk_checks(base, ws_url, tokens)
@@ -275,4 +295,6 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
+    if not __debug__:
+        raise RuntimeError("M1 smoke checks require assertions; do not use Python -O or PYTHONOPTIMIZE")
     asyncio.run(main())

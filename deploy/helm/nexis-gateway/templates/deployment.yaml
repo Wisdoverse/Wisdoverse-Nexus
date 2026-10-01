@@ -1,3 +1,6 @@
+{{- if or .Values.autoscaling.enabled (ne (int .Values.replicaCount) 1) }}
+{{- fail "M1 requires replicaCount=1 and autoscaling.enabled=false; shared durable state and scaling remain gated by M3." }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -5,6 +8,8 @@ metadata:
   labels:
     {{- include "nexis-gateway.labels" . | nindent 4 }}
 spec:
+  strategy:
+    type: Recreate
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
@@ -24,6 +29,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -35,12 +41,24 @@ spec:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
+          {{- if .Values.image.digest }}
+          image: "{{ .Values.image.repository }}@{{ .Values.image.digest }}"
+          {{- else }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          {{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
               containerPort: {{ .Values.service.targetPort }}
               protocol: TCP
+          {{- if .Values.startupProbe.enabled }}
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: {{ .Values.startupProbe.periodSeconds }}
+            failureThreshold: {{ .Values.startupProbe.failureThreshold }}
+          {{- end }}
           {{- if .Values.livenessProbe.enabled }}
           livenessProbe:
             httpGet:
@@ -67,27 +85,11 @@ spec:
             - configMapRef:
                 name: {{ include "nexis-gateway.fullname" . }}
           env:
-            {{- if .Values.secrets.jwtSecret }}
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "nexis-gateway.fullname" . }}
-                  key: jwt-secret
-            {{- end }}
-            {{- if .Values.secrets.databaseUrl }}
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "nexis-gateway.fullname" . }}
-                  key: database-url
-            {{- end }}
-            {{- if .Values.secrets.redisUrl }}
-            - name: REDIS_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "nexis-gateway.fullname" . }}
-                  key: redis-url
-            {{- end }}
+                  name: {{ required "secrets.existingSecret must name an existing Secret containing the JWT signing key" .Values.secrets.existingSecret | quote }}
+                  key: {{ .Values.secrets.jwtSecretKey | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

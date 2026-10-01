@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { useRoomsStore } from './roomsStore'
+import { useRoomsStore } from '../../entities/room'
 import styles from './RoomListPage.module.css'
 
 export function RoomListPage() {

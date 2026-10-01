@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { useMessagesStore } from './messagesStore'
-import type { MessageStreamRouteProp } from '../../app/navigation/types'
+import type { MessageStreamRouteProp } from '../../shared/navigation'
 
 interface Props {
   route: MessageStreamRouteProp

@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:1.95-slim AS builder
+FROM rust:1.97-slim-bookworm AS builder
 
 WORKDIR /app
 
@@ -11,14 +11,14 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 
 # Build
-RUN cargo build --release -p nexis-gateway
+RUN cargo build --locked --release -p nexis-gateway
 
 # Runtime stage
 FROM debian:bookworm-slim
 
 # Install runtime dependencies
 RUN apt-get update && \
-    apt-get install -y ca-certificates && \
+    apt-get install -y --no-install-recommends ca-certificates curl libssl3 && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy binary

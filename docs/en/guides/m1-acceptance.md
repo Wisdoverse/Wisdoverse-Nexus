@@ -5,7 +5,7 @@ reviewer acceptance and merge pending** in [PR #110](https://github.com/Wisdover
 Scope: RD-001–RD-004 / QG-01. The supported profile is one gateway process,
 default features, single tenant, and in-memory room/message state.
 
-## Revision and public evidence
+## Initial revision and public evidence
 
 | Evidence field | Recorded value |
 | --- | --- |
@@ -18,6 +18,39 @@ default features, single tenant, and in-memory room/message state.
 | Benchmark | [36851322075](https://github.com/Wisdoverse/Wisdoverse-Nexus/actions/runs/36851322075): passed existing benchmark job |
 | Contract artifact | `m1-live-gateway-contracts`, ID `11156225724`, in the linked CI run; retained for 30 days |
 | Human DRI / acceptance reviewer | Assignment and acceptance remain to be recorded by the maintainer |
+
+## Review completion and architecture gates
+
+The follow-up integrates dependency commit `d915f56d38205dce16230d153b45e9bbda724b5a`
+from [PR #111](https://github.com/Wisdoverse/Wisdoverse-Nexus/pull/111), preserving
+both changelog sets and using checkout v7 in all M1 CI jobs. The final review
+revision and its public workflow links are recorded in PR #110; the table above
+preserves the initial implementation's historical evidence.
+
+Review corrections require production JWT configuration before binding a
+listener, restore and validate mobile saved sessions before protected navigation,
+and enforce frontend public APIs/layer direction. Mobile session and Web room
+state live in entities; navigation contracts live in shared. The architecture
+gate checks 98 frontend modules and four gateway domain modules, with four
+positive/negative checker cases. Its static scope does not prove full architecture
+or independent service deployment.
+
+The single-instance deployment gate verifies Helm lint/render, existing Secret
+and image digest references, non-root execution, resource budgets and all three
+health probes. Missing Secret names, multiple replicas and HPA must be rejected.
+`Recreate` upgrades preserve the one-process scope but lose in-memory state and
+have downtime. Isolated process tests verify rejected missing/blank production
+keys and HTTP health probes with HTTPS redirect; a server test verifies that
+graceful HTTP shutdown waits for an accepted response. Cluster operation,
+WebSocket draining and durable recovery remain unqualified.
+
+Local follow-up checks passed: 391 Rust tests including documentation tests
+(one stress test remains ignored), strict workspace/all-target Clippy, 14 mobile
+tests and typecheck, 56 Web tests and build, SDK build, 21 live-gateway scenario
+groups, architecture/deployment checks and the VitePress build. Fresh public CI
+for each runtime revision remains required and is linked from the PR. The live
+runner records its checkout and working-tree diff digest; a successful earlier
+revision does not qualify later behavior changes.
 
 The head revision identifies the proposed changes; the runner records the
 actual checkout tested by GitHub. Later documentation commits do not change

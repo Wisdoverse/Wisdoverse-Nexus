@@ -58,6 +58,7 @@ class WebSocketConnection:
                 try:
                     await asyncio.wait_for(self._stop.wait(), min(30, self._reconnect_delay * 2 ** attempt))
                 except TimeoutError:
+                    # The backoff elapsed; retry the connection unless stop was requested.
                     pass
         raise ConnectionError("Connection was closed")
 
@@ -78,6 +79,7 @@ class WebSocketConnection:
                         raise PermissionError("WebSocket credentials expired or were rejected")
                     yield message
             except websockets.ConnectionClosed:
+                # A dropped socket is recoverable; reconnect below and resume the stream.
                 pass
             if not self._stop.is_set():
                 await self._do_connect()

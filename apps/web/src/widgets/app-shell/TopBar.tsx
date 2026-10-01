@@ -1,5 +1,5 @@
 import { useAuthStore } from '../../entities/session'
-import { TenantSwitcher } from '../../features/tenant/TenantSwitcher'
+import { TenantSwitcher } from '../../features/tenant'
 import styles from './TopBar.module.css'
 
 export function TopBar() {

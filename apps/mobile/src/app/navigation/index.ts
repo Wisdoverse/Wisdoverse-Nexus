@@ -1,2 +1,2 @@
 export * from './RootNavigator'
-export * from './types'
+export type { RootStackParamList, MainTabParamList, RootStackNavigationProp, MessageStreamRouteProp } from '../../shared/navigation'

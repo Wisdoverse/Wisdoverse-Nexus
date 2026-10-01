@@ -43,9 +43,15 @@ checks with the affected service and deployment profile.
 
 | Area | Required review/evidence | Current qualification |
 | --- | --- | --- |
-| Frontend boundaries | Review slice ownership/public APIs and import direction; retain configured dependency checks | FSD is required; M1 browser/transport tests do not prove every repository import complies |
-| Backend boundaries | Review domain dependencies, adapters and cross-context contracts; test affected use cases | DDD is required; a Rust crate is a module boundary, not independent deployment evidence |
-| Service state/operation | Verify service-owned data, restart/recovery, scaling, meaningful readiness, draining and rollback | M1 supports one in-memory gateway; broader deployment remains gated by M3 evidence |
+| Frontend boundaries | Review slice ownership/public APIs and import direction; retain configured dependency checks | Static checker passes for the covered Web/mobile modules; it checks relative import direction and cross-slice public-index usage, but does not prove complete FSD compliance or runtime behavior |
+| Backend boundaries | Review domain dependencies, adapters and cross-context contracts; test affected use cases | Static checker passes for the covered gateway domain modules; it flags selected transport, storage and runtime references. DDD still requires review of contracts/use cases; a Rust crate is not independent deployment evidence |
+| M1 deployment controls | Verify locked image inputs, external secret injection, non-root execution, resource limits, probes and shutdown behavior | Helm and raw Kubernetes manifests specify one replica, external Secret injection, startup/readiness/liveness probes, non-root security settings, and a 30-second grace period. Helm rejects multiple replicas and HPA; `Recreate` prevents overlapping gateway instances during upgrades. These are configuration controls, not evidence of production qualification |
+| Service state/operation | Verify service-owned data, restart/recovery, scaling, meaningful readiness, draining and rollback | Room/message state remains in memory and is lost on restart or upgrade. Durable recovery, multi-node and cluster runtime behavior, and WebSocket draining remain unqualified and gated by M3 evidence. The gateway waits for accepted in-flight HTTP responses during graceful shutdown; health probes bypass HTTPS redirect. The render-only deployment gate verifies Helm lint/render, image/Secret references, rejected unsafe profiles, raw Kubernetes controls and the Compose signing-key variable |
+
+CI runs `pnpm test:architecture` and `pnpm check:architecture` in a Node job.
+The checker currently covers 98 frontend modules and 4 gateway domain modules;
+these counts describe its static scan scope, not a qualification of every
+architectural property or production readiness.
 
 Architecture changes update this decision or add a superseding ADR, their
 contracts, developer/deployment documentation and PR evidence. Record existing

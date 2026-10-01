@@ -10,7 +10,7 @@ services:
     ports: ["8080:8080"]
     environment:
       - NEXIS_ENV=development
-      - NEXIS_JWT_SECRET=dev-secret-change-me
+      - JWT_SECRET=${JWT_SECRET:?Set a matching JWT_SECRET for externally issued test tokens}
       - RUST_LOG=nexis=debug
     volumes:
       - ../target:/app/target

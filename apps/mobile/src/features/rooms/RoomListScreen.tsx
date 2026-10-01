@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { useRoomsStore } from './roomsStore'
-import type { RootStackNavigationProp } from '../../app/navigation/types'
+import type { RootStackNavigationProp } from '../../shared/navigation'
 
 interface Props {
   navigation: RootStackNavigationProp

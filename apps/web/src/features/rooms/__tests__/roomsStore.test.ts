@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useRoomsStore } from '../roomsStore'
+import { useRoomsStore } from '../../../entities/room'
 
 vi.mock('../../../shared/api/httpClient', () => ({
   httpClient: {

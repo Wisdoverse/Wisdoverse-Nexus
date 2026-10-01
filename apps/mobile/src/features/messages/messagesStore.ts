@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { messagesApi, type Message } from '../../shared/api/endpoints/messages'
 import { wsClient } from '../../shared/ws/wsClient'
 import type { ConnectionState, WebSocketMessage } from '../../shared/ws/types'
-import { useAuthStore } from '../auth/authStore'
+import { useAuthStore } from '../../entities/session'
 
 interface MessagesState {
   activeRoomId: string | null

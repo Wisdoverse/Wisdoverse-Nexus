@@ -11,7 +11,10 @@ metadata:
   labels:
     app: nexis-gateway
 spec:
-  replicas: 3
+  # M1 room/message state is process-local. Do not scale until M3 is qualified.
+  replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: nexis-gateway
@@ -20,16 +23,41 @@ spec:
       labels:
         app: nexis-gateway
     spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: gateway
           image: nexis/gateway:latest
           ports:
             - containerPort: 8080
           env:
+            - name: NEXIS_ENV
+              value: "production"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: nexis-gateway-auth
+                  key: jwt-secret
             - name: NEXIS_BIND_ADDR
               value: "0.0.0.0:8080"
-            - name: NEXIS_LOG_LEVEL
+            - name: RUST_LOG
               value: "info"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 2
+            failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /health
@@ -84,29 +112,3 @@ spec:
                 name: nexis-gateway
                 port:
                   number: 80
----
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: nexis-gateway
-  namespace: nexis
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: nexis-gateway
-  minReplicas: 3
-  maxReplicas: 10
-  metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 70
-    - type: Resource
-      resource:
-        name: memory
-        target:
-          type: Utilization
-          averageUtilization: 80

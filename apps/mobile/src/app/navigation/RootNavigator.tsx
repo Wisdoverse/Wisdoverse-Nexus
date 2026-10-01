@@ -1,13 +1,14 @@
-import { useAuthStore } from '../../features/auth/authStore'
-import { TokenLoginScreen } from '../../features/auth/TokenLoginScreen'
+import { useEffect } from 'react'
+import { ActivityIndicator, Text, View } from 'react-native'
+import { useAuthStore, TokenLoginScreen } from '../../features/auth'
 import { NavigationContainer } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 
-import { RoomListScreen } from '../../features/rooms/RoomListScreen'
-import { SearchScreen } from '../../features/search/SearchScreen'
-import { MessageStreamScreen } from '../../features/messages/MessageStreamScreen'
-import type { MainTabParamList, RootStackParamList } from './types'
+import { RoomListScreen } from '../../features/rooms'
+import { SearchScreen } from '../../features/search'
+import { MessageStreamScreen } from '../../features/messages'
+import type { MainTabParamList, RootStackParamList } from '../../shared/navigation'
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
 const Tab = createBottomTabNavigator<MainTabParamList>()
@@ -30,6 +31,13 @@ function MainTabs() {
 
 export function RootNavigator() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const isHydrated = useAuthStore((state) => state.isHydrated)
+  const restoreSession = useAuthStore((state) => state.restoreSession)
+  useEffect(() => { void restoreSession() }, [restoreSession])
+  if (!isHydrated) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+    <ActivityIndicator accessibilityLabel="Restoring session" />
+    <Text accessibilityLiveRegion="polite">Restoring your session...</Text>
+  </View>
   if (!isAuthenticated) return <TokenLoginScreen />
   return (
     <NavigationContainer>

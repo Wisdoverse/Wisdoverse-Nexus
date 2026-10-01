@@ -123,7 +123,8 @@ fn is_https(request: &Request<axum::body::Body>) -> bool {
 
 async fn enforce_https_middleware(request: Request<axum::body::Body>, next: Next) -> Response {
     let config = security_config();
-    if !config.https_redirect_enabled || is_https(&request) {
+    // Local container/Kubernetes health probes do not traverse TLS ingress.
+    if request.uri().path() == "/health" || !config.https_redirect_enabled || is_https(&request) {
         return next.run(request).await;
     }
 
@@ -187,6 +188,9 @@ async fn main() -> anyhow::Result<()> {
     // Initialize tracing + export config
     observability::init_logging()?;
 
+    // Fail before reporting readiness or accepting requests with an unusable key.
+    nexis_gateway::auth::JwtConfig::try_cached()?;
+
     tracing::info!("Starting Nexus Gateway v{}", env!("CARGO_PKG_VERSION"));
     init_metrics();
 
@@ -236,12 +240,79 @@ async fn main() -> anyhow::Result<()> {
         tracing::info!("Shutdown signal received, stopping gracefully...");
     };
 
-    // Run server with graceful shutdown
-    tokio::select! {
-        _ = axum::serve(listener, app) => {},
-        _ = shutdown => {},
-    }
+    serve(listener, app, shutdown).await?;
 
     tracing::info!("Server stopped");
     Ok(())
+}
+
+async fn serve(
+    listener: tokio::net::TcpListener,
+    app: Router,
+    shutdown: impl std::future::Future<Output = ()> + Send + 'static,
+) -> std::io::Result<()> {
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown)
+        .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn shutdown_waits_for_an_accepted_http_request() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let (started_tx, mut started_rx) = tokio::sync::mpsc::channel(1);
+        let (release_tx, release_rx) = tokio::sync::oneshot::channel();
+        let release = std::sync::Arc::new(tokio::sync::Mutex::new(Some(release_rx)));
+        let app = Router::new().route(
+            "/slow",
+            axum::routing::get(move || {
+                let started = started_tx.clone();
+                let release = release.clone();
+                async move {
+                    started.send(()).await.unwrap();
+                    let receiver = release.lock().await.take().unwrap();
+                    receiver.await.unwrap();
+                    "accepted response"
+                }
+            }),
+        );
+        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+        let (observed_tx, observed_rx) = tokio::sync::oneshot::channel();
+        let server = tokio::spawn(serve(listener, app, async {
+            shutdown_rx.await.unwrap();
+            observed_tx.send(()).unwrap();
+        }));
+        let request = tokio::spawn(async move {
+            reqwest::Client::builder()
+                .no_proxy()
+                .build()
+                .unwrap()
+                .get(format!("http://{addr}/slow"))
+                .send()
+                .await
+                .unwrap()
+                .text()
+                .await
+                .unwrap()
+        });
+        tokio::time::timeout(Duration::from_secs(5), started_rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        shutdown_tx.send(()).unwrap();
+        observed_rx.await.unwrap();
+        tokio::task::yield_now().await;
+        assert!(!server.is_finished());
+        release_tx.send(()).unwrap();
+        assert_eq!(request.await.unwrap(), "accepted response");
+        tokio::time::timeout(Duration::from_secs(5), server)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+    }
 }
