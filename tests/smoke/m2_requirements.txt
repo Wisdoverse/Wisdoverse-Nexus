@@ -1,0 +1,3 @@
+-r requirements.txt
+# External consumer for the explicitly supported MCP 2025-03-26 HTTP subset.
+mcp==1.12.4

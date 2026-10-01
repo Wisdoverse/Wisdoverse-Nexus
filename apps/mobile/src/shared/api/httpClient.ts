@@ -17,8 +17,8 @@ class HttpClient {
       return Promise.reject(error)
     })
   }
-  get<T>(url: string, params?: Record<string, unknown>) { return this.instance.get<T>(url, { params }) }
-  post<T>(url: string, data?: unknown) { return this.instance.post<T>(url, data) }
+  get<T>(url: string, params?: Record<string, unknown>, options?: { signal?: AbortSignal }) { return this.instance.get<T>(url, { params, ...options }) }
+  post<T>(url: string, data?: unknown, options?: { signal?: AbortSignal }) { return options ? this.instance.post<T>(url, data, options) : this.instance.post<T>(url, data) }
   put<T>(url: string, data?: unknown) { return this.instance.put<T>(url, data) }
   patch<T>(url: string, data?: unknown) { return this.instance.patch<T>(url, data) }
   delete<T>(url: string) { return this.instance.delete<T>(url) }

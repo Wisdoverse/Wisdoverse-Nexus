@@ -823,6 +823,619 @@
           }
         }
       }
+    },
+    "/v1/rooms/{room_id}/agents": {
+      "get": {
+        "summary": "Named read-only room assistant capability and data disclosure",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentCapabilities"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/rooms/{room_id}/agent-runs": {
+      "post": {
+        "summary": "Explicit human invocation; clientRunId is an idempotency key within the one-hour process retry window",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Authorized result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRun"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvokeAgent"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/rooms/{room_id}/agent-runs/{run_id}": {
+      "get": {
+        "summary": "Read current run; room permission checked on every read",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRun"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/rooms/{room_id}/agent-runs/{run_id}/events": {
+      "get": {
+        "summary": "Poll ordered events after the exclusive sequence cursor; terminal status stops observation",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentEventBatch"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/rooms/{room_id}/agent-runs/{run_id}/cancel": {
+      "post": {
+        "summary": "Invoker or room owner cancellation; terminal runs remain terminal",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRun"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/rooms/{room_id}/mcp": {
+      "post": {
+        "summary": "Stateless read-only MCP 2025-03-26 JSON-RPC over HTTP; room_history only",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected; code and error contain no provider response or credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Standalone SSE streams are not supported",
+        "responses": {
+          "405": {
+            "description": "Use POST with JSON responses"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1081,6 +1694,318 @@
         "required": [
           "name"
         ]
+      },
+      "AgentRunEvent": {
+        "type": "object",
+        "required": [
+          "sequence",
+          "kind",
+          "text",
+          "timestamp"
+        ],
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "kind": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string",
+            "nullable": true
+          },
+          "timestamp": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "AgentUsage": {
+        "type": "object",
+        "required": [
+          "inputTokens",
+          "outputTokens",
+          "outputBytes",
+          "toolCalls"
+        ],
+        "properties": {
+          "inputTokens": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "outputTokens": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "outputBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "toolCalls": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "AgentRun": {
+        "type": "object",
+        "required": [
+          "contractVersion",
+          "id",
+          "roomId",
+          "invokedBy",
+          "agentId",
+          "agentName",
+          "traceId",
+          "status",
+          "answer",
+          "sourceMessageIds",
+          "usage",
+          "maxOutputTokens",
+          "maxOutputBytes",
+          "deadlineMs",
+          "createdAt",
+          "finishedAt",
+          "latencyMs",
+          "errorCode",
+          "events"
+        ],
+        "properties": {
+          "contractVersion": {
+            "type": "string",
+            "enum": [
+              "1.0"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "roomId": {
+            "type": "string"
+          },
+          "invokedBy": {
+            "type": "string"
+          },
+          "agentId": {
+            "type": "string",
+            "enum": [
+              "nexis:ai:room-assistant"
+            ]
+          },
+          "agentName": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "answer": {
+            "type": "string"
+          },
+          "sourceMessageIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20
+          },
+          "usage": {
+            "$ref": "#/components/schemas/AgentUsage"
+          },
+          "maxOutputTokens": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4096
+          },
+          "maxOutputBytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4096
+          },
+          "deadlineMs": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 60000
+          },
+          "createdAt": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "finishedAt": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "latencyMs": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "errorCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentRunEvent"
+            },
+            "maxItems": 512
+          }
+        },
+        "additionalProperties": false
+      },
+      "InvokeAgent": {
+        "type": "object",
+        "required": [
+          "clientRunId",
+          "prompt"
+        ],
+        "properties": {
+          "clientRunId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "sourceMessageIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "uniqueItems": true,
+            "default": []
+          },
+          "tool": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "room_history",
+              null
+            ]
+          },
+          "maxOutputTokens": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4096,
+            "default": 1024
+          },
+          "deadlineMs": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 60000,
+            "default": 60000
+          }
+        },
+        "additionalProperties": false
+      },
+      "AgentCapabilities": {
+        "type": "object",
+        "required": [
+          "contractVersion",
+          "agentId",
+          "agentName",
+          "enabled",
+          "contextMessageLimit",
+          "maxOutputTokens",
+          "maxToolCalls",
+          "provider",
+          "disclosure"
+        ],
+        "properties": {
+          "contractVersion": {
+            "type": "string"
+          },
+          "agentId": {
+            "type": "string"
+          },
+          "agentName": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "contextMessageLimit": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "maxOutputTokens": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "maxToolCalls": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "provider": {
+            "type": "string"
+          },
+          "disclosure": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AgentEventBatch": {
+        "type": "object",
+        "required": [
+          "events",
+          "status"
+        ],
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentRunEvent"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed",
+              "cancelled"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       }
     }
   }

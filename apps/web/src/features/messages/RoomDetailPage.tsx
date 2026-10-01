@@ -61,7 +61,7 @@ export function RoomDetailPage() {
           <div className={styles.empty}>No messages yet. Start the conversation!</div>
         ) : (
           messages.map((msg) => (
-            <div key={msg.id} className={`${styles.message} ${msg.sender.startsWith('nexis:ai:') ? styles.ai : ''}`}>
+            <div key={msg.id} id={`message-${msg.id}`} className={`${styles.message} ${msg.sender.startsWith('nexis:ai:') ? styles.ai : ''}`}>
               <div className={styles.sender}>{msg.sender}</div>
               <div className={styles.text}>{msg.text}</div>
               <div className={styles.meta}>

@@ -1,732 +1,1300 @@
+# Generated from crates/nexis-gateway/src/router/openapi.json; served JSON is canonical.
 openapi: 3.0.3
 info:
-  title: Wisdoverse Nexus API
-  version: 1.0.0
-  description: |
-    Wisdoverse Nexus 是一个实时协作平台，提供聊天室、消息传递和成员管理功能。
-    
-    ## 认证
-    所有 API 端点（除了 /health 和认证端点）需要 Bearer JWT 认证。
-    
-    ## 速率限制
-    - 每个用户每分钟最多 60 次请求
-    - 超过限制将返回 429 Too Many Requests
-
-servers:
-  - url: http://localhost:8080
-    description: Local development gateway
-  - url: https://api.example.com
-    description: Placeholder for a self-hosted gateway; replace with your deployment URL
-
-security:
-  - BearerAuth: []
-
-components:
-  securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: JWT 认证，格式为 `Bearer <token>`
-
-  schemas:
-    Member:
-      type: object
-      required:
-        - id
-        - email
-        - username
-        - createdAt
-      properties:
-        id:
-          type: string
-          format: uuid
-          description: 用户唯一标识符
-          example: "550e8400-e29b-41d4-a716-446655440000"
-        email:
-          type: string
-          format: email
-          description: 用户邮箱
-          example: "user@example.com"
-        username:
-          type: string
-          minLength: 3
-          maxLength: 50
-          description: 用户名
-          example: "johndoe"
-        displayName:
-          type: string
-          maxLength: 100
-          description: 显示名称
-          example: "John Doe"
-        avatarUrl:
-          type: string
-          format: uri
-          description: 头像 URL
-          example: "https://cdn.example.com/avatars/123.png"
-        status:
-          type: string
-          enum: [online, offline, away, busy]
-          default: offline
-          description: 用户在线状态
-        createdAt:
-          type: string
-          format: date-time
-          description: 创建时间
-          example: "2024-01-15T10:30:00Z"
-        updatedAt:
-          type: string
-          format: date-time
-          description: 更新时间
-          example: "2024-01-15T10:30:00Z"
-
-    Room:
-      type: object
-      required:
-        - id
-        - name
-        - creatorId
-        - createdAt
-      properties:
-        id:
-          type: string
-          format: uuid
-          description: 房间唯一标识符
-          example: "660e8400-e29b-41d4-a716-446655440001"
-        name:
-          type: string
-          minLength: 1
-          maxLength: 100
-          description: 房间名称
-          example: "General Discussion"
-        description:
-          type: string
-          maxLength: 500
-          description: 房间描述
-          example: "A place for general chat"
-        creatorId:
-          type: string
-          format: uuid
-          description: 创建者 ID
-          example: "550e8400-e29b-41d4-a716-446655440000"
-        isPrivate:
-          type: boolean
-          default: false
-          description: 是否为私有房间
-        memberCount:
-          type: integer
-          minimum: 0
-          description: 成员数量
-          example: 42
-        createdAt:
-          type: string
-          format: date-time
-          description: 创建时间
-          example: "2024-01-15T10:30:00Z"
-        updatedAt:
-          type: string
-          format: date-time
-          description: 更新时间
-          example: "2024-01-15T10:30:00Z"
-
-    Message:
-      type: object
-      required:
-        - id
-        - roomId
-        - senderId
-        - content
-        - createdAt
-      properties:
-        id:
-          type: string
-          format: uuid
-          description: 消息唯一标识符
-          example: "770e8400-e29b-41d4-a716-446655440002"
-        roomId:
-          type: string
-          format: uuid
-          description: 所属房间 ID
-          example: "660e8400-e29b-41d4-a716-446655440001"
-        senderId:
-          type: string
-          format: uuid
-          description: 发送者 ID
-          example: "550e8400-e29b-41d4-a716-446655440000"
-        content:
-          type: string
-          minLength: 1
-          maxLength: 10000
-          description: 消息内容
-          example: "Hello, everyone!"
-        type:
-          type: string
-          enum: [text, system, file]
-          default: text
-          description: 消息类型
-        replyToId:
-          type: string
-          format: uuid
-          description: 回复的消息 ID
-          example: "770e8400-e29b-41d4-a716-446655440003"
-        createdAt:
-          type: string
-          format: date-time
-          description: 创建时间
-          example: "2024-01-15T10:30:00Z"
-        updatedAt:
-          type: string
-          format: date-time
-          description: 更新时间
-          example: "2024-01-15T10:30:00Z"
-
-    Error:
-      type: object
-      required:
-        - code
-        - message
-      properties:
-        code:
-          type: string
-          description: 错误代码
-          example: "VALIDATION_ERROR"
-        message:
-          type: string
-          description: 错误消息
-          example: "Invalid input parameters"
-        details:
-          type: array
-          items:
-            type: object
-            properties:
-              field:
-                type: string
-                description: 字段名
-              message:
-                type: string
-                description: 错误详情
-          description: 详细错误信息
-        requestId:
-          type: string
-          format: uuid
-          description: 请求追踪 ID
-          example: "880e8400-e29b-41d4-a716-446655440004"
-
-    LoginRequest:
-      type: object
-      required:
-        - email
-        - password
-      properties:
-        email:
-          type: string
-          format: email
-          example: "user@example.com"
-        password:
-          type: string
-          format: password
-          minLength: 8
-          example: "securePassword123"
-
-    RegisterRequest:
-      type: object
-      required:
-        - email
-        - password
-        - username
-      properties:
-        email:
-          type: string
-          format: email
-          example: "user@example.com"
-        password:
-          type: string
-          format: password
-          minLength: 8
-          example: "securePassword123"
-        username:
-          type: string
-          minLength: 3
-          maxLength: 50
-          example: "johndoe"
-        displayName:
-          type: string
-          maxLength: 100
-          example: "John Doe"
-
-    AuthResponse:
-      type: object
-      required:
-        - accessToken
-        - refreshToken
-        - member
-      properties:
-        accessToken:
-          type: string
-          description: JWT 访问令牌
-          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-        refreshToken:
-          type: string
-          description: 刷新令牌
-          example: "rt_550e8400e29b41d4a716446655440000"
-        expiresIn:
-          type: integer
-          description: 访问令牌过期时间（秒）
-          example: 3600
-        member:
-          $ref: '#/components/schemas/Member'
-
-    CreateRoomRequest:
-      type: object
-      required:
-        - name
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 100
-          example: "Project Discussion"
-        description:
-          type: string
-          maxLength: 500
-          example: "Discuss project updates and issues"
-        isPrivate:
-          type: boolean
-          default: false
-
-    CreateMessageRequest:
-      type: object
-      required:
-        - content
-      properties:
-        content:
-          type: string
-          minLength: 1
-          maxLength: 10000
-          example: "Hello, world!"
-        type:
-          type: string
-          enum: [text, file]
-          default: text
-        replyToId:
-          type: string
-          format: uuid
-          example: "770e8400-e29b-41d4-a716-446655440003"
-
-    RoomList:
-      type: object
-      required:
-        - rooms
-        - total
-      properties:
-        rooms:
-          type: array
-          items:
-            $ref: '#/components/schemas/Room'
-        total:
-          type: integer
-          example: 10
-        hasMore:
-          type: boolean
-          example: false
-
-    MessageList:
-      type: object
-      required:
-        - messages
-        - total
-      properties:
-        messages:
-          type: array
-          items:
-            $ref: '#/components/schemas/Message'
-        total:
-          type: integer
-          example: 100
-        hasMore:
-          type: boolean
-          example: true
-        nextCursor:
-          type: string
-          example: "eyJpZCI6Ijc3MGU4NDAwLWUyOWItNDFkNC1hNzE2LTQ0NjY1NTQ0MDAwMyJ9"
-
-  responses:
-    BadRequest:
-      description: 请求参数错误
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            code: "VALIDATION_ERROR"
-            message: "Invalid input parameters"
-            details:
-              - field: "email"
-                message: "Must be a valid email address"
-
-    Unauthorized:
-      description: 未认证或认证失败
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            code: "UNAUTHORIZED"
-            message: "Authentication required"
-
-    Forbidden:
-      description: 无权限访问
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            code: "FORBIDDEN"
-            message: "You don't have permission to access this resource"
-
-    NotFound:
-      description: 资源不存在
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            code: "NOT_FOUND"
-            message: "Resource not found"
-
-    InternalServerError:
-      description: 服务器内部错误
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            code: "INTERNAL_ERROR"
-            message: "An unexpected error occurred"
-
+  title: Wisdoverse Nexus Gateway API
+  version: 0.1.0
+  description: Control plane API for room management, messaging, semantic search,
+    privacy self-service, and collaboration.
 paths:
   /health:
     get:
-      summary: 健康检查
-      description: 检查 API 服务是否正常运行
-      security: []
+      summary: Health check
       responses:
         '200':
-          description: 服务正常
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    enum: [healthy]
-                    example: "healthy"
-                  timestamp:
-                    type: string
-                    format: date-time
-                    example: "2024-01-15T10:30:00Z"
-                  version:
-                    type: string
-                    example: "1.0.0"
-
-  /v1/auth/login:
-    post:
-      summary: 用户登录
-      description: 使用邮箱和密码登录，返回 JWT 令牌
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LoginRequest'
+          description: Gateway is healthy
+  /metrics:
+    get:
+      summary: Prometheus metrics
       responses:
         '200':
-          description: 登录成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          description: 凭据无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                code: "INVALID_CREDENTIALS"
-                message: "Invalid email or password"
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
-  /v1/auth/register:
-    post:
-      summary: 用户注册
-      description: 创建新用户账户并返回 JWT 令牌
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RegisterRequest'
+          description: Metrics payload
+  /openapi.json:
+    get:
+      summary: OpenAPI contract
       responses:
-        '201':
-          description: 注册成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthResponse'
-        '400':
-          description: 请求参数错误或用户已存在
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              examples:
-                validation_error:
-                  summary: 验证错误
-                  value:
-                    code: "VALIDATION_ERROR"
-                    message: "Invalid input parameters"
-                user_exists:
-                  summary: 用户已存在
-                  value:
-                    code: "USER_EXISTS"
-                    message: "Email already registered"
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
+        '200':
+          description: OpenAPI document
+  /docs:
+    get:
+      summary: Swagger UI
+      responses:
+        '200':
+          description: Swagger UI HTML
+  /ws:
+    get:
+      summary: WebSocket upgrade endpoint
+      responses:
+        '101':
+          description: WebSocket connection established
+      description: 'First message: auth {token}; then join_room {room_id}. JWT scope
+        and room membership are checked. send_message accepts room_id, content, reply_to
+        and client_message_id. message_accepted acknowledges every accepted retry;
+        new_message is emitted once on commit. Heartbeat timestamps and event timestamps
+        are milliseconds. Reload HTTP history after reconnect. Default single-tenant
+        features only.'
   /v1/rooms:
     get:
-      summary: 获取房间列表
-      description: 获取用户可访问的房间列表
-      parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-          description: 页码
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-          description: 每页数量
-        - name: search
-          in: query
-          schema:
-            type: string
-          description: 搜索关键词
+      summary: List rooms
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: 成功获取房间列表
+          description: Authorized rooms only
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/RoomList'
         '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
+          description: Missing, invalid, expired, or tenant-scoped credentials
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '403':
+          description: Member is not authorized for this room operation
+        '404':
+          description: Room does not exist
+        '503':
+          description: Unsupported multi-tenant mode or retry capacity exhausted
     post:
-      summary: 创建房间
-      description: 创建新的聊天房间
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateRoomRequest'
+      summary: Create room
+      security:
+      - bearerAuth: []
       responses:
         '201':
-          description: 房间创建成功
+          description: Room created with JWT subject as owner
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Room'
+                $ref: '#/components/schemas/RoomCreated'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
-  /v1/rooms/{id}/messages:
-    get:
-      summary: 获取房间消息
-      description: 获取指定房间的消息列表
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-          description: 房间 ID
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 50
-          description: 每页数量
-        - name: cursor
-          in: query
-          schema:
-            type: string
-          description: 分页游标
-        - name: before
-          in: query
-          schema:
-            type: string
-            format: date-time
-          description: 获取此时间之前的消息
-      responses:
-        '200':
-          description: 成功获取消息列表
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MessageList'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+          description: Missing, invalid, expired, or tenant-scoped credentials
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Unsupported multi-tenant mode or retry capacity exhausted
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: Member is not authorized for this room operation
         '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
-    post:
-      summary: 发送消息
-      description: 在指定房间发送消息
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-          description: 房间 ID
+          description: Room does not exist
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateMessageRequest'
+              $ref: '#/components/schemas/RoomCreate'
+  /v1/rooms/{id}:
+    parameters:
+    - $ref: '#/components/parameters/RoomId'
+    get:
+      summary: Get room details
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Authorized room and history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomDetails'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Missing, invalid, expired, or tenant-scoped credentials
+        '404':
+          description: Room does not exist
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Unsupported multi-tenant mode or retry capacity exhausted
+        '403':
+          description: Member is not authorized for this room operation
+    delete:
+      summary: Delete room
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: Room deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Missing, invalid, expired, or tenant-scoped credentials
+        '404':
+          description: Room does not exist
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Unsupported multi-tenant mode or retry capacity exhausted
+        '403':
+          description: Member is not authorized for this room operation
+  /v1/rooms/{id}/invite:
+    parameters:
+    - $ref: '#/components/parameters/RoomId'
+    post:
+      summary: Invite member to room
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Member invited
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Missing, invalid, expired, or tenant-scoped credentials
+        '404':
+          description: Room does not exist
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Unsupported multi-tenant mode or retry capacity exhausted
+        '403':
+          description: Member is not authorized for this room operation
+  /v1/messages:
+    post:
+      summary: Send message
+      security:
+      - bearerAuth: []
       responses:
         '201':
-          description: 消息发送成功
+          description: Committed message; same key and payload return the same identity
+            without another broadcast
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
         '400':
+          description: Blank/oversize text, invalid retry key, or reply outside this
+            room
+        '401':
+          description: Missing, invalid, expired, or tenant-scoped credentials
+        '404':
+          description: Room does not exist
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Unsupported multi-tenant mode or retry capacity exhausted
+        '403':
+          description: Member is not authorized for this room operation
+        '409':
+          description: Retry key reused with different text or reply reference
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageCreate'
+  /v1/search:
+    get:
+      summary: Search messages with query parameters
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Search response
+        '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
-  /v1/members/me:
-    get:
-      summary: 获取当前用户信息
-      description: 获取已认证用户的详细信息
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    post:
+      summary: Search messages with JSON body
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: 成功获取用户信息
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Member'
+          description: Search response
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
-  /v1/search:
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /v1/members/me/export:
     get:
-      summary: 全局搜索
-      description: 搜索房间、消息和成员
-      parameters:
-        - name: q
-          in: query
-          required: true
-          schema:
-            type: string
-            minLength: 1
-          description: 搜索关键词
-        - name: type
-          in: query
-          schema:
-            type: string
-            enum: [all, rooms, messages, members]
-            default: all
-          description: 搜索类型
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 50
-            default: 10
-          description: 每种类型的返回数量
+      summary: Export authenticated member data
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: 搜索成功
+          description: Member data export
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v1/members/me:
+    delete:
+      summary: Delete authenticated member data
+      security:
+      - bearerAuth: []
+      responses:
+        '202':
+          description: Deletion accepted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v1/collaboration/meetings/rooms:
+    post:
+      summary: Create meeting room
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/ApiVersion'
+      responses:
+        '201':
+          description: Meeting room created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v1/collaboration/meetings/rooms/{room_id}/join:
+    parameters:
+    - $ref: '#/components/parameters/CollaborationRoomId'
+    post:
+      summary: Join meeting room
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/ApiVersion'
+      responses:
+        '200':
+          description: Joined meeting room
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v1/collaboration/meetings/rooms/{room_id}/leave:
+    parameters:
+    - $ref: '#/components/parameters/CollaborationRoomId'
+    post:
+      summary: Leave meeting room
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/ApiVersion'
+      responses:
+        '200':
+          description: Left meeting room
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v1/collaboration/documents:
+    post:
+      summary: Create collaborative document
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/ApiVersion'
+      responses:
+        '201':
+          description: Document created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v1/collaboration/documents/{document_id}/sync:
+    parameters:
+    - $ref: '#/components/parameters/DocumentId'
+    post:
+      summary: Sync collaborative document content
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/ApiVersion'
+      responses:
+        '200':
+          description: Document synchronized
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v1/collaboration/documents/{document_id}/content:
+    parameters:
+    - $ref: '#/components/parameters/DocumentId'
+    get:
+      summary: Get collaborative document content
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/ApiVersion'
+      responses:
+        '200':
+          description: Document content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v1/collaboration/tasks:
+    post:
+      summary: Create collaboration task
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/ApiVersion'
+      responses:
+        '201':
+          description: Task created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v1/collaboration/tasks/{task_id}/assign:
+    parameters:
+    - $ref: '#/components/parameters/TaskId'
+    post:
+      summary: Assign collaboration task
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/ApiVersion'
+      responses:
+        '200':
+          description: Task assigned
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v1/collaboration/tasks/{task_id}/complete:
+    parameters:
+    - $ref: '#/components/parameters/TaskId'
+    post:
+      summary: Complete collaboration task
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/ApiVersion'
+      responses:
+        '200':
+          description: Task completed
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v1/collaboration/calendar/events:
+    post:
+      summary: Create calendar event
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/ApiVersion'
+      responses:
+        '201':
+          description: Calendar event created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v1/collaboration/calendar/conflicts:
+    post:
+      summary: Check calendar conflicts
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/ApiVersion'
+      responses:
+        '200':
+          description: Conflict check response
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /v1/auth/session:
+    get:
+      summary: Verify externally issued HS256 JWT; no token issuance or refresh
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Verified member session
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  rooms:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Room'
-                  messages:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Message'
-                  members:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Member'
-                example:
-                  rooms:
-                    - id: "660e8400-e29b-41d4-a716-446655440001"
-                      name: "Project Alpha"
-                      creatorId: "550e8400-e29b-41d4-a716-446655440000"
-                      createdAt: "2024-01-15T10:30:00Z"
-                  messages: []
-                  members:
-                    - id: "550e8400-e29b-41d4-a716-446655440000"
-                      email: "user@example.com"
-                      username: "johndoe"
-                      createdAt: "2024-01-15T10:30:00Z"
+                $ref: '#/components/schemas/Session'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/rooms/{id}/messages:
+    get:
+      summary: Full authorized room history in accepted order for this gateway process
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Room messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+        '401':
+          description: Missing, invalid, expired, or tenant-scoped credentials
+        '403':
+          description: Member is not authorized for this room operation
+        '404':
+          description: Room does not exist
+        '503':
+          description: Unsupported multi-tenant mode or retry capacity exhausted
+  /v1/rooms/{room_id}/agents:
+    get:
+      summary: Named read-only room assistant capability and data disclosure
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: room_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentCapabilities'
         '400':
-          description: 搜索参数错误
+          description: Request rejected; code and error contain no provider response
+            or credentials
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example:
-                code: "INVALID_QUERY"
-                message: "Search query must be at least 1 character"
         '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/rooms/{room_id}/agent-runs:
+    post:
+      summary: Explicit human invocation; clientRunId is an idempotency key within
+        the one-hour process retry window
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: room_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '202':
+          description: Authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRun'
+        '400':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvokeAgent'
+  /v1/rooms/{room_id}/agent-runs/{run_id}:
+    get:
+      summary: Read current run; room permission checked on every read
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: room_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRun'
+        '400':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/rooms/{room_id}/agent-runs/{run_id}/events:
+    get:
+      summary: Poll ordered events after the exclusive sequence cursor; terminal status
+        stops observation
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: room_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: after
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      responses:
+        '200':
+          description: Authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentEventBatch'
+        '400':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/rooms/{room_id}/agent-runs/{run_id}/cancel:
+    post:
+      summary: Invoker or room owner cancellation; terminal runs remain terminal
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: room_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRun'
+        '400':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/rooms/{room_id}/mcp:
+    post:
+      summary: Stateless read-only MCP 2025-03-26 JSON-RPC over HTTP; room_history
+        only
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: room_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Authorized result
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Request rejected; code and error contain no provider response
+            or credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+    get:
+      summary: Standalone SSE streams are not supported
+      responses:
+        '405':
+          description: Use POST with JSON responses
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  parameters:
+    ApiVersion:
+      name: x-api-version
+      in: header
+      required: true
+      schema:
+        type: string
+        enum:
+        - '1'
+    RoomId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    CollaborationRoomId:
+      name: room_id
+      in: path
+      required: true
+      schema:
+        type: string
+    DocumentId:
+      name: document_id
+      in: path
+      required: true
+      schema:
+        type: string
+    TaskId:
+      name: task_id
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    BadRequest:
+      description: Validation or request contract error
+    Unauthorized:
+      description: Missing or invalid authorization token
+    NotFound:
+      description: Resource not found
+    RateLimited:
+      description: Rate limit exceeded
+    ServiceUnavailable:
+      description: Dependent service unavailable
+  schemas:
+    Session:
+      type: object
+      properties:
+        memberId:
+          type: string
+        memberType:
+          type: string
+          enum:
+          - human
+          - ai
+        expiresAt:
+          type: integer
+          format: int64
+          description: JWT expiry in milliseconds since Unix epoch
+        refreshSupported:
+          type: boolean
+          enum:
+          - false
+      required:
+      - memberId
+      - memberType
+      - expiresAt
+      - refreshSupported
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        roomId:
+          type: string
+        sender:
+          type: string
+        text:
+          type: string
+        reply_to:
+          type: string
+      required:
+      - id
+      - roomId
+      - sender
+      - text
+    RoomSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        topic:
+          type: string
+        member_count:
+          type: integer
+          minimum: 0
+      required:
+      - id
+      - name
+    RoomCreated:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+      required:
+      - id
+      - name
+    RoomDetails:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        topic:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+      required:
+      - id
+      - name
+      - messages
+    RoomList:
+      type: object
+      properties:
+        rooms:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoomSummary'
+        total:
+          type: integer
+          minimum: 0
+      required:
+      - rooms
+      - total
+    MessageCreate:
+      type: object
+      properties:
+        roomId:
+          type: string
+        text:
+          type: string
+          minLength: 1
+          description: Nonblank UTF-8 text, at most 32768 bytes
+        replyTo:
+          type: string
+          nullable: true
+        sender:
+          type: string
+          deprecated: true
+          description: Ignored; JWT subject is authoritative
+        clientMessageId:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: Optional retry key (1–128 UTF-8 bytes); scoped to member and
+            room, retained 60 minutes in this process
+      required:
+      - roomId
+      - text
+    RoomCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        topic:
+          type: string
+          nullable: true
+      required:
+      - name
+    AgentRunEvent:
+      type: object
+      required:
+      - sequence
+      - kind
+      - text
+      - timestamp
+      properties:
+        sequence:
+          type: integer
+          minimum: 1
+        kind:
+          type: string
+        text:
+          type: string
+          nullable: true
+        timestamp:
+          type: integer
+          minimum: 0
+      additionalProperties: false
+    AgentUsage:
+      type: object
+      required:
+      - inputTokens
+      - outputTokens
+      - outputBytes
+      - toolCalls
+      properties:
+        inputTokens:
+          type: integer
+          minimum: 0
+          nullable: true
+        outputTokens:
+          type: integer
+          minimum: 0
+          nullable: true
+        outputBytes:
+          type: integer
+          minimum: 0
+        toolCalls:
+          type: integer
+          minimum: 0
+          maximum: 1
+      additionalProperties: false
+    AgentRun:
+      type: object
+      required:
+      - contractVersion
+      - id
+      - roomId
+      - invokedBy
+      - agentId
+      - agentName
+      - traceId
+      - status
+      - answer
+      - sourceMessageIds
+      - usage
+      - maxOutputTokens
+      - maxOutputBytes
+      - deadlineMs
+      - createdAt
+      - finishedAt
+      - latencyMs
+      - errorCode
+      - events
+      properties:
+        contractVersion:
+          type: string
+          enum:
+          - '1.0'
+        id:
+          type: string
+        roomId:
+          type: string
+        invokedBy:
+          type: string
+        agentId:
+          type: string
+          enum:
+          - nexis:ai:room-assistant
+        agentName:
+          type: string
+        traceId:
+          type: string
+        status:
+          type: string
+          enum:
+          - queued
+          - running
+          - completed
+          - failed
+          - cancelled
+        answer:
+          type: string
+        sourceMessageIds:
+          type: array
+          items:
+            type: string
+          maxItems: 20
+        usage:
+          $ref: '#/components/schemas/AgentUsage'
+        maxOutputTokens:
+          type: integer
+          minimum: 1
+          maximum: 4096
+        maxOutputBytes:
+          type: integer
+          minimum: 1
+          maximum: 4096
+        deadlineMs:
+          type: integer
+          minimum: 1
+          maximum: 60000
+        createdAt:
+          type: integer
+          minimum: 0
+        finishedAt:
+          type: integer
+          minimum: 0
+          nullable: true
+        latencyMs:
+          type: integer
+          minimum: 0
+          nullable: true
+        errorCode:
+          type: string
+          nullable: true
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentRunEvent'
+          maxItems: 512
+      additionalProperties: false
+    InvokeAgent:
+      type: object
+      required:
+      - clientRunId
+      - prompt
+      properties:
+        clientRunId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        prompt:
+          type: string
+          minLength: 1
+          maxLength: 4096
+        sourceMessageIds:
+          type: array
+          items:
+            type: string
+          maxItems: 20
+          uniqueItems: true
+          default: []
+        tool:
+          type: string
+          nullable: true
+          enum:
+          - room_history
+          - null
+        maxOutputTokens:
+          type: integer
+          minimum: 1
+          maximum: 4096
+          default: 1024
+        deadlineMs:
+          type: integer
+          minimum: 1
+          maximum: 60000
+          default: 60000
+      additionalProperties: false
+    AgentCapabilities:
+      type: object
+      required:
+      - contractVersion
+      - agentId
+      - agentName
+      - enabled
+      - contextMessageLimit
+      - maxOutputTokens
+      - maxToolCalls
+      - provider
+      - disclosure
+      properties:
+        contractVersion:
+          type: string
+        agentId:
+          type: string
+        agentName:
+          type: string
+        enabled:
+          type: boolean
+        contextMessageLimit:
+          type: integer
+          minimum: 0
+        maxOutputTokens:
+          type: integer
+          minimum: 0
+        maxToolCalls:
+          type: integer
+          minimum: 0
+        provider:
+          type: string
+        disclosure:
+          type: string
+      additionalProperties: false
+    AgentEventBatch:
+      type: object
+      required:
+      - events
+      - status
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentRunEvent'
+        status:
+          type: string
+          enum:
+          - queued
+          - running
+          - completed
+          - failed
+          - cancelled
+      additionalProperties: false
+    Error:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+      additionalProperties: false

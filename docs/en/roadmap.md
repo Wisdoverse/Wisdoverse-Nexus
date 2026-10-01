@@ -64,7 +64,7 @@ surfaces and verification commands.
 
 ## Prioritized Milestones
 
-M1 is **in review**; M2–M5 remain **planned**. Mark a milestone complete only when its
+M1 implementation is **merged** in PR #110; M2 is **implemented with local synthetic validation**, with real-provider/reviewer acceptance pending. M3–M5 remain **planned**. See the [room agent guide](guides/room-agent.md). Mark a milestone complete only when its
 acceptance checks have passed and the evidence is linked from its public issue
 or pull request. Priority indicates order, not a release date. M1 precedes M2;
 M3 must pass before expanding deployment scope, and M4 requires M2 and M3.
@@ -73,7 +73,7 @@ M5 follows a validated M4 workflow.
 ## Execution and Quality Gates
 
 The [execution standard](guides/roadmap-execution.md) decomposes M1–M5 into
-20 work packages (RD-001–RD-020): RD-001–RD-004 are in review; the remainder are planned, with dependencies, proposed
+20 work packages (RD-001–RD-020): RD-001–RD-004 are merged; RD-005–RD-008 have implementation and local synthetic evidence with external acceptance pending; RD-009–RD-020 remain planned, with dependencies, proposed
 responsibility roles, readiness/completion rules, and required evidence.
 Assign actual owners before Ready; publish dates only with reviewed estimates.
 
@@ -97,8 +97,7 @@ agent action; require human approval for writes and external side effects.
 
 Implementation, successful public CI and reproducible acceptance evidence are
 linked in the [M1 report](guides/m1-acceptance.md) and
-[PR #110](https://github.com/Wisdoverse/Wisdoverse-Nexus/pull/110). M1 is **in review**:
-human reviewer acceptance and merge remain pending. Other milestones remain planned.
+[PR #110](https://github.com/Wisdoverse/Wisdoverse-Nexus/pull/110). M1 implementation is **merged** at `dc40ae6bb53f9ad7b88b91122113c24ecbc88646`. Maintainer acceptance ownership remains to be recorded; merge does not establish production release qualification.
 
 Align the gateway, API documentation, Web/mobile clients, and both SDKs around
 the supported authentication, room, message, and WebSocket contracts.

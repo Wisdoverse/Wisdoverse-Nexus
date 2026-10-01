@@ -1,5 +1,8 @@
 """Async HTTP client for the supported gateway contract."""
 from __future__ import annotations
+import asyncio
+import math
+import time
 from urllib.parse import quote, urlsplit, urlunsplit
 import httpx
 from uuid import uuid4
@@ -64,6 +67,40 @@ class NexisClient:
     async def get_messages(self, room_id: str) -> list[Message]:
         response = await self._request("GET", f"/v1/rooms/{quote(room_id, safe='')}/messages")
         return [self._parse_message(message) for message in response.json()]
+
+    async def agent_capabilities(self, room_id: str) -> dict:
+        return (await self._request("GET", f"/v1/rooms/{quote(room_id, safe='')}/agents")).json()
+
+    async def invoke_agent(self, room_id: str, prompt: str, *, client_run_id: str | None = None, source_message_ids: list[str] | None = None, tool: str | None = "room_history", max_output_tokens: int = 1024, deadline_ms: int = 60000) -> dict:
+        payload = {"clientRunId": client_run_id or str(uuid4()), "prompt": prompt, "sourceMessageIds": source_message_ids or [], "tool": tool, "maxOutputTokens": max_output_tokens, "deadlineMs": deadline_ms}
+        return (await self._request("POST", f"/v1/rooms/{quote(room_id, safe='')}/agent-runs", json=payload)).json()
+
+    async def get_agent_run(self, room_id: str, run_id: str) -> dict:
+        return (await self._request("GET", f"/v1/rooms/{quote(room_id, safe='')}/agent-runs/{quote(run_id, safe='')}")).json()
+
+    async def get_agent_events(self, room_id: str, run_id: str, after: int = 0) -> dict:
+        return (await self._request("GET", f"/v1/rooms/{quote(room_id, safe='')}/agent-runs/{quote(run_id, safe='')}/events", params={"after": after})).json()
+
+    async def cancel_agent_run(self, room_id: str, run_id: str) -> dict:
+        return (await self._request("POST", f"/v1/rooms/{quote(room_id, safe='')}/agent-runs/{quote(run_id, safe='')}/cancel")).json()
+
+    async def observe_agent_run(self, room_id: str, run_id: str, *, timeout: float = 65, poll_interval: float = 0.2):
+        if not math.isfinite(timeout) or not math.isfinite(poll_interval) or timeout <= 0 or poll_interval < 0.01:
+            raise ValueError("Invalid observation budget")
+        deadline = time.monotonic() + timeout
+        after = 0
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("Agent observation timed out")
+            batch = await asyncio.wait_for(self.get_agent_events(room_id, run_id, after), remaining)
+            for event in batch["events"]:
+                if event["sequence"] > after:
+                    after = event["sequence"]
+                    yield event
+            if batch["status"] in {"completed", "failed", "cancelled"}:
+                return
+            await asyncio.sleep(min(poll_interval, max(0, deadline - time.monotonic())))
 
     async def export_data(self) -> dict:
         return (await self._request("GET", "/v1/members/me/export")).json()

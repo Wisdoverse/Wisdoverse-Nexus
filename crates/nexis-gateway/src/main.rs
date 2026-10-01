@@ -196,7 +196,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Build router
     let app = Router::new()
-        .merge(router::build_routes())
+        .merge(router::try_build_routes()?)
         .layer(middleware::from_fn(security_headers_middleware))
         .layer(middleware::from_fn(enforce_https_middleware))
         .layer(build_cors_layer())

@@ -7,7 +7,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack'
 
 import { RoomListScreen } from '../../features/rooms'
 import { SearchScreen } from '../../features/search'
-import { MessageStreamScreen } from '../../features/messages'
+import { RoomScreen } from '../../pages/room'
 import type { MainTabParamList, RootStackParamList } from '../../shared/navigation'
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
@@ -51,7 +51,7 @@ export function RootNavigator() {
         <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
         <Stack.Screen
           name="MessageStream"
-          component={MessageStreamScreen}
+          component={RoomScreen}
           options={({ route }) => ({ title: route.params.roomName })}
         />
       </Stack.Navigator>

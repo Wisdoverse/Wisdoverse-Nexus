@@ -10,6 +10,11 @@ versions. Breaking changes must be called out in release notes.
 
 ### Added
 
+- Explicit room assistant runs with scoped context/read-only MCP tools, bounded
+  OpenAI-compatible streaming, provider usage, idempotent invocation and cancellation.
+  Web/mobile and both SDKs observe the shared run; synthetic live-gateway qualification
+  is separate from real-provider and human pilot acceptance.
+
 - Added static FSD/DDD boundary checks with behavior tests and CI enforcement for
   covered Web/mobile and gateway domain modules.
 - Verified JWT session and room history endpoints, creator/member permission checks,
