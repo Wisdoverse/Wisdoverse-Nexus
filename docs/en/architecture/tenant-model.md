@@ -49,7 +49,7 @@ Example: urn:uuid:0194a2b8-7c2d-7d3e-8f4a-5b6c7d8e9f0a
 |------|--------|---------|
 | `TenantId` | - | `0194a2b8-7c2d-7d3e-8f4a-5b6c7d8e9f0a` |
 | `WorkspaceId` | - | `0194a2b9-1a2b-3c4d-5e6f-7a8b9c0d1e2f` |
-| `MemberId` | `nexis:` | `nexis:human:alice@acme.com` |
+| `MemberId` | `nexis:` | `nexis:human:alice@example.com` |
 | `RoomId` | - | `0194a2ba-2b3c-4d5e-6f7a-8b9c0d1e2f3a` |
 
 ## Cross-Module Entity Mapping

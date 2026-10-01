@@ -1,3 +1,8 @@
+> This pull request is public. Review the diff and attached logs/screenshots for
+> personal data, customer/tenant identifiers, private addresses, and credentials.
+> Use synthetic or redacted evidence. Report exposed sensitive information
+> privately using [SECURITY.md](https://github.com/Wisdoverse/Wisdoverse-Nexus/blob/main/SECURITY.md).
+
 ## Summary
 
 <!-- What changed and why? -->

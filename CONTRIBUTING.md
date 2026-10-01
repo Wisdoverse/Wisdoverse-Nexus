@@ -109,6 +109,22 @@ Build the docs before submitting:
 pnpm --dir docs docs:build
 ```
 
+## Public Material and Privacy
+
+This repository, its issues, and its pull requests are public. Use synthetic
+data and reserved example domains such as `example.com` in documentation,
+fixtures, and reproduction steps.
+
+Before publishing code, logs, screenshots, traces, configuration, or benchmark
+results, remove personal contact details, customer/tenant names and identifiers,
+private infrastructure addresses, personal workstation paths, and credentials.
+Redact authorization headers, cookies, tokens, and sensitive message payloads.
+Check image metadata and visible account information when sharing screenshots.
+
+If sensitive information has already been published, follow the private report
+process in [SECURITY.md](SECURITY.md). Do not copy the original information into
+a public issue or pull request.
+
 ## Pull Requests
 
 A good pull request includes:

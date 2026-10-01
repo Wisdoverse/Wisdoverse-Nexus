@@ -93,6 +93,9 @@ CI 必须通过后才能合并。维护者可能会要求拆分过大的 PR。
 文档必须描述当前仓库事实，而不是未来计划。
 
 - 不写未经验证的 benchmark、认证、客户或兼容性声明。
+- 公开示例使用合成数据和 `example.com` 等保留示例域名。
+- 日志、截图和配置移除个人信息、客户/租户标识、私有地址、个人电脑路径和凭据。
+  对认证头、cookie、token 和敏感载荷脱敏；发布截图前检查元数据和可见的账户信息。
 - 首次运行流程变化时，同步更新英文和中文入口。
 - 公开文档站使用 <https://wisdoverse.github.io/Wisdoverse-Nexus/>。
 - 仓库链接统一使用 `https://github.com/Wisdoverse/Wisdoverse-Nexus`。

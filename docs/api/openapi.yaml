@@ -13,10 +13,10 @@ info:
     - 超过限制将返回 429 Too Many Requests
 
 servers:
-  - url: https://api.wisdoverse.com
-    description: Production server
-  - url: https://api-staging.wisdoverse.com
-    description: Staging server
+  - url: http://localhost:8080
+    description: Local development gateway
+  - url: https://api.example.com
+    description: Placeholder for a self-hosted gateway; replace with your deployment URL
 
 security:
   - BearerAuth: []
@@ -63,7 +63,7 @@ components:
           type: string
           format: uri
           description: 头像 URL
-          example: "https://cdn.wisdoverse.com/avatars/123.png"
+          example: "https://cdn.example.com/avatars/123.png"
         status:
           type: string
           enum: [online, offline, away, busy]
