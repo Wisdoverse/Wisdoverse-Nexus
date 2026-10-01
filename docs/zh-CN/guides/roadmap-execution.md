@@ -24,9 +24,9 @@
 
 ## 执行工作包
 
-RD-001–RD-004 为**审阅中**，自动化通过证据见
+RD-001–RD-004 **实现已合并**，自动化通过证据见
 [PR #110](https://github.com/Wisdoverse/Wisdoverse-Nexus/pull/110)和
-[M1 报告](../../en/guides/m1-acceptance.md)；其余工作包仍为**计划中**。
+[M1 报告](../../en/guides/m1-acceptance.md)；RD-005–RD-008 有实现和本地合成证据，真实提供商/人工验收待完成；RD-009–RD-020 为**计划中**。
 人工 DRI 与验收审阅者的实际指派尚未记录；责任列仅表示建议角色。
 维护者在工作包进入 Ready 前，指定一位以公开身份标识的直接责任人（DRI）和适当的审阅者。
 这些编号是本地规划 ID，不是已有 GitHub issue 编号。每个工作包拆成独立可审阅的小 PR，

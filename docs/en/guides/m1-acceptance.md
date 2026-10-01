@@ -1,7 +1,6 @@
 # M1 implementation and acceptance evidence
 
-Status as of 2026-10-01: **implementation and automated checks passed; human
-reviewer acceptance and merge pending** in [PR #110](https://github.com/Wisdoverse/Wisdoverse-Nexus/pull/110).
+Status as of 2026-10-01: **implementation and automated checks passed; merged at `dc40ae6bb53f9ad7b88b91122113c24ecbc88646`; maintainer acceptance ownership remains to be recorded** in [PR #110](https://github.com/Wisdoverse/Wisdoverse-Nexus/pull/110).
 Scope: RD-001–RD-004 / QG-01. The supported profile is one gateway process,
 default features, single tenant, and in-memory room/message state.
 

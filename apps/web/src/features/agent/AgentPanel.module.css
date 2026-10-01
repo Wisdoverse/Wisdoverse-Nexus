@@ -1,0 +1,59 @@
+.panel {
+  padding: 1.25rem;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: #fff;
+  overflow-y: auto;
+}
+.panel h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.75rem;
+}
+.panel p {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #475569;
+}
+.panel form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.panel textarea {
+  min-height: 6rem;
+  resize: vertical;
+  padding: 0.75rem;
+  border: 1px solid #94a3b8;
+  border-radius: 8px;
+  font: inherit;
+}
+.panel button {
+  padding: 0.65rem 0.9rem;
+  border: 0;
+  border-radius: 8px;
+  background: #0b5fff;
+  color: #fff;
+  cursor: pointer;
+}
+.panel button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.panel button:focus-visible,
+.panel textarea:focus-visible,
+.panel a:focus-visible {
+  outline: 3px solid #0b5fff;
+  outline-offset: 3px;
+}
+.panel nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+.answer {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}

@@ -29,9 +29,9 @@ mitigation, and expiry or upstream re-evaluation condition.
 
 ## Execution Packages
 
-RD-001–RD-004 are **in review**, with passed automated evidence in
+RD-001–RD-004 implementation is **merged**, with passed automated evidence in
 [PR #110](https://github.com/Wisdoverse/Wisdoverse-Nexus/pull/110) and the
-[M1 report](m1-acceptance.md). Remaining packages are **planned**. Human DRI and
+[M1 report](m1-acceptance.md). RD-005–RD-008 have implementation and local synthetic evidence; real-provider/reviewer acceptance is pending. RD-009–RD-020 remain **planned**. Human DRI and
 acceptance-reviewer assignments remain unrecorded; responsibility names below
 are proposed roles, not completed governance assignments. A maintainer assigns one publicly identified directly responsible
 individual (DRI) and an appropriate reviewer before a package becomes Ready.

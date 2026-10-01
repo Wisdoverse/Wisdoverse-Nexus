@@ -59,6 +59,9 @@ lazy_static! {
     // AI Provider Metrics
     // ============================================================================
 
+    pub static ref AGENT_RUNS_TOTAL: CounterVec =
+        register_counter_vec!("nexis_agent_runs_total", "Terminal governed agent runs", &["status"]).unwrap();
+
     /// AI provider requests
     pub static ref AI_REQUESTS_TOTAL: CounterVec =
         register_counter_vec!("nexis_ai_requests_total", "Total AI provider requests", &["provider"]).unwrap();

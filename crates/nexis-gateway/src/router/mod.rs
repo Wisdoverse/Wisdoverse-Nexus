@@ -29,6 +29,7 @@ use crate::search::{SearchApplication, SearchInterfaceState, SearchService};
 #[derive(Clone)]
 pub(crate) struct AppState {
     rooms: RoomApplication,
+    agents: crate::agent_runs::AgentApplication,
     privacy: PrivacyApplication,
     search_application: Option<SearchApplication>,
     ws_state: WebSocketState,
@@ -36,13 +37,23 @@ pub(crate) struct AppState {
 
 impl Default for AppState {
     fn default() -> Self {
+        Self::try_new().expect("invalid agent provider configuration")
+    }
+}
+
+impl AppState {
+    fn try_new() -> Result<Self, crate::agent_runs::domain::RunError> {
         let rooms = RoomApplication::default();
-        Self {
+        Ok(Self {
+            agents: crate::agent_runs::AgentApplication::new(
+                rooms.clone(),
+                crate::agent_runs::infrastructure::configured_provider()?,
+            ),
             privacy: PrivacyApplication::new(rooms.clone()),
             ws_state: WebSocketState::default().with_rooms(rooms.clone()),
             rooms,
             search_application: None,
-        }
+        })
     }
 }
 
@@ -60,6 +71,12 @@ impl AppState {
 impl RoomInterfaceState for AppState {
     fn rooms(&self) -> &RoomApplication {
         &self.rooms
+    }
+}
+
+impl crate::agent_runs::AgentInterfaceState for AppState {
+    fn agents(&self) -> &crate::agent_runs::AgentApplication {
+        &self.agents
     }
 }
 
@@ -82,6 +99,7 @@ fn v1_routes() -> Router<AppState> {
     Router::new()
         .route("/v1/auth/session", get(crate::auth::session))
         .merge(crate::rooms::routes())
+        .merge(crate::agent_runs::routes())
         .merge(crate::search::routes())
         .merge(crate::privacy::routes())
         .merge(crate::collaboration::routes())
@@ -89,10 +107,14 @@ fn v1_routes() -> Router<AppState> {
 
 /// Build the main router for the gateway
 pub fn build_routes() -> Router {
-    let state = AppState::default();
+    try_build_routes().expect("invalid gateway configuration")
+}
+
+pub fn try_build_routes() -> Result<Router, crate::agent_runs::domain::RunError> {
+    let state = AppState::try_new()?;
     let rate_limiter = Arc::new(crate::rate_limit::RateLimiter::from_env());
 
-    Router::new()
+    Ok(Router::new()
         .route("/health", get(health_check))
         .route("/metrics", get(metrics_handler))
         .route("/openapi.json", get(openapi_json))
@@ -103,7 +125,7 @@ pub fn build_routes() -> Router {
             crate::rate_limit::rate_limit_middleware,
         )))
         .layer(middleware::from_fn(correlation_id_middleware))
-        .with_state(state)
+        .with_state(state))
 }
 
 /// Build router with search service

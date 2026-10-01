@@ -9,6 +9,7 @@
 //! - Metrics and monitoring
 //! - Multi-tenant isolation (with `multi-tenant` feature)
 
+pub mod agent_runs;
 pub mod ai;
 pub mod auth;
 pub mod collaboration;
