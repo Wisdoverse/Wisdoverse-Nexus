@@ -5,7 +5,13 @@ aligning updates with the versions and runtime constraints already on `main`.
 All 16 source PRs are closed: five because `main` already contains a higher
 compatible version, and eleven replaced by the compatible grouped update in
 [PR #111](https://github.com/Wisdoverse/Wisdoverse-Nexus/pull/111).
-Its public CI and final review are tracked on that PR.
+The recorded runtime head `98c8ff6172ba58bdb90db6dde1b5172300e7da52` passed
+[CI](https://github.com/Wisdoverse/Wisdoverse-Nexus/actions/runs/36851793249),
+[security](https://github.com/Wisdoverse/Wisdoverse-Nexus/actions/runs/36851793412),
+[coverage](https://github.com/Wisdoverse/Wisdoverse-Nexus/actions/runs/36851793298), and
+[benchmark](https://github.com/Wisdoverse/Wisdoverse-Nexus/actions/runs/36851793262)
+on 2026-10-01. Human review and merge remain pending. Later documentation edits
+do not change this historical evidence; behavior changes require fresh checks.
 
 | Source PR | Disposition |
 | --- | --- |
@@ -30,6 +36,30 @@ The source PRs were superseded on 2026-10-01. PR #111 contains the reviewable
 replacement and tracks final CI and acceptance; source closure does not mean
 that the grouped update is already merged.
 
+## Reproduce the verification
+
+```bash
+pnpm install --frozen-lockfile --ignore-scripts
+cargo clippy --locked --workspace --all-targets -- -D warnings
+cargo test --locked --workspace
+pnpm --filter @wisdoverse/nexus-web exec vitest run
+pnpm --filter @wisdoverse/nexus-web build
+pnpm --filter @wisdoverse/nexus-sdk build
+pnpm --filter @wisdoverse/nexus-mobile typecheck
+pnpm --filter @wisdoverse/nexus-mobile test
+pnpm --filter @wisdoverse/nexus-mobile exec expo install --check
+pnpm --dir docs docs:build
+pnpm audit --audit-level moderate
+npm --prefix apps/mobile audit --audit-level=moderate
+npm --prefix docs audit --audit-level=moderate
+npm --prefix apps/web/e2e audit --audit-level=moderate
+```
+
+Record the current commit, toolchain and actual outputs when rerunning. Lockfile
+installation and audits validate package resolution; native-device UX and browser
+execution need their own tests. Preserve Expo 55 compatibility until an explicit
+Expo/React Native migration is qualified.
+
 ## Local verification evidence
 
 The following local checks completed successfully:
@@ -45,10 +75,23 @@ The following local checks completed successfully:
 The Expo online compatibility check could not reach its remote metadata
 through the environment proxy. Its offline-mode output said dependency
 validation was unreliable, so that output is not counted as a compatibility
-pass. Public CI remains to be checked on the grouped PR.
+pass. The online compatibility check passed in the linked public CI run.
 
 Docker image changes use the Rust 1.97 slim Bookworm builder to match the
 Debian 12 runtime, retain `cargo --locked`, and include the root health-check
 `curl` dependency fix. The gateway image built successfully with Rust 1.97 on Bookworm,
 using a temporary CA trust mount for this environment. A non-root container
 started successfully and returned HTTP 200 / `OK` from `/health`.
+
+## Integration and remaining gates
+
+A local preview combining PR #111 with M1 head
+`e98e9c1c4d769dcc2a142d36b89ff239e2332815` passed 21 real-gateway scenario
+groups, 56 Web tests and mobile typecheck. The recorded local merge revision is
+`ad0b1a98bee51e43f101bae429011c1fbf569ebd`. Integrating both branches requires
+retaining both CHANGELOG entry sets and keeping new CI checkout steps on v7.
+
+React Native 0.86 remains deferred pending an Expo migration with compatibility
+and native-device checks. Source PR closure records disposition, not acceptance
+or publication. Human review, merge and release/artifact verification remain
+separate gates.
