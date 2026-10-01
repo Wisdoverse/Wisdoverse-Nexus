@@ -18,17 +18,30 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Read qualified repository toolchain
+      id: toolchain
+      shell: bash
+      run: |
+        python3 - <<'PYTHON'
+        import os
+        import tomllib
+        from pathlib import Path
+        channel = tomllib.loads(Path("rust-toolchain.toml").read_text())["toolchain"]["channel"]
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+            output.write(f"channel={channel}\n")
+        PYTHON
+
     - name: Install Rust
       if: inputs.components == ''
       uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
       with:
-        toolchain: 1.98.1
+        toolchain: ${{ steps.toolchain.outputs.channel }}
 
     - name: Install Rust
       if: inputs.components != ''
       uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
       with:
-        toolchain: 1.98.1
+        toolchain: ${{ steps.toolchain.outputs.channel }}
         components: ${{ inputs.components }}
 
     - name: Cache cargo
