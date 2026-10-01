@@ -95,3 +95,12 @@ React Native 0.86 remains deferred pending an Expo migration with compatibility
 and native-device checks. Source PR closure records disposition, not acceptance
 or publication. Human review, merge and release/artifact verification remain
 separate gates.
+
+## Compiler qualification
+
+CI now selects Rust 1.98.1 explicitly, matching the compiler used for local
+qualification. A later floating-stable M1 run selected Rust 1.99 and rejected
+`async_trait`-generated `must_use` attributes under the strict lint gate.
+Compiler adoption requires fresh qualification; the workspace lint gate stays
+strict. Docker builders retain the separately validated Rust 1.97/Bookworm
+profile. New workflow links for this configuration revision are recorded in PR #111.
