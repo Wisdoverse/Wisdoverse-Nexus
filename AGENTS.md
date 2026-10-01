@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-Wisdoverse Nexus: Rust + TypeScript monorepo. Node 24.x, pnpm `>=10.30.0`, Rust edition 2021.
+Wisdoverse Nexus: Rust + TypeScript monorepo. Node 24.x, pnpm `>=10.30.0`, Rust edition 2021; CI pins the qualified Rust 1.98.1 toolchain.
 
 ## Layout
 

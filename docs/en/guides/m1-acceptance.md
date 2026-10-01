@@ -69,12 +69,12 @@ The IDs and responsibilities follow the [execution standard](roadmap-execution.m
 | RD-003: message safety/recovery | Stable sender/message/reply references, ordered writes/history, scoped one-hour retry deduplication, conflict responses and reconnect recovery | Concurrent HTTP and WS retry/ack/history cases; application tests for membership, failed writes, ledger capacity/expiry and cross-room replies |
 | RD-004: live CI | Fresh-checkout isolated gateway, synthetic credentials/data, bounded waits, cleanup and sanitized retained results | `scripts/m1_smoke.sh`, `M1 Live Gateway Contracts` CI job, JSON summary and logs |
 
-## Observed results and profile
+## Initial observed results and profile
 
 Local qualification used Linux x86_64, Rust 1.98.1, Node 24.19.0,
 pnpm 10.30.3 and Python 3.12.14. The live runner builds a locked development
 binary and starts an ephemeral loopback gateway with synthetic users/rooms.
-CI toolchain selection is defined in the workflow: Ubuntu runner, Rust stable,
+CI toolchain selection is defined in the workflow: Ubuntu runner, pinned Rust 1.98.1,
 Node 24, Python 3.12 and tracked dependency locks.
 
 | Check | Observed result | Interpretation |

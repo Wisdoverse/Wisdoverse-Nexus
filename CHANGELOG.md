@@ -23,6 +23,9 @@ versions. Breaking changes must be called out in release notes.
 
 ### Changed
 
+- CI pins the qualified Rust 1.98.1 compiler instead of floating `stable`; compiler
+  upgrades require a fresh qualification before changing the strict lint baseline.
+
 - M1 Kubernetes/Helm profiles now use one instance and Recreate upgrades, inject
   JWT keys through an existing Secret, support image digests, and include startup
   probes. Helm rejects unqualified multi-replica or autoscaling configurations.

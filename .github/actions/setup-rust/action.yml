@@ -1,5 +1,5 @@
 name: Setup Rust
-description: Install the stable Rust toolchain and restore Cargo build caches.
+description: Install the qualified Rust 1.98.1 toolchain and restore Cargo build caches.
 
 inputs:
   components:
@@ -22,13 +22,13 @@ runs:
       if: inputs.components == ''
       uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
       with:
-        toolchain: stable
+        toolchain: 1.98.1
 
     - name: Install Rust
       if: inputs.components != ''
       uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
       with:
-        toolchain: stable
+        toolchain: 1.98.1
         components: ${{ inputs.components }}
 
     - name: Cache cargo
