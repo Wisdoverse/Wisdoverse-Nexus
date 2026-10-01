@@ -1,79 +1,101 @@
-"""WebSocket connection for Wisdoverse Nexus."""
-
+"""First-message authentication and room subscription with bounded reconnect."""
 from __future__ import annotations
 import asyncio
 import json
-from typing import Any, AsyncIterator, Callable, Optional
+from typing import AsyncIterator
 import websockets
 from websockets.asyncio.client import ClientConnection
+from websockets.protocol import State
 
 
 class WebSocketConnection:
-    """Async WebSocket connection to Wisdoverse Nexus gateway."""
-
-    def __init__(
-        self,
-        url: str,
-        token: str,
-        max_reconnect: int = 5,
-        reconnect_delay: float = 1.0,
-    ):
-        self._url = url
-        self._token = token
-        self._max_reconnect = max_reconnect
-        self._reconnect_delay = reconnect_delay
-        self._ws: Optional[ClientConnection] = None
-        self._should_reconnect = True
-        self._handlers: list[Callable[[dict], Any]] = []
+    def __init__(self, url: str, token: str, room_id: str | None = None,
+                 max_reconnect: int = 5, reconnect_delay: float = 1.0):
+        if max_reconnect < 0 or reconnect_delay < 0:
+            raise ValueError("Reconnect settings must be nonnegative")
+        self._url, self._token, self._room_id = url, token, room_id
+        self._max_reconnect, self._reconnect_delay = max_reconnect, reconnect_delay
+        self._ws: ClientConnection | None = None
+        self._stop = asyncio.Event()
+        self._handlers = []
 
     async def connect(self) -> None:
-        self._should_reconnect = True
+        await self.close()
+        self._stop.clear()
         await self._do_connect()
 
     async def _do_connect(self) -> None:
-        attempt = 0
-        while attempt < self._max_reconnect:
+        for attempt in range(self._max_reconnect + 1):
+            if self._stop.is_set():
+                raise ConnectionError("Connection was closed")
+            socket = None
             try:
-                headers = {"Authorization": f"Bearer {self._token}"}
-                self._ws = await websockets.connect(self._url, additional_headers=headers)
+                socket = await websockets.connect(self._url, open_timeout=10)
+                await socket.send(json.dumps({"type": "auth", "token": f"Bearer {self._token}"}))
+                result = json.loads(await asyncio.wait_for(socket.recv(), 10))
+                if result.get("type") != "auth_success":
+                    raise PermissionError("Gateway rejected WebSocket authentication")
+                if self._room_id:
+                    await socket.send(json.dumps({"type": "join_room", "room_id": self._room_id}))
+                    result = json.loads(await asyncio.wait_for(socket.recv(), 10))
+                    if result.get("type") != "room_joined" or result.get("room_id") != self._room_id:
+                        raise PermissionError("Gateway rejected room subscription")
+                if self._stop.is_set():
+                    await socket.close()
+                    raise ConnectionError("Connection was closed")
+                self._ws = socket
                 return
-            except Exception:
-                attempt += 1
-                if attempt < self._max_reconnect:
-                    delay = self._reconnect_delay * (2 ** (attempt - 1))
-                    await asyncio.sleep(delay)
-        raise ConnectionError(f"Failed to connect after {self._max_reconnect} attempts")
+            except PermissionError:
+                if socket:
+                    await socket.close()
+                self._stop.set()
+                raise
+            except (OSError, TimeoutError, websockets.WebSocketException):
+                if socket:
+                    await socket.close()
+                if attempt == self._max_reconnect:
+                    raise ConnectionError("WebSocket reconnect attempts exhausted") from None
+                try:
+                    await asyncio.wait_for(self._stop.wait(), min(30, self._reconnect_delay * 2 ** attempt))
+                except TimeoutError:
+                    pass
+        raise ConnectionError("Connection was closed")
 
     async def send(self, message: dict) -> None:
-        if self._ws and not self._ws.closed:
-            await self._ws.send(json.dumps(message))
-        else:
+        if not self.is_connected:
             raise ConnectionError("WebSocket is not connected")
+        await self._ws.send(json.dumps(message))
 
     async def messages(self) -> AsyncIterator[dict]:
-        """Yield incoming messages as dicts."""
         if not self._ws:
-            raise ConnectionError("WebSocket is not connected")
-        try:
-            async for raw in self._ws:
-                yield json.loads(raw)
-        except websockets.ConnectionClosed:
-            pass
+            raise ConnectionError("Call connect() first")
+        while not self._stop.is_set():
+            try:
+                async for raw in self._ws:
+                    message = json.loads(raw)
+                    if message.get("type") in ("auth_error", "auth_required"):
+                        self._stop.set()
+                        raise PermissionError("WebSocket credentials expired or were rejected")
+                    yield message
+            except websockets.ConnectionClosed:
+                pass
+            if not self._stop.is_set():
+                await self._do_connect()
 
     async def listen(self) -> None:
-        """Listen and dispatch messages to handlers."""
-        async for msg in self.messages():
+        async for message in self.messages():
             for handler in self._handlers:
-                handler(msg)
+                handler(message)
 
-    def on_message(self, handler: Callable[[dict], Any]) -> None:
+    def on_message(self, handler) -> None:
         self._handlers.append(handler)
 
     async def close(self) -> None:
-        self._should_reconnect = False
-        if self._ws and not self._ws.closed:
-            await self._ws.close()
+        self._stop.set()
+        socket, self._ws = self._ws, None
+        if socket:
+            await socket.close()
 
     @property
     def is_connected(self) -> bool:
-        return self._ws is not None and not self._ws.closed
+        return self._ws is not None and self._ws.state is State.OPEN

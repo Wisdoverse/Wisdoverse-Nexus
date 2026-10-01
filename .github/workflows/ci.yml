@@ -137,11 +137,44 @@ jobs:
       - name: Build web app
         run: pnpm --filter @wisdoverse/nexus-web build
 
+      - name: Test web app
+        run: pnpm --filter @wisdoverse/nexus-web exec vitest run
+
       - name: Build TypeScript SDK
         run: pnpm --filter @wisdoverse/nexus-sdk build
 
       - name: Build documentation site
         run: pnpm --dir docs docs:build
+
+  collaboration-smoke:
+    name: M1 Live Gateway Contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          cache-key: collaboration-smoke
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install smoke dependencies
+        run: python -m pip install -r tests/smoke/requirements.txt
+      - name: Run real gateway and all four clients
+        run: bash scripts/m1_smoke.sh
+      - name: Retain sanitized contract evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: m1-live-gateway-contracts
+          path: artifacts/m1/
+          if-no-files-found: error
+          retention-days: 30
 
   # ============================================================================
   # Security Audit

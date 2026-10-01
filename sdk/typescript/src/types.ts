@@ -1,95 +1,21 @@
-// Auth Types
-export interface NexisConfig {
-  baseUrl: string;
-  timeout?: number;
-}
-
-export interface RegisterData {
-  email: string;
-  password: string;
-  displayName?: string;
-}
-
-export interface AuthResult {
-  token: string;
-  refreshToken: string;
-  user: User;
-}
-
-export interface User {
-  id: string;
-  email: string;
-  displayName: string;
-  avatarUrl?: string;
-  createdAt: string;
-}
-
-// Room Types
-export interface CreateRoomData {
-  name: string;
-  description?: string;
-  isPrivate?: boolean;
-}
-
-export interface Room {
-  id: string;
-  name: string;
-  description?: string;
-  isPrivate: boolean;
-  createdBy: string;
-  createdAt: string;
-  updatedAt: string;
-  members?: Member[];
-}
-
-export interface Member {
-  id: string;
-  userId: string;
-  displayName: string;
-  avatarUrl?: string;
-  role: MemberRole;
-  joinedAt: string;
-}
-
-export type MemberRole = 'owner' | 'admin' | 'member';
-
-// Message Types
-export interface Message {
-  id: string;
-  roomId: string;
-  senderId: string;
-  senderName: string;
-  content: string;
-  type: MessageType;
-  createdAt: string;
-  updatedAt?: string;
-}
-
-export type MessageType = 'text' | 'system' | 'file';
-
-export interface PaginationOptions {
-  limit?: number;
-  before?: string;
-  after?: string;
-}
-
-// WebSocket Types
-export type EventType = 'message' | 'member_join' | 'member_leave' | 'room_update' | 'error' | 'close';
-
-export interface ServerMessage {
-  type: string;
-  data: unknown;
-}
-
-export interface ClientMessage {
-  type: string;
-  data?: unknown;
-}
-
-export interface EventHandler {
-  (event: ServerMessage): void;
-}
-
-export interface MessageHandler {
-  (message: ServerMessage): void;
-}
+export interface NexisConfig { baseUrl: string; timeout?: number; }
+export interface AuthResult { token: string; memberId: string; memberType: 'human' | 'ai'; expiresAt: number; refreshSupported: false; }
+export interface CreateRoomData { name: string; topic?: string; }
+export interface Room { id: string; name: string; topic?: string; messages?: Message[]; member_count?: number; }
+export interface Message { id: string; roomId: string; sender: string; text: string; reply_to?: string; }
+export interface PaginationOptions { limit?: number; offset?: number; }
+export type ClientMessage =
+  | { type: 'auth'; token: string }
+  | { type: 'join_room' | 'leave_room'; room_id: string }
+  | { type: 'send_message'; room_id: string; content: string; reply_to?: string; client_message_id?: string }
+  | { type: 'heartbeat'; timestamp?: number };
+export type ServerMessage =
+  | { type: 'auth_success'; member_id: string; member_type: string }
+  | { type: 'room_joined' | 'room_left'; room_id: string }
+  | { type: 'new_message'; room_id: string; message_id: string; sender_id: string; content: string; reply_to?: string; timestamp: number }
+  | { type: 'message_accepted'; room_id: string; message_id: string; client_message_id?: string }
+  | { type: 'heartbeat_ack'; timestamp?: number }
+  | { type: 'error' | 'auth_error' | 'auth_required'; message: string; code?: string };
+export type EventType = ServerMessage['type'];
+export type EventHandler = (event: ServerMessage) => void;
+export type MessageHandler = EventHandler;

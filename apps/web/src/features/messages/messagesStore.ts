@@ -59,6 +59,17 @@ function createLocalMessage(roomId: string, sender: string, text: string): Realt
   }
 }
 
+const flushingKeys = new Set<string>()
+
+function confirmMessage(messages: RealtimeMessage[], localId: string, saved: Message): RealtimeMessage[] {
+  const confirmed = toRealtimeMessage(saved)
+  if (!messages.some((message) => message.id === localId)) {
+    return messages.map((message) => message.id === saved.id ? confirmed : message)
+  }
+  return messages.flatMap((message) => message.id === localId ? [confirmed]
+    : message.id === saved.id ? [] : [message])
+}
+
 export const useMessagesStore = create<MessagesState>((set, get) => ({
   messages: [],
   loading: false,
@@ -79,7 +90,11 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const response = await httpClient.get<Message[]>(`/rooms/${roomId}/messages`)
-      set({ messages: response.data.map((message) => toRealtimeMessage(message, 'read')), loading: false, unreadCount: 0 })
+      if (get().activeRoomId && get().activeRoomId !== roomId) return
+      set((state) => ({ messages: [
+        ...response.data.map((message) => toRealtimeMessage(message, 'read')),
+        ...state.messages.filter((message) => !response.data.some((saved) => saved.id === message.id)),
+      ], loading: false, unreadCount: 0 }))
     } catch {
       set({ error: 'Failed to fetch messages', loading: false })
     }
@@ -94,7 +109,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
     if (get().connectionState !== 'connected') {
       set((state) => ({
         messages: state.messages.map((message) =>
-          message.id === localMessage.id ? { ...message, deliveryStatus: 'sent' } : message
+          message.id === localMessage.id ? { ...message, deliveryStatus: 'sending' } : message
         ),
         offlineQueue: [...state.offlineQueue, { clientId: localMessage.id, roomId, text }],
       }))
@@ -102,38 +117,35 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
     }
 
     try {
-      const response = await httpClient.post<Message>('/messages', { roomId, sender, text })
+      const response = await httpClient.post<Message>('/messages', { roomId, text, clientMessageId: localMessage.id })
       set((state) => ({
-        messages: state.messages.map((message) =>
-          message.id === localMessage.id ? toRealtimeMessage(response.data, 'delivered') : message
-        ),
+        messages: confirmMessage(state.messages, localMessage.id, response.data),
       }))
-      wsClient.send({ type: 'message', payload: { messageId: response.data.id, roomId } })
     } catch {
       set((state) => ({
         messages: state.messages.map((message) =>
           message.id === localMessage.id ? { ...message, deliveryStatus: 'failed' } : message
         ),
         error: 'Failed to send message',
+        offlineQueue: [...state.offlineQueue, { clientId: localMessage.id, roomId, text }],
       }))
     }
   },
 
   flushOfflineQueue: async () => {
-    const sender = useAuthStore.getState().memberId || 'nexis:human:unknown'
     const queueSnapshot = [...get().offlineQueue]
 
     for (const queued of queueSnapshot) {
+      if (flushingKeys.has(queued.clientId)) continue
+      flushingKeys.add(queued.clientId)
       try {
         const response = await httpClient.post<Message>('/messages', {
           roomId: queued.roomId,
-          sender,
+          clientMessageId: queued.clientId,
           text: queued.text,
         })
         set((state) => ({
-          messages: state.messages.map((message) =>
-            message.id === queued.clientId ? toRealtimeMessage(response.data, 'delivered') : message
-          ),
+          messages: confirmMessage(state.messages, queued.clientId, response.data),
           offlineQueue: state.offlineQueue.filter((item) => item.clientId !== queued.clientId),
           error: null,
         }))
@@ -142,9 +154,10 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
           messages: state.messages.map((message) =>
             message.id === queued.clientId ? { ...message, deliveryStatus: 'failed' } : message
           ),
-          offlineQueue: state.offlineQueue.filter((item) => item.clientId !== queued.clientId),
           error: 'Failed to resend queued messages',
         }))
+      } finally {
+        flushingKeys.delete(queued.clientId)
       }
     }
   },
@@ -152,6 +165,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
   handleRealtimeEvent: (event) => {
     if (event.type === 'message') {
       const incoming = event.payload as Message
+      if (get().activeRoomId && incoming.roomId !== get().activeRoomId) return
       const currentMemberId = useAuthStore.getState().memberId
       set((state) => {
         const exists = state.messages.some((message) => message.id === incoming.id)
@@ -198,7 +212,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
   },
 
   connect: (roomId: string) => {
-    set({ activeRoomId: roomId, connectionState: 'connecting' })
+    set({ activeRoomId: roomId, connectionState: 'connecting', messages: [], offlineQueue: [] })
     wsClient.connect(roomId)
   },
 
@@ -216,6 +230,8 @@ wsClient.setHandlers({
     const previousState = useMessagesStore.getState().connectionState
     useMessagesStore.getState().setConnectionState(state)
     if (state === 'connected' && previousState !== 'connected') {
+      const roomId = useMessagesStore.getState().activeRoomId
+      if (roomId) void useMessagesStore.getState().fetchMessages(roomId)
       void useMessagesStore.getState().flushOfflineQueue()
     }
   },

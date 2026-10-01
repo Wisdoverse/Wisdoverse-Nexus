@@ -1,7 +1,7 @@
-import { getSessionSnapshot } from '../session/sessionAccess'
+import { getSessionSnapshot, logoutSession } from '../session/sessionAccess'
 import type { ConnectionState, WebSocketClientOptions, WebSocketMessage } from './types'
 
-const WS_URL = import.meta.env.VITE_WS_URL || `ws://${window.location.host}/ws`
+const WS_URL = import.meta.env.VITE_WS_URL || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
 const MAX_RECONNECT_DELAY = 30000
 const DEFAULT_HEARTBEAT_INTERVAL = 15000
 const DEFAULT_HEARTBEAT_TIMEOUT = 7000
@@ -15,7 +15,10 @@ export class WebSocketClient {
   private readonly heartbeatTimeout: number
   private onMessage?: (data: WebSocketMessage) => void
   private onStateChange?: (state: ConnectionState) => void
-  private intentionalClose = false
+  private intentionalClose = true
+  private authenticated = false
+  private readonly url: string
+  private readonly getToken: () => string | null
   private currentState: ConnectionState = 'disconnected'
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null
@@ -32,6 +35,8 @@ export class WebSocketClient {
   }
 
   constructor(options: WebSocketClientOptions = {}) {
+    this.url = options.url ?? WS_URL
+    this.getToken = options.getToken ?? (() => getSessionSnapshot().token)
     this.maxReconnectAttempts = options.maxReconnectAttempts ?? 5
     this.reconnectDelay = options.reconnectDelay ?? 1000
     this.heartbeatInterval = options.heartbeatInterval ?? DEFAULT_HEARTBEAT_INTERVAL
@@ -52,59 +57,60 @@ export class WebSocketClient {
     this.clearHeartbeatTimers()
     this.setState(this.reconnectAttempts > 0 ? 'reconnecting' : 'connecting')
 
-    const { token } = getSessionSnapshot()
-    let url = WS_URL
-    if (token) {
-      url += `?token=${encodeURIComponent(token)}`
-    }
-    if (this.lastRoomId) {
-      url += `${token ? '&' : '?'}roomId=${encodeURIComponent(this.lastRoomId)}`
-    }
-
+    this.authenticated = false
+    const previous = this.ws
+    this.ws = null
+    previous?.close()
     try {
-      this.ws = new WebSocket(url)
-      this.setupListeners()
+      const socket = new WebSocket(this.url)
+      this.ws = socket
+      socket.onopen = () => {
+        if (this.ws !== socket) return
+        socket.send(JSON.stringify({ type: 'auth', token: `Bearer ${this.getToken() ?? ''}` }))
+      }
+      socket.onmessage = (event) => {
+        if (this.ws !== socket) return
+        let data
+        try { data = JSON.parse(event.data) } catch { return }
+        if (data.type === 'auth_success') {
+          if (this.lastRoomId) socket.send(JSON.stringify({ type: 'join_room', room_id: this.lastRoomId }))
+          else this.markConnected()
+        } else if (data.type === 'room_joined' && data.room_id === this.lastRoomId) {
+          this.markConnected()
+        } else if (data.type === 'auth_error' || data.type === 'auth_required') {
+          this.disconnect()
+          logoutSession()
+        } else if (data.type === 'heartbeat_ack') {
+          this.clearHeartbeatTimeout()
+        } else if (data.type === 'new_message') {
+          this.onMessage?.({ type: 'message', payload: {
+            id: data.message_id, roomId: data.room_id, sender: data.sender_id,
+            text: data.content, reply_to: data.reply_to, timestamp: new Date(data.timestamp).toISOString(),
+          } })
+        } else if (data.type === 'error' && !this.authenticated) {
+          this.disconnect()
+        }
+      }
+      socket.onclose = () => {
+        if (this.ws !== socket) return
+        this.authenticated = false
+        this.clearHeartbeatTimers()
+        this.setState('disconnected')
+        if (!this.intentionalClose) this.scheduleReconnect()
+      }
+      socket.onerror = () => socket.close()
     } catch {
-      this.onStateChange?.('disconnected')
+      this.setState('disconnected')
       this.scheduleReconnect()
     }
   }
 
-  private setupListeners(): void {
-    if (!this.ws) return
-
-    this.ws.onopen = () => {
-      this.reconnectAttempts = 0
-      this.setState('connected')
-      this.startHeartbeat()
-      this.flushOfflineQueue()
-    }
-
-    this.ws.onmessage = (event) => {
-      this.clearHeartbeatTimeout()
-      try {
-        const data = JSON.parse(event.data) as WebSocketMessage
-        if (data.type === 'pong' || data.type === 'heartbeat') {
-          return
-        }
-        this.onMessage?.(data)
-      } catch {
-        console.warn('Failed to parse WebSocket message:', event.data)
-      }
-    }
-
-    this.ws.onclose = () => {
-      this.clearHeartbeatTimers()
-      this.setState('disconnected')
-      if (!this.intentionalClose) {
-        this.scheduleReconnect()
-      }
-    }
-
-    this.ws.onerror = () => {
-      this.clearHeartbeatTimers()
-      this.setState('disconnected')
-    }
+  private markConnected(): void {
+    this.authenticated = true
+    this.reconnectAttempts = 0
+    this.setState('connected')
+    this.startHeartbeat()
+    this.flushOfflineQueue()
   }
 
   private scheduleReconnect(): void {
@@ -126,22 +132,33 @@ export class WebSocketClient {
 
   disconnect(): void {
     this.intentionalClose = true
+    this.authenticated = false
+    this.offlineQueue = []
+    this.reconnectAttempts = 0
     this.clearReconnectTimer()
     this.clearHeartbeatTimers()
-    if (this.ws) {
-      this.ws.close()
-      this.ws = null
-    }
+    const socket = this.ws
+    this.ws = null
+    socket?.close()
     this.setState('disconnected')
   }
 
   send(data: unknown): boolean {
-    if (this.ws?.readyState === WebSocket.OPEN) {
+    if (this.authenticated && this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data))
       return true
     }
+    if (this.offlineQueue.length >= 1000) throw new Error('Offline queue is full')
     this.offlineQueue.push(JSON.stringify(data))
     return false
+  }
+
+  dispose(): void {
+    this.disconnect()
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('online', this.onOnline)
+      window.removeEventListener('offline', this.onOffline)
+    }
   }
 
   get state(): ConnectionState {
@@ -167,7 +184,7 @@ export class WebSocketClient {
   }
 
   private flushOfflineQueue(): void {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.offlineQueue.length === 0) {
+    if (!this.authenticated || !this.ws || this.ws.readyState !== WebSocket.OPEN || this.offlineQueue.length === 0) {
       return
     }
     while (this.offlineQueue.length > 0) {
@@ -184,7 +201,7 @@ export class WebSocketClient {
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
         return
       }
-      this.ws.send(JSON.stringify({ type: 'heartbeat', payload: { at: Date.now() } }))
+      this.ws.send(JSON.stringify({ type: 'heartbeat', timestamp: Date.now() }))
       this.heartbeatTimeoutTimer = setTimeout(() => {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
           this.ws.close()

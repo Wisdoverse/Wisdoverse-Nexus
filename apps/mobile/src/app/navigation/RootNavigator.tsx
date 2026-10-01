@@ -1,3 +1,5 @@
+import { useAuthStore } from '../../features/auth/authStore'
+import { TokenLoginScreen } from '../../features/auth/TokenLoginScreen'
 import { NavigationContainer } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
@@ -27,6 +29,8 @@ function MainTabs() {
 }
 
 export function RootNavigator() {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  if (!isAuthenticated) return <TokenLoginScreen />
   return (
     <NavigationContainer>
       <Stack.Navigator

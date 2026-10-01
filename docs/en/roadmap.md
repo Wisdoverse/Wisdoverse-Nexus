@@ -64,7 +64,7 @@ surfaces and verification commands.
 
 ## Prioritized Milestones
 
-All milestones below are **planned**. Mark a milestone complete only when its
+M1 is **in review**; M2–M5 remain **planned**. Mark a milestone complete only when its
 acceptance checks have passed and the evidence is linked from its public issue
 or pull request. Priority indicates order, not a release date. M1 precedes M2;
 M3 must pass before expanding deployment scope, and M4 requires M2 and M3.
@@ -93,6 +93,11 @@ agent action; require human approval for writes and external side effects.
 ## Milestone Acceptance
 
 ### M1 / P0: Core Collaboration Workflow
+
+Implementation and local acceptance evidence are available in the
+[M1 report](guides/m1-acceptance.md). M1 is **in review**: public CI and reviewer
+acceptance remain required before marking it complete. Other milestones remain planned.
+
 
 Align the gateway, API documentation, Web/mobile clients, and both SDKs around
 the supported authentication, room, message, and WebSocket contracts.

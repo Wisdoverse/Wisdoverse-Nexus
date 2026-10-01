@@ -46,20 +46,20 @@ struct CreateRoomResponse {
 struct SendMessageRequest {
     #[serde(rename = "roomId")]
     room_id: String,
-    sender: String,
+    #[serde(default, rename = "sender")]
+    _sender: Option<String>,
     text: String,
     #[serde(rename = "replyTo", default)]
     reply_to: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct SendMessageResponse {
-    id: String,
+    #[serde(rename = "clientMessageId", default)]
+    client_message_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 struct MessageResponse {
     id: String,
+    #[serde(rename = "roomId")]
+    room_id: String,
     sender: String,
     text: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -162,7 +162,18 @@ where
             get(get_room::<S>).delete(delete_room::<S>),
         )
         .route("/v1/rooms/{id}/invite", post(invite_member::<S>))
+        .route("/v1/rooms/{id}/messages", get(list_messages::<S>))
         .route("/v1/messages", post(send_message::<S>))
+        .layer(axum::middleware::from_fn(supported_mode))
+}
+
+async fn supported_mode(request: axum::extract::Request, next: axum::middleware::Next) -> Response {
+    if cfg!(feature = "multi-tenant") {
+        return (StatusCode::SERVICE_UNAVAILABLE, Json(serde_json::json!({
+            "error": "M1 supports default single-tenant features only", "code": "UNSUPPORTED_MODE"
+        }))).into_response();
+    }
+    next.run(request).await
 }
 
 fn record_operation_success(operation: &str, start: Instant) {
@@ -189,6 +200,22 @@ fn room_command_error_response(
     started: Instant,
 ) -> Response {
     let (status, body, error_type) = match error {
+        RoomCommandError::Forbidden => (
+            StatusCode::FORBIDDEN,
+            ErrorResponse {
+                error: "room access denied".to_string(),
+                code: Some("FORBIDDEN"),
+            },
+            "forbidden",
+        ),
+        RoomCommandError::Conflict => (
+            StatusCode::CONFLICT,
+            ErrorResponse {
+                error: "retry key already used for different content".to_string(),
+                code: Some("CONFLICT"),
+            },
+            "conflict",
+        ),
         RoomCommandError::Validation(message) => (
             StatusCode::BAD_REQUEST,
             ErrorResponse::bad_request(message),
@@ -252,12 +279,12 @@ where
 
 #[tracing::instrument(
     name = "gateway.send_message",
-    skip(state, _user, payload),
-    fields(room_id = %payload.room_id, sender = %payload.sender)
+    skip(state, user, payload),
+    fields(room_id = %payload.room_id)
 )]
 async fn send_message<S>(
     State(state): State<S>,
-    _user: AuthenticatedUser,
+    user: AuthenticatedUser,
     Json(payload): Json<SendMessageRequest>,
 ) -> Response
 where
@@ -266,19 +293,37 @@ where
     let started = Instant::now();
     let operation = "send_message";
 
+    if let Err(error) = state
+        .rooms()
+        .authorize(&payload.room_id, &user.member_id, false)
+        .await
+    {
+        return room_command_error_response(operation, error, started);
+    }
+    let room_id = payload.room_id.clone();
     let command = SendMessageCommand {
         room_id: payload.room_id,
-        sender: payload.sender,
+        sender: user.member_id,
         text: payload.text,
         reply_to: payload.reply_to,
     };
 
-    let message = match state.rooms().send_message(command).await {
+    let message = match state
+        .rooms()
+        .send_message_idempotent(command, payload.client_message_id)
+        .await
+    {
         Ok(message) => message,
         Err(error) => return room_command_error_response(operation, error, started),
     };
 
-    let response = SendMessageResponse { id: message.id };
+    let response = MessageResponse {
+        id: message.id,
+        room_id,
+        sender: message.sender,
+        text: message.text,
+        reply_to: message.reply_to,
+    };
 
     MESSAGES_SENT.inc();
     record_operation_success(operation, started);
@@ -288,40 +333,24 @@ where
 
 #[tracing::instrument(
     name = "gateway.get_room",
-    skip(state, _user),
+    skip(state, user),
     fields(room_id = %id)
 )]
 async fn get_room<S>(
     State(state): State<S>,
-    _user: AuthenticatedUser,
+    user: AuthenticatedUser,
     Path(id): Path<String>,
 ) -> Response
 where
     S: RoomInterfaceState,
 {
+    let started = Instant::now();
+    if let Err(error) = state.rooms().authorize(&id, &user.member_id, false).await {
+        return room_command_error_response("get_room", error, started);
+    }
     let details = match state.rooms().get_room(&id).await {
         Ok(details) => details,
-        Err(RoomCommandError::RoomNotFound) => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(ErrorResponse::not_found("room not found")),
-            )
-                .into_response();
-        }
-        Err(RoomCommandError::Validation(message)) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(ErrorResponse::bad_request(message)),
-            )
-                .into_response();
-        }
-        Err(RoomCommandError::ServiceUnavailable) => {
-            return (
-                StatusCode::SERVICE_UNAVAILABLE,
-                Json(ErrorResponse::service_unavailable("service unavailable")),
-            )
-                .into_response();
-        }
+        Err(error) => return room_command_error_response("get_room", error, started),
     };
 
     let room = details.room;
@@ -330,6 +359,7 @@ where
         .into_iter()
         .map(|message| MessageResponse {
             id: message.id,
+            room_id: room.id.clone(),
             sender: message.sender,
             text: message.text,
             reply_to: message.reply_to,
@@ -347,14 +377,44 @@ where
     (StatusCode::OK, Json(response)).into_response()
 }
 
+async fn list_messages<S>(
+    State(state): State<S>,
+    user: AuthenticatedUser,
+    Path(id): Path<String>,
+) -> Response
+where
+    S: RoomInterfaceState,
+{
+    let started = Instant::now();
+    if let Err(error) = state.rooms().authorize(&id, &user.member_id, false).await {
+        return room_command_error_response("list_messages", error, started);
+    }
+    let details = match state.rooms().get_room(&id).await {
+        Ok(details) => details,
+        Err(error) => return room_command_error_response("list_messages", error, started),
+    };
+    let messages: Vec<_> = details
+        .messages
+        .into_iter()
+        .map(|message| MessageResponse {
+            id: message.id,
+            room_id: id.clone(),
+            sender: message.sender,
+            text: message.text,
+            reply_to: message.reply_to,
+        })
+        .collect();
+    (StatusCode::OK, Json(messages)).into_response()
+}
+
 #[tracing::instrument(
     name = "gateway.invite_member",
-    skip(state, _user, payload),
+    skip(state, user, payload),
     fields(room_id = %id, member_id = %payload.member_id)
 )]
 async fn invite_member<S>(
     State(state): State<S>,
-    _user: AuthenticatedUser,
+    user: AuthenticatedUser,
     Path(id): Path<String>,
     Json(payload): Json<InviteMemberRequest>,
 ) -> Response
@@ -362,6 +422,9 @@ where
     S: RoomInterfaceState,
 {
     let started = Instant::now();
+    if let Err(error) = state.rooms().authorize(&id, &user.member_id, true).await {
+        return room_command_error_response("invite_member", error, started);
+    }
     let operation = "invite_member";
     let result = match state
         .rooms()
@@ -385,12 +448,12 @@ where
 
 #[tracing::instrument(
     name = "gateway.list_rooms",
-    skip(state, _user, query),
+    skip(state, user, query),
     fields(limit = ?query.limit, offset = ?query.offset)
 )]
 async fn list_rooms<S>(
     State(state): State<S>,
-    _user: AuthenticatedUser,
+    user: AuthenticatedUser,
     Query(query): Query<ListRoomsQuery>,
 ) -> Response
 where
@@ -398,7 +461,10 @@ where
 {
     let limit = query.limit.unwrap_or(100).min(1000);
     let offset = query.offset.unwrap_or(0);
-    let result = state.rooms().list_rooms(limit, offset).await;
+    let result = state
+        .rooms()
+        .list_rooms_for(&user.member_id, limit, offset)
+        .await;
 
     let rooms = result
         .rooms
@@ -421,18 +487,21 @@ where
 
 #[tracing::instrument(
     name = "gateway.delete_room",
-    skip(state, _user),
+    skip(state, user),
     fields(room_id = %id)
 )]
 async fn delete_room<S>(
     State(state): State<S>,
-    _user: AuthenticatedUser,
+    user: AuthenticatedUser,
     Path(id): Path<String>,
 ) -> Response
 where
     S: RoomInterfaceState,
 {
     let started = Instant::now();
+    if let Err(error) = state.rooms().authorize(&id, &user.member_id, true).await {
+        return room_command_error_response("delete_room", error, started);
+    }
     let operation = "delete_room";
     if let Err(error) = state.rooms().delete_room(&id).await {
         return room_command_error_response(operation, error, started);

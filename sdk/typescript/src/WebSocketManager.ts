@@ -1,7 +1,7 @@
 import WebSocket from 'ws';
 import type { ClientMessage, MessageHandler } from './types';
 
-export type ConnectionState = 'connecting' | 'connected' | 'disconnecting' | 'reconnecting';
+export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'reconnecting';
 export type ConnectionListener = (state: ConnectionState, attempt?: number) => void;
 
 export class WebSocketManager {
@@ -14,10 +14,13 @@ export class WebSocketManager {
   private shouldReconnect = false;
   private url = '';
   private token = '';
+  private roomId?: string;
+  private authenticated = false;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private listeners: ConnectionListener[] = [];
   private queue: ClientMessage[] = [];
   private readonly maxQueueSize = 1000;
-  private state: ConnectionState = 'disconnecting';
+  private state: ConnectionState = 'disconnected';
 
   onConnectionChange(listener: ConnectionListener): void {
     this.listeners.push(listener);
@@ -34,7 +37,9 @@ export class WebSocketManager {
     }
   }
 
-  connect(url: string, token: string): void {
+  connect(url: string, token: string, roomId?: string): void {
+    this.close();
+    this.roomId = roomId;
     this.url = url;
     this.token = token;
     this.shouldReconnect = true;
@@ -46,40 +51,53 @@ export class WebSocketManager {
     this.state = this.reconnectAttempts > 0 ? 'reconnecting' : 'connecting';
     this.emitState();
 
-    const headers = this.token ? { Authorization: `Bearer ${this.token}` } : undefined;
-    this.ws = new WebSocket(this.url, { headers } as WebSocket.ClientOptions);
+    this.authenticated = false;
+    const socket = new WebSocket(this.url);
+    this.ws = socket;
 
-    this.ws.on('open', () => {
-      this.reconnectAttempts = 0;
-      this.state = 'connected';
-      this.emitState();
-      this.flushQueue();
+    socket.on('open', () => {
+      if (this.ws !== socket) return;
+      socket.send(JSON.stringify({ type: 'auth', token: `Bearer ${this.token}` }));
     });
-
-    this.ws.on('message', (data: WebSocket.Data) => {
-      try {
-        const message = JSON.parse(data.toString());
-        this.messageHandler?.(message);
-      } catch {
-        // ignore malformed
+    socket.on('message', (data: WebSocket.Data) => {
+      if (this.ws !== socket) return;
+      let message;
+      try { message = JSON.parse(data.toString()); } catch { return; }
+      if (message.type === 'auth_error' || message.type === 'auth_required') {
+        this.shouldReconnect = false;
+        this.queue = [];
+        socket.close();
+      } else if (message.type === 'auth_success') {
+        if (this.roomId) socket.send(JSON.stringify({ type: 'join_room', room_id: this.roomId }));
+        else this.markConnected();
+      } else if (message.type === 'room_joined' && message.room_id === this.roomId) {
+        this.markConnected();
+      } else if (message.type === 'error' && !this.authenticated) {
+        this.shouldReconnect = false;
+        socket.close();
       }
+      this.messageHandler?.(message);
     });
-
-    this.ws.on('close', () => {
-      this.state = 'disconnecting';
+    socket.on('close', () => {
+      if (this.ws !== socket) return;
+      this.authenticated = false;
+      this.state = 'disconnected';
       this.emitState();
-      if (this.shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
-        this.scheduleReconnect();
-      }
+      if (this.shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) this.scheduleReconnect();
     });
+    socket.on('error', () => socket.close());
+  }
 
-    this.ws.on('error', () => {
-      this.ws?.close();
-    });
+  private markConnected(): void {
+    this.authenticated = true;
+    this.reconnectAttempts = 0;
+    this.state = 'connected';
+    this.emitState();
+    this.flushQueue();
   }
 
   send(message: ClientMessage): void {
-    if (this.ws?.readyState === WebSocket.OPEN) {
+    if (this.authenticated && this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
     } else {
       // Buffer message for later delivery
@@ -92,7 +110,7 @@ export class WebSocketManager {
   private flushQueue(): void {
     while (this.queue.length > 0) {
       const msg = this.queue.shift()!;
-      if (this.ws?.readyState === WebSocket.OPEN) {
+      if (this.authenticated && this.ws?.readyState === WebSocket.OPEN) {
         this.ws.send(JSON.stringify(msg));
       } else {
         this.queue.unshift(msg);
@@ -107,7 +125,10 @@ export class WebSocketManager {
 
   close(): void {
     this.shouldReconnect = false;
-    this.state = 'disconnecting';
+    this.authenticated = false;
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
+    this.state = 'disconnected';
     this.emitState();
     this.queue = [];
     this.ws?.close();
@@ -115,7 +136,7 @@ export class WebSocketManager {
   }
 
   isConnected(): boolean {
-    return this.ws?.readyState === WebSocket.OPEN;
+    return this.authenticated && this.ws?.readyState === WebSocket.OPEN;
   }
 
   getState(): ConnectionState {
@@ -129,7 +150,8 @@ export class WebSocketManager {
     const jitter = base * 0.2 * (Math.random() * 2 - 1);
     const delay = Math.round(base + jitter);
 
-    setTimeout(() => {
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
       if (this.shouldReconnect) {
         this.doConnect();
       }

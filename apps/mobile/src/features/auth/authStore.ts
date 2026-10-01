@@ -1,6 +1,7 @@
+import { configureSessionAccess } from '../../shared/session/sessionAccess'
 import { create } from 'zustand'
 
-import type { Session, SessionStatus, User } from '../../app/types'
+import type { Session, SessionStatus, User } from '../../shared/session/types'
 import { tokenStorage } from '../../shared/auth/tokenStorage'
 
 const REFRESH_THRESHOLD_MS = 60 * 1000
@@ -78,3 +79,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return Date.now() >= expiresAt - REFRESH_THRESHOLD_MS
   },
 }))
+
+configureSessionAccess({
+  getSnapshot: () => {
+    const { token, tenantId, isAuthenticated, needsRefresh } = useAuthStore.getState()
+    return { token, tenantId, isAuthenticated, needsRefresh }
+  },
+  updateSession: (session) => useAuthStore.getState().updateSession(session),
+  logout: () => { void useAuthStore.getState().logout() },
+})

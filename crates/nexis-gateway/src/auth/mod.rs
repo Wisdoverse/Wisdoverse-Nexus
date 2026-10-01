@@ -141,9 +141,27 @@ impl JwtConfig {
         let mut validation = Validation::new(Algorithm::HS256);
         validation.set_issuer(&[&self.issuer]);
         validation.set_audience(&[&self.audience]);
+        validation.leeway = 0;
 
+        #[cfg(not(feature = "multi-tenant"))]
+        if let Ok(data) = decode::<serde_json::Value>(token, &self.decoding_key, &validation) {
+            if data
+                .claims
+                .get("tenant_id")
+                .is_some_and(|value| !value.is_null())
+            {
+                return Err(AuthError::InvalidToken);
+            }
+        }
         decode::<Claims>(token, &self.decoding_key, &validation)
-            .map(|data| data.claims)
+            .and_then(|data| {
+                if data.claims.sub.trim().is_empty()
+                    || !matches!(data.claims.member_type.as_str(), "human" | "ai")
+                {
+                    return Err(jsonwebtoken::errors::ErrorKind::InvalidSubject.into());
+                }
+                Ok(data.claims)
+            })
             .map_err(|e| {
                 if e.kind() == &jsonwebtoken::errors::ErrorKind::ExpiredSignature {
                     AuthError::TokenExpired
@@ -166,6 +184,22 @@ pub struct AuthenticatedUser {
     pub claims: Claims,
     #[cfg(feature = "multi-tenant")]
     pub tenant_context: Option<TenantContext>,
+}
+
+/// Verified identity for externally issued JWTs. This endpoint does not issue tokens.
+pub async fn session(user: AuthenticatedUser) -> axum::Json<serde_json::Value> {
+    let mut value = serde_json::json!({
+        "memberId": user.member_id,
+        "memberType": user.member_type,
+        "expiresAt": user.claims.exp.saturating_mul(1000),
+    });
+    #[cfg(feature = "multi-tenant")]
+    if let Some(tenant_id) = user.claims.tenant_id {
+        value["tenantId"] = tenant_id.into();
+    }
+    // Keep one response shape across feature configurations.
+    value["refreshSupported"] = false.into();
+    axum::Json(value)
 }
 
 impl AuthenticatedUser {

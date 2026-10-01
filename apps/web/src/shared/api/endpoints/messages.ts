@@ -5,11 +5,11 @@ export interface Message {
   roomId: string
   sender: string
   text: string
-  timestamp: string
+  timestamp?: string
 }
 
 export const messagesApi = {
   list: (roomId: string) => httpClient.get<Message[]>(`/rooms/${roomId}/messages`),
-  send: (roomId: string, sender: string, text: string) =>
-    httpClient.post<Message>('/messages', { roomId, sender, text }),
+  send: (roomId: string, _sender: string, text: string) =>
+    httpClient.post<Message>('/messages', { roomId, text }),
 }

@@ -1,42 +1,51 @@
-"""Wisdoverse Nexus Python SDK usage example."""
+"""M1 usage example with an externally issued JWT and the Nexus gateway."""
 
 import asyncio
+
 from nexis import NexisClient
-from nexis.models import RegisterData
+from nexis.models import CreateRoomData
 from nexis.websocket import WebSocketConnection
 
 
-async def main():
-    async with NexisClient("https://api.example.com") as client:
-        # Auth
-        result = await client.register(RegisterData(
-            email="user@example.com",
-            password="securepassword",
-            display_name="Alice"
-        ))
-        print(f"Logged in as {result.user.display_name}")
+async def main() -> None:
+    # Supply a short-lived development token through your environment or secret
+    # manager. Never commit a real token or print it in logs.
+    token = "<JWT_FROM_YOUR_APPLICATION>"
 
-        # Rooms
-        room = await client.create_room(name="General")
-        print(f"Created room: {room.id} - {room.name}")
-        await client.join_room(room.id)
+    async with NexisClient("http://localhost:8080") as client:
+        session = await client.authenticate(token)
+        print(
+            f"Authenticated member {session.member_id} "
+            f"({session.member_type}); expires at {session.expires_at} ms"
+        )
 
-        # Messages
-        msg = await client.send_message(room.id, "Hello from Python SDK!")
-        print(f"Sent: {msg.content}")
+        rooms = await client.list_rooms(limit=100, offset=0)
+        room = rooms[0] if rooms else await client.create_room(
+            CreateRoomData(name="M1 demo", topic="SDK example")
+        )
+        print(f"Using room {room.id}: {room.name}")
 
-        messages = await client.get_messages(room.id, limit=20)
-        print(f"History: {len(messages)} messages")
+        sent = await client.send_message(room.id, "Hello from the Python SDK")
+        print(f"Sent message {sent.id}")
 
-        # WebSocket
-        ws = WebSocketConnection(f"{client.ws_url}/ws?room_id={room.id}", result.token)
+        history = await client.get_messages(room.id)
+        print(f"Fetched {len(history)} messages from HTTP history")
+
+        ws = WebSocketConnection("ws://localhost:8080/ws", token, room_id=room.id)
         await ws.connect()
-
-        ws.on_message(lambda m: print(f"Received: {m}"))
-        asyncio.create_task(ws.listen())
-
-        await asyncio.sleep(10)
-        await ws.close()
+        try:
+            # The gateway confirms auth and room subscription before connect returns.
+            await ws.send({
+                "type": "send_message",
+                "room_id": room.id,
+                "content": "Hello over WebSocket",
+            })
+            async for event in ws.messages():
+                print(f"WebSocket event: {event.get('type')}")
+                if event.get("type") == "new_message":
+                    break
+        finally:
+            await ws.close()
 
 
 if __name__ == "__main__":

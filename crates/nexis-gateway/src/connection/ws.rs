@@ -17,16 +17,15 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 use tokio::time::Instant;
 
 use crate::auth::JwtConfig;
 use crate::connection::{
-    create_auth_timeout_message, parse_client_message, serialize_server_message,
-    AuthenticatedSession, ConnectionState, MessageResult, ServerMessage, WebSocketAuthenticator,
-    AUTH_TIMEOUT,
+    create_auth_timeout_message, parse_client_message, serialize_server_message, ClientMessage,
+    ServerMessage, WebSocketAuthenticator, AUTH_TIMEOUT,
 };
 
 /// Maximum messages per second allowed per connection
@@ -99,6 +98,7 @@ pub struct WebSocketState {
     connections: ConnectionMap,
     /// JWT authenticator
     authenticator: Arc<WebSocketAuthenticator>,
+    rooms: crate::rooms::RoomApplication,
 }
 
 impl Default for WebSocketState {
@@ -113,6 +113,7 @@ impl WebSocketState {
         Self {
             connections: Arc::new(RwLock::new(HashMap::new())),
             authenticator: Arc::new(WebSocketAuthenticator::from_env()),
+            rooms: crate::rooms::RoomApplication::default(),
         }
     }
 
@@ -121,7 +122,14 @@ impl WebSocketState {
         Self {
             connections: Arc::new(RwLock::new(HashMap::new())),
             authenticator: Arc::new(WebSocketAuthenticator::new(jwt_config)),
+            rooms: crate::rooms::RoomApplication::default(),
         }
+    }
+
+    /// Use the same application service as the HTTP room routes.
+    pub fn with_rooms(mut self, rooms: crate::rooms::RoomApplication) -> Self {
+        self.rooms = rooms;
+        self
     }
 
     /// Get the connection map
@@ -150,7 +158,7 @@ impl WebSocketState {
                 member_id = %member_id,
                 "Closing previous connection for user"
             );
-            let _ = old_sender.tx.send(Message::Close(None)).await;
+            let _ = old_sender.tx.try_send(Message::Close(None));
         }
 
         tracing::info!(
@@ -176,7 +184,7 @@ impl WebSocketState {
     pub async fn send_to_user(&self, member_id: &str, message: Message) -> bool {
         let connections = self.connections.read().await;
         if let Some(sender) = connections.get(member_id) {
-            sender.tx.send(message).await.is_ok()
+            sender.tx.try_send(message).is_ok()
         } else {
             false
         }
@@ -189,7 +197,7 @@ impl WebSocketState {
         let mut failed = 0;
 
         for (member_id, sender) in connections.iter() {
-            if sender.tx.send(message.clone()).await.is_ok() {
+            if sender.tx.try_send(message.clone()).is_ok() {
                 sent += 1;
             } else {
                 failed += 1;
@@ -214,6 +222,13 @@ pub async fn websocket_upgrade_with_state(
     Query(query): Query<WebSocketQuery>,
     state: WebSocketState,
 ) -> Response {
+    if cfg!(feature = "multi-tenant") {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            "M1 supports default single-tenant features only",
+        )
+            .into_response();
+    }
     // Check if token provided in query
     if let Some(token) = query.token {
         tracing::warn!(
@@ -225,17 +240,7 @@ pub async fn websocket_upgrade_with_state(
         match state.authenticator.verify_token(&token) {
             Ok(claims) => {
                 // Pre-authenticated via query token
-                let member_id = claims.sub.clone();
-                let member_type = claims.member_type.clone();
-
-                tracing::info!(
-                    member_id = %member_id,
-                    "WebSocket authenticated via query token"
-                );
-
-                ws.on_upgrade(move |socket| {
-                    handle_authenticated_socket(socket, state, member_id, member_type)
-                })
+                ws.on_upgrade(move |socket| handle_connection(socket, state, Some(claims)))
             }
             Err(e) => {
                 // Invalid token - reject connection
@@ -245,291 +250,239 @@ pub async fn websocket_upgrade_with_state(
         }
     } else {
         // No token in query - require first-message authentication
-        ws.on_upgrade(move |socket| handle_socket(socket, state))
+        ws.on_upgrade(move |socket| handle_connection(socket, state, None))
     }
 }
 
-/// Handle WebSocket connection with first-message authentication
-async fn handle_socket(socket: WebSocket, state: WebSocketState) {
+/// Authenticate, subscribe to rooms, and dispatch through the shared application service.
+async fn handle_connection(
+    socket: WebSocket,
+    state: WebSocketState,
+    preauthenticated: Option<crate::auth::Claims>,
+) {
     use futures::{SinkExt, StreamExt};
-    use tokio::time::timeout;
+    use tokio::time::{timeout, Duration};
 
     let (mut sender, mut receiver) = socket.split();
     let (tx, mut rx) = mpsc::channel::<Message>(256);
-
-    // Spawn writer task
-    let writer = tokio::spawn(async move {
+    let mut writer = tokio::spawn(async move {
         while let Some(message) = rx.recv().await {
-            if sender.send(message).await.is_err() {
+            let closing = matches!(message, Message::Close(_));
+            if !matches!(
+                timeout(Duration::from_secs(5), sender.send(message)).await,
+                Ok(Ok(()))
+            ) || closing
+            {
                 break;
             }
         }
     });
 
-    // Authentication timeout
-    let auth_future = async {
-        let mut conn_state = ConnectionState::Unauthenticated;
-        let mut session: Option<AuthenticatedSession> = None;
-
-        while let Some(msg) = receiver.next().await {
-            match msg {
-                Ok(Message::Text(text)) => {
-                    tracing::debug!("Received WebSocket message: {}", text);
-
-                    match parse_client_message(&text) {
-                        Ok(client_msg) => {
-                            match state.authenticator.process_message(conn_state, &client_msg) {
-                                MessageResult::Response(server_msg) => {
-                                    // Check if auth success
-                                    if let ServerMessage::AuthSuccess {
-                                        ref member_id,
-                                        ref member_type,
-                                    } = server_msg
-                                    {
-                                        conn_state = ConnectionState::Authenticated;
-                                        session = Some(AuthenticatedSession {
-                                            member_id: member_id.clone(),
-                                            member_type: member_type.clone(),
-                                        });
-                                    }
-
-                                    if let Ok(json) = serialize_server_message(&server_msg) {
-                                        if tx.send(Message::Text(json.into())).await.is_err() {
-                                            break;
-                                        }
-                                    }
-                                }
-                                MessageResult::Authenticated(s) => {
-                                    conn_state = ConnectionState::Authenticated;
-                                    session = Some(s);
-                                }
-                                MessageResult::CloseConnection => {
-                                    tracing::debug!("Connection closed by request");
-                                    break;
-                                }
-                                MessageResult::NoResponse => {}
-                            }
-                        }
-                        Err(e) => {
-                            tracing::warn!("Failed to parse WebSocket message: {}", e);
-                            let error_msg = ServerMessage::Error {
-                                message: format!("Invalid message format: {}", e),
-                                code: Some("PARSE_ERROR".to_string()),
-                            };
-                            if let Ok(json) = serialize_server_message(&error_msg) {
-                                let _ = tx.send(Message::Text(json.into())).await;
+    let authenticate = async {
+        if let Some(claims) = preauthenticated {
+            return Some(claims);
+        }
+        while let Some(Ok(message)) = receiver.next().await {
+            match message {
+                Message::Text(text) => match parse_client_message(&text) {
+                    Ok(ClientMessage::Auth { token }) => {
+                        match state.authenticator.verify_token(&token) {
+                            Ok(claims) => return Some(claims),
+                            Err(error) => {
+                                let code = if matches!(error, crate::auth::AuthError::TokenExpired)
+                                {
+                                    "TOKEN_EXPIRED"
+                                } else {
+                                    "AUTH_FAILED"
+                                };
+                                send_response(
+                                    &tx,
+                                    &ServerMessage::AuthError {
+                                        message: "Invalid or expired credentials".to_string(),
+                                        code: Some(code.to_string()),
+                                    },
+                                )
+                                .await;
+                                return None;
                             }
                         }
                     }
-                }
-                Ok(Message::Close(_)) => {
-                    tracing::debug!("Client disconnected");
-                    break;
-                }
-                Err(e) => {
-                    tracing::error!("WebSocket error: {}", e);
-                    break;
-                }
+                    _ => {
+                        send_response(
+                            &tx,
+                            &ServerMessage::AuthRequired {
+                                message: "Send an auth message first".to_string(),
+                            },
+                        )
+                        .await;
+                        return None;
+                    }
+                },
+                Message::Close(_) => return None,
                 _ => {}
             }
         }
-
-        session
+        None
     };
 
-    // Apply authentication timeout
-    match timeout(AUTH_TIMEOUT, auth_future).await {
-        Ok(Some(session)) => {
-            // Authenticated - register connection and continue handling messages
-            let member_id = session.member_id.clone();
-            state
-                .add_connection(member_id.clone(), session.member_type, tx.clone())
-                .await;
-
-            tracing::info!(member_id = %member_id, "WebSocket authenticated, entering message loop");
-
-            // Rate limiter for this connection
-            let mut rate_limiter = RateLimiter::new();
-
-            // Continue handling messages in a loop (same as handle_authenticated_socket)
-            while let Some(msg) = receiver.next().await {
-                match msg {
-                    Ok(Message::Text(text)) => {
-                        // Check rate limit
-                        if !rate_limiter.check_and_increment() {
-                            tracing::warn!(
-                                member_id = %member_id,
-                                max_per_second = MAX_MESSAGES_PER_SECOND,
-                                "Rate limit exceeded, closing connection"
-                            );
-                            let _ = tx
-                                .send(
-                                    Message::Text(
-                                        r#"{"type":"error","message":"Rate limit exceeded"}"#
-                                            .to_string()
-                                            .into(),
-                                    ),
-                                )
-                                .await;
-                            let _ = tx.send(Message::Close(None)).await;
-                            break;
-                        }
-
-                        tracing::debug!(member_id = %member_id, "Received: {}", text);
-
-                        match parse_client_message(&text) {
-                            Ok(client_msg) => {
-                                match state
-                                    .authenticator
-                                    .process_message(ConnectionState::Authenticated, &client_msg)
-                                {
-                                    MessageResult::Response(server_msg) => {
-                                        if let Ok(json) = serialize_server_message(&server_msg) {
-                                            if tx.send(Message::Text(json.into())).await.is_err() {
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    MessageResult::CloseConnection => break,
-                                    _ => {}
-                                }
-                            }
-                            Err(e) => {
-                                tracing::warn!("Failed to parse message: {}", e);
-                            }
-                        }
-                    }
-                    Ok(Message::Close(_)) => {
-                        tracing::debug!(member_id = %member_id, "Client disconnected");
-                        break;
-                    }
-                    Err(e) => {
-                        tracing::error!(member_id = %member_id, "WebSocket error: {}", e);
-                        break;
-                    }
-                    _ => {}
-                }
-            }
-
-            tracing::info!(member_id = %member_id, "WebSocket session ended");
-            state.remove_connection(&member_id).await;
-        }
-        Ok(None) => {
-            // Connection closed without auth
-            tracing::debug!("WebSocket connection closed without authentication");
-        }
+    let claims = match timeout(AUTH_TIMEOUT, authenticate).await {
+        Ok(claims) => claims,
         Err(_) => {
-            // Timeout - send error and close
-            tracing::warn!("WebSocket authentication timeout");
             let _ = tx
                 .send(Message::Text(create_auth_timeout_message().into()))
                 .await;
-            let _ = tx.send(Message::Close(None)).await;
+            None
         }
-    }
-
-    writer.abort();
-}
-
-/// Handle pre-authenticated WebSocket connection
-async fn handle_authenticated_socket(
-    socket: WebSocket,
-    state: WebSocketState,
-    member_id: String,
-    member_type: String,
-) {
-    use futures::{SinkExt, StreamExt};
-
-    let (mut sender, mut receiver) = socket.split();
-    let (tx, mut rx) = mpsc::channel::<Message>(256);
-
-    // Send auth success message
-    let auth_success = ServerMessage::AuthSuccess {
-        member_id: member_id.clone(),
-        member_type: member_type.clone(),
     };
-    if let Ok(json) = serialize_server_message(&auth_success) {
-        let _ = tx.send(Message::Text(json.into())).await;
-    }
 
-    // Register connection
-    state
-        .add_connection(member_id.clone(), member_type.clone(), tx.clone())
+    if let Some(claims) = claims {
+        let member_id = claims.sub;
+        let mut events = state.rooms.subscribe();
+        let mut joined_rooms = HashSet::new();
+        let mut rate_limiter = RateLimiter::new();
+        state
+            .add_connection(member_id.clone(), claims.member_type.clone(), tx.clone())
+            .await;
+        send_response(
+            &tx,
+            &ServerMessage::AuthSuccess {
+                member_id: member_id.clone(),
+                member_type: claims.member_type,
+            },
+        )
         .await;
+        let remaining = (claims.exp as i64)
+            .saturating_sub(chrono::Utc::now().timestamp())
+            .max(0) as u64;
+        let expiry = tokio::time::sleep(Duration::from_secs(remaining));
+        tokio::pin!(expiry);
 
-    // Spawn writer task
-    let writer = tokio::spawn(async move {
-        while let Some(message) = rx.recv().await {
-            if sender.send(message).await.is_err() {
-                break;
-            }
-        }
-    });
-
-    // Rate limiter for this connection
-    let mut rate_limiter = RateLimiter::new();
-
-    // Handle incoming messages
-    while let Some(msg) = receiver.next().await {
-        match msg {
-            Ok(Message::Text(text)) => {
-                // Check rate limit
-                if !rate_limiter.check_and_increment() {
-                    tracing::warn!(
-                        member_id = %member_id,
-                        max_per_second = MAX_MESSAGES_PER_SECOND,
-                        "Rate limit exceeded, closing connection"
-                    );
-                    let _ = tx
-                        .send(Message::Text(
-                            r#"{"type":"error","message":"Rate limit exceeded"}"#
-                                .to_string()
-                                .into(),
-                        ))
-                        .await;
-                    let _ = tx.send(Message::Close(None)).await;
+        loop {
+            tokio::select! {
+                _ = &mut expiry => {
+                    send_response(&tx, &ServerMessage::AuthError {
+                        message: "Token has expired".to_string(), code: Some("TOKEN_EXPIRED".to_string()),
+                    }).await;
                     break;
                 }
-
-                tracing::debug!(member_id = %member_id, "Received: {}", text);
-
-                match parse_client_message(&text) {
-                    Ok(client_msg) => {
-                        match state
-                            .authenticator
-                            .process_message(ConnectionState::Authenticated, &client_msg)
-                        {
-                            MessageResult::Response(server_msg) => {
-                                if let Ok(json) = serialize_server_message(&server_msg) {
-                                    if tx.send(Message::Text(json.into())).await.is_err() {
-                                        break;
+                event = events.recv() => {
+                    match event {
+                        Ok(event) if joined_rooms.contains(&event.room_id) => {
+                            if state.rooms.authorize(&event.room_id, &member_id, false).await.is_err() { continue; }
+                            let response = ServerMessage::NewMessage {
+                                room_id: event.room_id, message_id: event.message.id,
+                                sender_id: event.message.sender, content: event.message.text,
+                                reply_to: event.message.reply_to, timestamp: event.timestamp,
+                            };
+                            if !send_response(&tx, &response).await { break; }
+                        }
+                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                            send_response(&tx, &ServerMessage::Error {
+                                message: "Reload room history after reconnect".to_string(),
+                                code: Some("SYNC_REQUIRED".to_string()),
+                            }).await;
+                            break;
+                        }
+                        Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                        _ => {}
+                    }
+                }
+                message = receiver.next() => {
+                    let Some(Ok(message)) = message else { break };
+                    match message {
+                        Message::Text(text) => {
+                            if !rate_limiter.check_and_increment() {
+                                send_response(&tx, &ServerMessage::Error {
+                                    message: "Rate limit exceeded".to_string(), code: Some("RATE_LIMITED".to_string()),
+                                }).await;
+                                break;
+                            }
+                            let response = match parse_client_message(&text) {
+                                Ok(ClientMessage::JoinRoom { room_id }) => {
+                                    match state.rooms.authorize(&room_id, &member_id, false).await {
+                                        Ok(_) => {
+                                            joined_rooms.insert(room_id.clone());
+                                            ServerMessage::RoomJoined { room_id }
+                                        }
+                                        Err(error) => room_error(error),
                                     }
                                 }
-                            }
-                            MessageResult::CloseConnection => break,
-                            _ => {}
+                                Ok(ClientMessage::LeaveRoom { room_id }) => {
+                                    joined_rooms.remove(&room_id);
+                                    ServerMessage::RoomLeft { room_id }
+                                }
+                                Ok(ClientMessage::SendMessage { room_id, content, reply_to, client_message_id }) => {
+                                    if !joined_rooms.contains(&room_id) {
+                                        ServerMessage::Error { message: "Join the room first".to_string(), code: Some("ROOM_NOT_JOINED".to_string()) }
+                                    } else if let Err(error) = state.rooms.authorize(&room_id, &member_id, false).await {
+                                        room_error(error)
+                                    } else {
+                                        let accepted_room = room_id.clone();
+                                        let accepted_key = client_message_id.clone();
+                                        match state.rooms.send_message_idempotent(crate::rooms::SendMessageCommand {
+                                            room_id, sender: member_id.clone(), text: content, reply_to,
+                                        }, client_message_id).await {
+                                            Ok(message) => ServerMessage::MessageAccepted { room_id: accepted_room, message_id: message.id, client_message_id: accepted_key },
+                                            Err(error) => room_error(error),
+                                        }
+                                    }
+                                }
+                                Ok(ClientMessage::Heartbeat { timestamp }) => ServerMessage::HeartbeatAck { timestamp },
+                                Ok(ClientMessage::Auth { .. }) => ServerMessage::Error {
+                                    message: "Already authenticated".to_string(), code: Some("ALREADY_AUTHENTICATED".to_string()),
+                                },
+                                Err(_) => ServerMessage::Error {
+                                    message: "Invalid message format".to_string(), code: Some("PARSE_ERROR".to_string()),
+                                },
+                            };
+                            if !send_response(&tx, &response).await { break; }
                         }
-                    }
-                    Err(e) => {
-                        tracing::warn!("Failed to parse message: {}", e);
+                        Message::Ping(data) => { if tx.try_send(Message::Pong(data)).is_err() { break; } }
+                        Message::Close(_) => break,
+                        _ => {}
                     }
                 }
             }
-            Ok(Message::Close(_)) => {
-                tracing::debug!(member_id = %member_id, "Client disconnected");
-                break;
-            }
-            Err(e) => {
-                tracing::error!(member_id = %member_id, "WebSocket error: {}", e);
-                break;
-            }
-            _ => {}
+        }
+        // An older connection must never remove its replacement during reconnect.
+        let mut connections = state.connections.write().await;
+        if connections
+            .get(&member_id)
+            .is_some_and(|sender| sender.tx.same_channel(&tx))
+        {
+            connections.remove(&member_id);
         }
     }
+    let _ = tx.try_send(Message::Close(None));
+    drop(tx);
+    if timeout(Duration::from_secs(1), &mut writer).await.is_err() {
+        writer.abort();
+    }
+}
 
-    // Cleanup
-    state.remove_connection(&member_id).await;
-    writer.abort();
+async fn send_response(tx: &mpsc::Sender<Message>, response: &ServerMessage) -> bool {
+    let Ok(json) = serialize_server_message(response) else {
+        return false;
+    };
+    // A slow connection cannot block HTTP writes or other subscribers.
+    tx.try_send(Message::Text(json.into())).is_ok()
+}
+
+fn room_error(error: crate::rooms::RoomCommandError) -> ServerMessage {
+    use crate::rooms::RoomCommandError;
+    let (message, code) = match error {
+        RoomCommandError::Forbidden => ("Room access denied".to_string(), "FORBIDDEN"),
+        RoomCommandError::Conflict => ("Retry key content mismatch".to_string(), "CONFLICT"),
+        RoomCommandError::RoomNotFound => ("Room not found".to_string(), "NOT_FOUND"),
+        RoomCommandError::Validation(message) => (message, "BAD_REQUEST"),
+        RoomCommandError::ServiceUnavailable => {
+            ("Service unavailable".to_string(), "SERVICE_UNAVAILABLE")
+        }
+    };
+    ServerMessage::Error {
+        message,
+        code: Some(code.to_string()),
+    }
 }
 
 /// Create a WebSocket router with authentication

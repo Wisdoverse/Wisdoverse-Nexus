@@ -8,6 +8,10 @@ export interface Room {
 }
 
 export const roomsApi = {
-  list: () => httpClient.get<Room[]>('/rooms'),
+  list: async () => {
+    const response = await httpClient.get<{ rooms: Room[]; total: number }>('/rooms')
+    return { ...response, data: response.data.rooms }
+  },
+  create: (name: string, topic?: string) => httpClient.post<Room>('/rooms', { name, topic }),
   get: (id: string) => httpClient.get<Room>(`/rooms/${id}`),
 }

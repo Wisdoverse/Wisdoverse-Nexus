@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native'
+import { roomsApi } from '../../shared/api/endpoints/rooms'
+import { useEffect, useState } from 'react'
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { useRoomsStore } from './roomsStore'
 import type { RootStackNavigationProp } from '../../app/navigation/types'
@@ -9,6 +10,17 @@ interface Props {
 }
 
 export function RoomListScreen({ navigation }: Props) {
+  const [name, setName] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState('')
+  const createRoom = async () => {
+    if (!name.trim() || creating) return
+    setCreating(true)
+    setCreateError('')
+    try { await roomsApi.create(name.trim()); setName(''); await fetchRooms() }
+    catch { setCreateError('Failed to create room') }
+    finally { setCreating(false) }
+  }
   const { rooms, loading, error, fetchRooms } = useRoomsStore()
 
   useEffect(() => {
@@ -17,6 +29,11 @@ export function RoomListScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
+      <TextInput accessibilityLabel="Room name" value={name} onChangeText={setName} placeholder="Room name" />
+      <Pressable accessibilityRole="button" onPress={createRoom} disabled={creating || !name.trim()}>
+        <Text>{creating ? 'Creating...' : 'Create room'}</Text>
+      </Pressable>
+      {createError ? <Text accessibilityRole="alert">{createError}</Text> : null}
       {loading ? <ActivityIndicator size="large" color="#0b5fff" /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <FlatList

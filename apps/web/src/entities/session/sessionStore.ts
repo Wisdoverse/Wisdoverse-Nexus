@@ -230,7 +230,10 @@ function getStore() {
   return storeInstance
 }
 
-export const useAuthStore = new Proxy({} as ReturnType<typeof createAuthStore>, {
+const lazyHook = ((selector?: (state: AuthState) => unknown) =>
+  getStore()(selector ?? ((state) => state))) as ReturnType<typeof createAuthStore>
+
+export const useAuthStore = new Proxy(lazyHook, {
   get(_, prop) {
     const store = getStore()
     if (!store) return undefined

@@ -8,7 +8,21 @@ versions. Breaking changes must be called out in release notes.
 
 ## [Unreleased]
 
+### Added
+
+- Verified JWT session and room history endpoints, creator/member permission checks,
+  stable retry keys and shared HTTP/WebSocket message acknowledgements.
+- Real-gateway CI acceptance for both SDKs and Web/mobile adapters, with synthetic
+  credentials, OpenAPI response validation and retained scenario evidence.
+
+- Documented the M1 collaboration guide covering externally issued JWT
+  sessions, HTTP and WebSocket message flows, reconnect recovery, and planned
+  real-gateway acceptance evidence.
+
 ### Changed
+
+- Aligned Web/mobile and SDK collaboration contracts; reconnect restores subscriptions
+  and HTTP history recovers gaps in the documented in-memory support window.
 
 - Reworked the English and Chinese roadmaps using a source-linked comparison
   of related collaboration/AI projects. Priorities now connect a governed
@@ -17,6 +31,15 @@ versions. Breaking changes must be called out in release notes.
 - Added bilingual roadmap execution standards and a public work-item template:
   scoped packages, responsibility/dependency tracking, proposed quality and
   SLO targets, AI evaluation, release/recovery gates, and evidence requirements.
+- Updated the Python SDK README and usage example for the M1 member session,
+  room, message, and WebSocket APIs.
+- **Breaking migration:** remove the fictional email/password `login` and
+  `register` flows, `RegisterData`, and their email-oriented user and
+  refresh-token models from integrations. Obtain an HS256 JWT from your own
+  identity system and pass it to `authenticate(token)`. There is no login,
+  registration, token issuance, or refresh endpoint in M1. Update room and
+  message field access to the M1 `topic`, `text`, and `sender` model fields;
+  the validated JWT subject determines the sender.
 - Aligned the English and Chinese roadmaps around the implemented baseline,
   prioritized milestones, acceptance criteria, and evidence required before 1.0.
 - Public examples now use local gateway URLs or reserved example domains in
