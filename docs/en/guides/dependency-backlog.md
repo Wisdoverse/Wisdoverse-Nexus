@@ -2,9 +2,10 @@
 
 This page records how the 16 open dependency update PRs were handled while
 aligning updates with the versions and runtime constraints already on `main`.
-Five single-package PRs were closed because `main` already contains a higher
-compatible version. The remaining updates are collected in a new grouped PR;
-its public CI and final review remain pending.
+All 16 source PRs are closed: five because `main` already contains a higher
+compatible version, and eleven replaced by the compatible grouped update in
+[PR #111](https://github.com/Wisdoverse/Wisdoverse-Nexus/pull/111).
+Its public CI and final review are tracked on that PR.
 
 | Source PR | Disposition |
 | --- | --- |
@@ -25,8 +26,9 @@ its public CI and final review remain pending.
 | #69, docs dependency group | Included for Vue and `@vitejs/plugin-vue`. |
 | #66, Playwright | Included with the `@playwright/test` 1.60.0 floor. |
 
-The grouped dependency PR link and its review status will be added after the
-integration owner supplies them. Public CI status is still pending.
+The source PRs were superseded on 2026-10-01. PR #111 contains the reviewable
+replacement and tracks final CI and acceptance; source closure does not mean
+that the grouped update is already merged.
 
 ## Local verification evidence
 
