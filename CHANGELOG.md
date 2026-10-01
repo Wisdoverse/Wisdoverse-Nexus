@@ -10,6 +10,12 @@ versions. Breaking changes must be called out in release notes.
 
 ### Changed
 
+- Aligned the English and Chinese roadmaps around the implemented baseline,
+  prioritized milestones, acceptance criteria, and evidence required before 1.0.
+- Public examples now use local gateway URLs or reserved example domains in
+  place of organization-specific service URLs and internal-looking hostnames.
+- Contribution guides and issue/PR templates now describe privacy review and
+  redaction requirements for public examples, logs, screenshots, and configuration.
 - TypeScript SDK now depends on `axios` `^1.16.0` (previously `^1.15.2`).
   Downstream consumers receive axios 1.16's behavior changes: the fetch
   adapter enforces `maxBodyLength` / `maxContentLength` (previously

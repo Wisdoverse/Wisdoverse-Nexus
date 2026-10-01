@@ -96,6 +96,11 @@ hard to review.
 Documentation must describe the current repository, not future intent.
 
 - Do not add unverified benchmark, certification, customer, or compatibility claims.
+- Use synthetic data and reserved domains such as `example.com` in public examples.
+- Remove personal information, customer/tenant identifiers, private addresses,
+  workstation paths, and credentials from logs, screenshots, and configuration.
+  Redact authorization headers, cookies, tokens, and sensitive payloads; check
+  screenshot metadata and visible account information before posting.
 - Keep English and Chinese entry points aligned when first-run behavior changes.
 - Use <https://wisdoverse.github.io/Wisdoverse-Nexus/> for the published public
   documentation site.

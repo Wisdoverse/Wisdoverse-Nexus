@@ -6,6 +6,9 @@ labels: enhancement
 assignees: ""
 ---
 
+> This proposal is public. Use synthetic examples and omit personal data,
+> customer/tenant identifiers, private infrastructure addresses, and credentials.
+
 ## Problem
 
 <!-- What user or operator problem should this solve? -->

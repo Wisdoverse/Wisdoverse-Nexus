@@ -5,8 +5,12 @@ Wisdoverse Nexus provides REST and WebSocket APIs for integration.
 ## Base URL
 
 ```
-https://api.wisdoverse.com
+http://localhost:8080
 ```
+
+This is the local development gateway. For a self-hosted deployment, use your
+configured URL. Public examples should use `https://api.example.com` as a
+placeholder and omit private deployment addresses.
 
 All v1 endpoints are prefixed with `/v1`.
 

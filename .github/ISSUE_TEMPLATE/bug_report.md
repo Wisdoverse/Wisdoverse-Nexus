@@ -6,6 +6,11 @@ labels: bug
 assignees: ""
 ---
 
+> This report is public. Use synthetic or redacted examples and remove personal
+> data, customer/tenant identifiers, private addresses, and credentials from
+> logs, screenshots, and configuration. Report exposed sensitive information
+> privately using [SECURITY.md](https://github.com/Wisdoverse/Wisdoverse-Nexus/blob/main/SECURITY.md).
+
 ## Summary
 
 <!-- What failed? Keep this short and concrete. -->
