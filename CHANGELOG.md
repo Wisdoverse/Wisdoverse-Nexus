@@ -10,6 +10,14 @@ versions. Breaking changes must be called out in release notes.
 
 ### Changed
 
+- Consolidated pending compatible Rust, Web, SDK, docs, Playwright, Docker Rust
+  builder and GitHub Actions updates on the current main baseline; preserved
+  Expo 55 / React Native 0.83 constraints and newer existing dependency versions.
+- Synchronized pnpm and tracked npm lockfiles, raised PostCSS override floors,
+  and resolved React type and Expo DOM peer requirements. Docker builders use
+  Bookworm to match the runtime; locked builds and health-check dependencies
+  prevent unreviewed resolution and missing runtime probes.
+
 - Reworked the English and Chinese roadmaps using a source-linked comparison
   of related collaboration/AI projects. Priorities now connect a governed
   human/AI room pilot, tenant reliability, document/task workflows, and

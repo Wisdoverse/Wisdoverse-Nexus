@@ -16,3 +16,10 @@ logs/
 *.log
 .DS_Store
 docker-compose.override.yml
+
+# Workspace dependencies and generated local evidence
+**/node_modules/
+**/dist/
+**/__pycache__/
+.venv/
+artifacts/

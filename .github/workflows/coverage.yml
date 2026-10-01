@@ -26,7 +26,7 @@ jobs:
       COVERAGE_THRESHOLD: '60'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
@@ -112,9 +112,9 @@ jobs:
       
       - name: Upload to Codecov
         # SHA-pinned per `actions/unpinned-tag` CodeQL recommendation. The
-        # current tag is `v6.0.0` — refresh both the SHA and the comment when
+        # current tag is `v7.0.0` — refresh both the SHA and the comment when
         # upgrading.
-        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2  # v6.0.0
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
         with:
           files: lcov.info
           fail_ci_if_error: false
