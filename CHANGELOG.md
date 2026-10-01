@@ -8,11 +8,43 @@ versions. Breaking changes must be called out in release notes.
 
 ## [Unreleased]
 
+### Added
+
+- Added static FSD/DDD boundary checks with behavior tests and CI enforcement for
+  covered Web/mobile and gateway domain modules.
+- Verified JWT session and room history endpoints, creator/member permission checks,
+  stable retry keys and shared HTTP/WebSocket message acknowledgements.
+- Real-gateway CI acceptance for both SDKs and Web/mobile adapters, with synthetic
+  credentials, OpenAPI response validation and retained scenario evidence.
+
+- Documented the M1 collaboration guide covering externally issued JWT
+  sessions, HTTP and WebSocket message flows, reconnect recovery, and linked
+  real-gateway acceptance evidence.
+
 ### Changed
 
 - CI pins the qualified Rust 1.98.1 compiler instead of floating `stable`; compiler
   upgrades require a fresh qualification before changing the strict lint baseline.
 
+- M1 Kubernetes/Helm profiles now use one instance and Recreate upgrades, inject
+  JWT keys through an existing Secret, support image digests, and include startup
+  probes. Helm rejects unqualified multi-replica or autoscaling configurations.
+- Gateway HTTP shutdown drains accepted requests; local health probes remain
+  reachable when HTTPS redirect is enabled. Cluster runtime, durable restart and
+  WebSocket drain qualification remain future deployment gates.
+- Production gateway startup now requires a nonblank `JWT_SECRET`. Mobile session
+  restoration validates saved tokens before entering protected routes and keeps
+  retryable sessions on network failures.
+- Moved mobile session and Web room state into entities, moved mobile navigation
+  types into shared, and removed frontend cross-slice and reverse-layer imports.
+- Codified FSD for Web/mobile, DDD for backends, and cloud-native microservice
+  requirements in AGENTS.md and ADR-008; developer docs distinguish the current
+  M1 in-memory preview from qualified service/deployment targets.
+- Updated bilingual roadmap tracking and M1 evidence with pinned successful CI
+  revisions, browser checks, reproduction commands and remaining review gates.
+
+- Aligned Web/mobile and SDK collaboration contracts; reconnect restores subscriptions
+  and HTTP history recovers gaps in the documented in-memory support window.
 - Consolidated pending compatible Rust, Web, SDK, docs, Playwright, Docker Rust
   builder and GitHub Actions updates on the current main baseline; preserved
   Expo 55 / React Native 0.83 constraints and newer existing dependency versions.
@@ -28,6 +60,15 @@ versions. Breaking changes must be called out in release notes.
 - Added bilingual roadmap execution standards and a public work-item template:
   scoped packages, responsibility/dependency tracking, proposed quality and
   SLO targets, AI evaluation, release/recovery gates, and evidence requirements.
+- Updated the Python SDK README and usage example for the M1 member session,
+  room, message, and WebSocket APIs.
+- **Breaking migration:** remove the fictional email/password `login` and
+  `register` flows, `RegisterData`, and their email-oriented user and
+  refresh-token models from integrations. Obtain an HS256 JWT from your own
+  identity system and pass it to `authenticate(token)`. There is no login,
+  registration, token issuance, or refresh endpoint in M1. Update room and
+  message field access to the M1 `topic`, `text`, and `sender` model fields;
+  the validated JWT subject determines the sender.
 - Aligned the English and Chinese roadmaps around the implemented baseline,
   prioritized milestones, acceptance criteria, and evidence required before 1.0.
 - Public examples now use local gateway URLs or reserved example domains in

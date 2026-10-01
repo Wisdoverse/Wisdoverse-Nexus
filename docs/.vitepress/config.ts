@@ -135,6 +135,8 @@ export default defineConfig({
           items: [
             { text: 'Contributing', link: '/en/development/contributing' },
             { text: 'Testing', link: '/en/guides/testing' },
+            { text: 'Core Collaboration', link: '/en/guides/core-collaboration' },
+            { text: 'M1 Acceptance Evidence', link: '/en/guides/m1-acceptance' },
             { text: 'Release Process', link: '/en/guides/release-process' },
             { text: 'Roadmap', link: '/en/roadmap' },
             { text: 'Roadmap Execution', link: '/en/guides/roadmap-execution' },

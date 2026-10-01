@@ -108,7 +108,10 @@ impl From<RoomCommandError> for PrivacyApplicationError {
     fn from(error: RoomCommandError) -> Self {
         match error {
             RoomCommandError::ServiceUnavailable => Self::ServiceUnavailable,
-            RoomCommandError::Validation(_) | RoomCommandError::RoomNotFound => Self::Unexpected,
+            RoomCommandError::Validation(_)
+            | RoomCommandError::Forbidden
+            | RoomCommandError::Conflict
+            | RoomCommandError::RoomNotFound => Self::Unexpected,
         }
     }
 }

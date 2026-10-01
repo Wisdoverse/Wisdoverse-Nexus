@@ -1,3 +1,3 @@
 export { RoomListPage } from './RoomListPage'
-export { useRoomsStore } from './roomsStore'
-export type { Room } from './roomsStore'
+export { useRoomsStore } from '../../entities/room'
+export type { Room } from '../../entities/room'

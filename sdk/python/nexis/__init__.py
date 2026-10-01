@@ -1,8 +1,5 @@
-"""Wisdoverse Nexus SDK - Python client for Wisdoverse Nexus API."""
+from .client import NexisClient
+from .websocket import WebSocketConnection
+from .models import AuthResult, CreateRoomData, Message, Room
 
-from nexis.client import NexisClient
-from nexis.websocket import WebSocketConnection
-from nexis.models import Room, Message, Member, AuthResult
-
-__version__ = "0.1.0"
-__all__ = ["NexisClient", "WebSocketConnection", "Room", "Message", "Member", "AuthResult"]
+__all__ = ["NexisClient", "WebSocketConnection", "AuthResult", "CreateRoomData", "Message", "Room"]

@@ -39,9 +39,9 @@ impl Default for AppState {
         let rooms = RoomApplication::default();
         Self {
             privacy: PrivacyApplication::new(rooms.clone()),
+            ws_state: WebSocketState::default().with_rooms(rooms.clone()),
             rooms,
             search_application: None,
-            ws_state: WebSocketState::default(),
         }
     }
 }
@@ -80,6 +80,7 @@ const OPENAPI_JSON: &str = include_str!("openapi.json");
 
 fn v1_routes() -> Router<AppState> {
     Router::new()
+        .route("/v1/auth/session", get(crate::auth::session))
         .merge(crate::rooms::routes())
         .merge(crate::search::routes())
         .merge(crate::privacy::routes())
@@ -330,6 +331,8 @@ mod tests {
             "/openapi.json",
             "/docs",
             "/ws",
+            "/v1/auth/session",
+            "/v1/rooms/{id}/messages",
             "/v1/rooms",
             "/v1/rooms/{id}",
             "/v1/rooms/{id}/invite",
@@ -355,6 +358,8 @@ mod tests {
         }
 
         let expected_methods = [
+            ("/v1/auth/session", "get"),
+            ("/v1/rooms/{id}/messages", "get"),
             ("/v1/rooms", "get"),
             ("/v1/rooms", "post"),
             ("/v1/rooms/{id}", "get"),

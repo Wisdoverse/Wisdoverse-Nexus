@@ -24,8 +24,8 @@ export const useRoomsStore = create<RoomsState>((set) => ({
   fetchRooms: async () => {
     set({ loading: true, error: null })
     try {
-      const response = await httpClient.get<Room[]>('/rooms')
-      set({ rooms: response.data, loading: false })
+      const response = await httpClient.get<{ rooms: Room[]; total: number }>('/rooms')
+      set({ rooms: response.data.rooms, loading: false })
     } catch {
       set({ error: 'Failed to fetch rooms', loading: false })
     }

@@ -2,6 +2,8 @@
 
 本指南用于搭建与 GitHub CI 模型一致的本地开发环境。
 
+仓库架构约束要求前端采用 FSD、后端采用 DDD，并按云原生微服务原则设计服务和部署。当前 M1 网关仍是单进程、单租户、内存存储的预览模式；这些约束描述开发和演进要求，不表示微服务拆分或持久化已验收。详见[根目录 AGENTS.md](https://github.com/Wisdoverse/Wisdoverse-Nexus/blob/main/AGENTS.md)和[架构 ADR 008](../../en/architecture/adr/008-fsd-ddd-cloud-native-services.md)。
+
 ## 环境要求
 
 - Rust 1.98.1，并安装 `rustfmt` 和 `clippy`（仓库已验收的工具链版本）
@@ -65,7 +67,7 @@ pnpm --dir docs docs:build
 
 ## 本地 Docker
 
-根目录 `docker-compose.yml` 用于启动 gateway 和本地持久化数据：
+根目录 `docker-compose.yml` 用于启动本地 gateway。Compose 挂载数据卷不代表 M1 房间和消息已经持久化：M1 当前使用单进程内存存储，进程重启后数据会丢失。持久化能力计划在 M3 验收。
 
 ```bash
 docker compose up -d

@@ -23,6 +23,20 @@ Authorization: Bearer <token>
 ```
 
 Unauthenticated requests to protected endpoints return `401 Unauthorized`.
+The supported M1 mode is one process with default features and in-memory,
+single-tenant storage. Tenant-scoped credentials are rejected. See the
+[core collaboration guide](../guides/core-collaboration.md) for external JWT signing,
+retry limits, and migration. The served `/openapi.json` is the schema source.
+
+### Verify session
+
+`GET /v1/auth/session` returns the verified identity:
+
+```json
+{"memberId":"demo-member","memberType":"human","expiresAt":1893456000000,"refreshSupported":false}
+```
+
+The gateway does not issue or refresh tokens. Use externally issued HS256 JWTs.
 
 ## Endpoints
 
@@ -41,8 +55,13 @@ Unauthenticated requests to protected endpoints return `401 Unauthorized`.
 | GET | /v1/rooms | List rooms | Yes |
 | POST | /v1/rooms | Create a room | Yes |
 | GET | /v1/rooms/{id} | Get room details | Yes |
+| GET | /v1/rooms/{id}/messages | Ordered message history | Yes |
 | DELETE | /v1/rooms/{id} | Delete a room | Yes |
 | POST | /v1/rooms/{id}/invite | Invite member | Yes |
+
+Only the creator and invited members may read, send, or subscribe. Only the
+creator may invite members or delete a room; unauthorized access returns 403.
+Listing includes only accessible rooms; pagination and `total` apply to that set.
 
 #### List Rooms
 
@@ -94,9 +113,9 @@ Response:
   "messages": [
     {
       "id": "msg_xyz",
+      "roomId": "room_abc123",
       "sender": "alice",
-      "text": "Hello!",
-      "reply_to": null
+      "text": "Hello!"
     }
   ]
 }
@@ -118,7 +137,7 @@ Request:
 ```json
 {
   "roomId": "room_abc123",
-  "sender": "alice",
+  "clientMessageId": "demo-write-1",
   "text": "Hello, world!",
   "replyTo": null
 }
@@ -127,11 +146,22 @@ Request:
 Response: `201 Created`
 ```json
 {
-  "id": "msg_xyz"
+  "id": "msg_xyz",
+  "roomId": "room_abc123",
+  "sender": "demo-member",
+  "text": "Hello, world!"
 }
 ```
 
+The sender comes from the JWT subject; a legacy `sender` input is ignored.
+Replies must reference a message in the same room. Repeating a
+`clientMessageId` with the same text and reply returns the original ID. Changed
+content returns 409; keys are retained for 60 minutes within one process.
+`GET /v1/rooms/{id}/messages` returns an ordered array with the same message shape.
+
 ### Search API
+
+Search requires a configured search service and is outside the M1 qualification profile.
 
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
@@ -164,18 +194,20 @@ Response:
 
 ## WebSocket API
 
-Connect to `/ws` for real-time messaging. No authentication required on the WebSocket endpoint.
+Connect to `/ws`, send `auth` as the first message within 10 seconds, then
+`join_room` after `auth_success`. Await `room_joined` before sending messages.
+Tokens are never required in the URL. Live `new_message` events share IDs,
+senders, content, and reply references with HTTP history. WebSocket writes
+receive `message_accepted`, including on an idempotent retry.
 
-### Events
-
-- `message:create` - New message
-- `message:update` - Message updated
-- `room:join` - User joined room
-- `room:leave` - User left room
+See the [WebSocket contract](websocket.md) for flat JSON event shapes and recovery.
 
 ## Error Handling
 
-All errors return a consistent JSON format:
+Room/message application errors return the following JSON shape. Authentication
+failures and Axum request extraction can return plain-text bodies; parse the
+HTTP status first and handle either representation. WebSocket errors use the
+event shapes in the [WebSocket contract](websocket.md).
 
 ```json
 {
@@ -189,9 +221,11 @@ All errors return a consistent JSON format:
 | Code | HTTP Status | Description |
 |------|-------------|-------------|
 | BAD_REQUEST | 400 | Invalid request parameters |
-| UNAUTHORIZED | 401 | Missing or invalid authentication |
+| — | 401 | Missing, invalid or expired authentication; body may be plain text |
 | FORBIDDEN | 403 | Insufficient permissions |
 | NOT_FOUND | 404 | Resource not found |
+| CONFLICT | 409 | Retry key reused with different content |
+| UNSUPPORTED_MODE | 503 | Multi-tenant core flow is outside M1 support |
 | SERVICE_UNAVAILABLE | 503 | Service temporarily unavailable |
 | INTERNAL_ERROR | 500 | Internal server error |
 | INVALID_QUERY | 400 | Invalid search query |

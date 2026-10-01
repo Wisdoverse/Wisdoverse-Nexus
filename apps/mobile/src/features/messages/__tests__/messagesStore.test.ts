@@ -18,7 +18,7 @@ vi.mock('zustand', () => ({
   },
 }))
 
-vi.mock('../../auth/authStore', () => ({
+vi.mock('../../../entities/session', () => ({
   useAuthStore: {
     getState: () => ({ memberId: 'member-42' }),
   },

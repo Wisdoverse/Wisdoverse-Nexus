@@ -125,6 +125,9 @@ jobs:
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-node-pnpm
 
+      - name: Enforce FSD and DDD boundaries
+        run: pnpm test:architecture && pnpm check:architecture
+
       - name: Check Expo compatibility
         run: pnpm --filter @wisdoverse/nexus-mobile exec expo install --check
 
@@ -137,11 +140,87 @@ jobs:
       - name: Build web app
         run: pnpm --filter @wisdoverse/nexus-web build
 
+      - name: Test web app
+        run: pnpm --filter @wisdoverse/nexus-web exec vitest run
+
       - name: Build TypeScript SDK
         run: pnpm --filter @wisdoverse/nexus-sdk build
 
       - name: Build documentation site
         run: pnpm --dir docs docs:build
+
+  deployment-profile:
+    name: M1 Deployment Profile
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install pinned manifest parser
+        run: python -m pip install PyYAML==6.0.3
+      - name: Validate single-instance cloud deployment assets
+        run: python scripts/check_m1_deployment.py
+
+  collaboration-smoke:
+    name: M1 Live Gateway Contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          cache-key: collaboration-smoke
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install smoke dependencies
+        run: python -m pip install -r tests/smoke/requirements.txt
+      - name: Run real gateway and all four clients
+        run: bash scripts/m1_smoke.sh
+      - name: Retain sanitized contract evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: m1-live-gateway-contracts
+          path: artifacts/m1/
+          if-no-files-found: error
+          retention-days: 30
+
+  web-browser:
+    name: Web Token Login Browser Paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+      - name: Install locked browser test dependencies
+        run: npm ci --ignore-scripts
+        working-directory: apps/web/e2e
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/web/e2e
+      - name: Verify accepted and rejected token login
+        run: npx playwright test
+        working-directory: apps/web/e2e
+      - name: Retain browser failure traces
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: m1-web-browser-traces
+          path: apps/web/e2e/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
 
   # ============================================================================
   # Security Audit

@@ -1,7 +1,6 @@
 //! Authentication module for Nexus Gateway
 //!
-//! This module provides JWT-based authentication for WebSocket connections.
-//! Currently implements token generation/verification; full integration pending.
+//! Shared JWT configuration and identity verification for HTTP and WebSocket routes.
 
 #![allow(dead_code)]
 
@@ -56,6 +55,30 @@ pub struct JwtConfig {
     pub expiry_seconds: u64,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum JwtConfigError {
+    #[error("JWT_SECRET is required and must not be blank when NEXIS_ENV=production")]
+    MissingProductionSecret,
+    #[error("JWT_SECRET must contain valid Unicode")]
+    InvalidSecretEncoding,
+}
+
+static JWT_CONFIG: OnceLock<JwtConfig> = OnceLock::new();
+
+fn configured_secret(secret: Option<String>, production: bool) -> Result<String, JwtConfigError> {
+    if let Some(secret) = secret.filter(|value| !value.trim().is_empty()) {
+        return Ok(secret);
+    }
+    if production {
+        return Err(JwtConfigError::MissingProductionSecret);
+    }
+    tracing::warn!(
+        "JWT_SECRET is missing or blank. Using a development-only random secret; \
+         externally issued tokens require an explicitly configured JWT_SECRET."
+    );
+    Ok(uuid::Uuid::new_v4().to_string())
+}
+
 impl JwtConfig {
     pub fn new(secret: &str, issuer: String, audience: String) -> Self {
         Self {
@@ -67,29 +90,37 @@ impl JwtConfig {
         }
     }
 
-    /// Get the global cached JwtConfig instance
-    ///
-    /// This initializes the config from environment variables on first call
-    /// and caches it for subsequent calls.
+    /// Load configuration without exposing secret values in errors or logs.
+    pub fn from_env() -> Result<Self, JwtConfigError> {
+        let secret = match std::env::var("JWT_SECRET") {
+            Ok(value) => Some(value),
+            Err(std::env::VarError::NotPresent) => None,
+            Err(std::env::VarError::NotUnicode(_)) => {
+                return Err(JwtConfigError::InvalidSecretEncoding);
+            }
+        };
+        let production = std::env::var("NEXIS_ENV")
+            .is_ok_and(|value| value.trim().eq_ignore_ascii_case("production"));
+        let secret = configured_secret(secret, production)?;
+        Ok(Self::new(
+            &secret,
+            std::env::var("JWT_ISSUER").unwrap_or_else(|_| "nexis".to_string()),
+            std::env::var("JWT_AUDIENCE").unwrap_or_else(|_| "nexis".to_string()),
+        ))
+    }
+
+    /// Validate shared HTTP/WS configuration before opening a listener.
+    pub fn try_cached() -> Result<&'static Self, JwtConfigError> {
+        if let Some(config) = JWT_CONFIG.get() {
+            return Ok(config);
+        }
+        let config = Self::from_env()?;
+        Ok(JWT_CONFIG.get_or_init(|| config))
+    }
+
+    /// Get the validated, process-wide HTTP/WS configuration.
     pub fn cached() -> &'static Self {
-        static JWT_CONFIG: OnceLock<JwtConfig> = OnceLock::new();
-        JWT_CONFIG.get_or_init(|| {
-            let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| {
-                // Generate a random secret that will be invalid after restart
-                let random_secret = uuid::Uuid::new_v4().to_string();
-                tracing::warn!(
-                    "JWT_SECRET environment variable not set. Using randomly generated secret. \
-                     All tokens will be invalid after server restart. \
-                     Set JWT_SECRET for persistent authentication."
-                );
-                random_secret
-            });
-            JwtConfig::new(
-                &secret,
-                std::env::var("JWT_ISSUER").unwrap_or_else(|_| "nexis".to_string()),
-                std::env::var("JWT_AUDIENCE").unwrap_or_else(|_| "nexis".to_string()),
-            )
-        })
+        Self::try_cached().expect("JWT configuration must be valid before gateway startup")
     }
 
     pub fn generate_token(&self, member_id: &str, member_type: &str) -> Result<String, AuthError> {
@@ -141,9 +172,27 @@ impl JwtConfig {
         let mut validation = Validation::new(Algorithm::HS256);
         validation.set_issuer(&[&self.issuer]);
         validation.set_audience(&[&self.audience]);
+        validation.leeway = 0;
 
+        #[cfg(not(feature = "multi-tenant"))]
+        if let Ok(data) = decode::<serde_json::Value>(token, &self.decoding_key, &validation) {
+            if data
+                .claims
+                .get("tenant_id")
+                .is_some_and(|value| !value.is_null())
+            {
+                return Err(AuthError::InvalidToken);
+            }
+        }
         decode::<Claims>(token, &self.decoding_key, &validation)
-            .map(|data| data.claims)
+            .and_then(|data| {
+                if data.claims.sub.trim().is_empty()
+                    || !matches!(data.claims.member_type.as_str(), "human" | "ai")
+                {
+                    return Err(jsonwebtoken::errors::ErrorKind::InvalidSubject.into());
+                }
+                Ok(data.claims)
+            })
             .map_err(|e| {
                 if e.kind() == &jsonwebtoken::errors::ErrorKind::ExpiredSignature {
                     AuthError::TokenExpired
@@ -166,6 +215,22 @@ pub struct AuthenticatedUser {
     pub claims: Claims,
     #[cfg(feature = "multi-tenant")]
     pub tenant_context: Option<TenantContext>,
+}
+
+/// Verified identity for externally issued JWTs. This endpoint does not issue tokens.
+pub async fn session(user: AuthenticatedUser) -> axum::Json<serde_json::Value> {
+    let mut value = serde_json::json!({
+        "memberId": user.member_id,
+        "memberType": user.member_type,
+        "expiresAt": user.claims.exp.saturating_mul(1000),
+    });
+    #[cfg(feature = "multi-tenant")]
+    if let Some(tenant_id) = user.claims.tenant_id {
+        value["tenantId"] = tenant_id.into();
+    }
+    // Keep one response shape across feature configurations.
+    value["refreshSupported"] = false.into();
+    axum::Json(value)
 }
 
 impl AuthenticatedUser {
@@ -255,6 +320,34 @@ pub fn check_tenant_access(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn production_requires_a_nonblank_signing_secret() {
+        for secret in [None, Some(String::new()), Some(" \t\n".to_string())] {
+            assert!(matches!(
+                configured_secret(secret, true),
+                Err(JwtConfigError::MissingProductionSecret)
+            ));
+        }
+    }
+
+    #[test]
+    fn configured_signing_secret_is_preserved_in_both_modes() {
+        for production in [false, true] {
+            assert_eq!(
+                configured_secret(Some("explicit-secret".to_string()), production).unwrap(),
+                "explicit-secret"
+            );
+        }
+    }
+
+    #[test]
+    fn development_secret_is_ephemeral() {
+        let first = configured_secret(None, false).unwrap();
+        let second = configured_secret(Some(" ".to_string()), false).unwrap();
+        assert!(!first.is_empty());
+        assert_ne!(first, second);
+    }
 
     #[test]
     fn jwt_config_generates_and_verifies_token() {

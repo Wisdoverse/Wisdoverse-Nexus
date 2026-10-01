@@ -48,6 +48,9 @@ pub enum ClientMessage {
         /// Optional reply-to message ID
         #[serde(default)]
         reply_to: Option<String>,
+        /// Stable client retry key, retained for one hour in the gateway process.
+        #[serde(default)]
+        client_message_id: Option<String>,
     },
 }
 
@@ -90,6 +93,15 @@ pub enum ServerMessage {
     RoomLeft {
         /// Room ID
         room_id: String,
+    },
+    /// A write or retry was accepted with this stable message identity.
+    MessageAccepted {
+        /// Room containing the accepted message.
+        room_id: String,
+        /// Stable server message identifier.
+        message_id: String,
+        /// The client's retry key, when provided.
+        client_message_id: Option<String>,
     },
     /// New message in room
     NewMessage {
@@ -162,19 +174,7 @@ impl WebSocketAuthenticator {
 
     /// Create with environment configuration
     pub fn from_env() -> Self {
-        let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| {
-            let env = std::env::var("NEXIS_ENV").unwrap_or_default();
-            if env == "production" {
-                panic!("JWT_SECRET must be set in production environment");
-            }
-            tracing::warn!("Using default JWT secret. DO NOT use in production!");
-            "dev_only_secret_change_in_production".to_string()
-        });
-
-        let issuer = std::env::var("JWT_ISSUER").unwrap_or_else(|_| "nexis".to_string());
-        let audience = std::env::var("JWT_AUDIENCE").unwrap_or_else(|_| "nexis".to_string());
-
-        Self::new(JwtConfig::new(&secret, issuer, audience))
+        Self::new(JwtConfig::cached().clone())
     }
 
     /// Verify a token and return claims

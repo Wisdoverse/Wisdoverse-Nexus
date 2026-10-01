@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-Wisdoverse Nexus: Rust + TypeScript monorepo. Node 24.x, pnpm `>=10.30.0`, Rust edition 2021.
+Wisdoverse Nexus: Rust + TypeScript monorepo. Node 24.x, pnpm `>=10.30.0`, Rust edition 2021; CI pins the qualified Rust 1.98.1 toolchain.
 
 ## Layout
 
@@ -23,6 +23,9 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all -- --check
 
 # Web / SDK / docs
+pnpm check:architecture
+pnpm test:architecture
+python3 scripts/check_m1_deployment.py          # Docker + PyYAML 6.0.3; render-only checks
 pnpm --filter @wisdoverse/nexus-web dev          # local dev server
 pnpm --filter @wisdoverse/nexus-web build
 pnpm --filter @wisdoverse/nexus-sdk build
@@ -47,9 +50,19 @@ TypeScript: strict tsconfig, PascalCase React components, camelCase functions/va
 
 ## Architecture
 
+Required architecture: frontend follows Feature-Sliced Design (FSD), backend follows Domain-Driven Design (DDD), and service design follows cloud-native microservices. Apply these requirements to Web, mobile, backend services, and new deployment work.
+
+Run `pnpm test:architecture` for checker behavior and `pnpm check:architecture` for current frontend import boundaries and gateway domain dependency checks. These static checks cover Web/mobile source modules and gateway domain modules; they do not prove complete architectural compliance, runtime behavior, independent service deployment, persistence, or production scaling.
+
 Frontend must follow Feature-Sliced Design (FSD). Organize application code by layers in dependency order: `app` -> `pages` -> `widgets` -> `features` -> `entities` -> `shared`. A layer may import only from lower layers, never from a higher layer or sideways through another feature. Keep public APIs explicit through local `index.ts` barrels; avoid deep cross-slice imports. Place reusable UI, API clients, config, and primitives in `shared`; domain objects and stores in `entities`; user actions in `features`; composed surfaces in `widgets`; route-level screens in `pages`; providers, routing, and app bootstrapping in `app`.
 
 Backend must follow Domain-Driven Design (DDD). Keep domain models, value objects, aggregates, domain errors, and domain services free of transport, database, and framework concerns. Put use-case orchestration in application services; keep Axum handlers, SQL/storage adapters, external providers, queues, and observability in infrastructure/interface layers. Crate boundaries should preserve bounded contexts (`nexis-*`), and cross-context communication should use explicit contracts/events rather than shared mutable internals. Do not leak database row models or HTTP DTOs into domain APIs.
+
+Cloud-native microservices must have explicit bounded-context ownership, versioned API/event contracts, and independently buildable and deployable service artifacts. Each service owns its data and migrations; access another service's data through its published contracts. Keep durable state outside replaceable service instances in qualified deployment profiles. Define timeouts, bounded queues, retry/backoff and idempotency at service boundaries.
+
+Container and Kubernetes changes must use reproducible locked builds, compatible base/runtime images, non-root execution, external configuration and secret injection, resource requests/limits, startup/readiness/liveness probes, graceful shutdown and request draining. Provide structured logs, metrics and propagated trace/correlation IDs; redact credentials and private content. Document rollout, rollback and schema compatibility for affected services.
+
+Architecture changes must update the relevant ADR, contracts and developer/deployment documentation, with verification evidence in the PR. Document current implementation gaps and migration plans explicitly. The M1 single-process, in-memory preview remains a documented evaluation profile; cloud-native requirements do not establish production, persistence or horizontal-scaling support without acceptance evidence.
 
 ## Testing
 
@@ -57,7 +70,7 @@ Rust integration tests in `tests/`; crate-local tests for crate-specific behavio
 
 ## Env
 
-Copy `.env.example` or `deploy/.env.example`. Required: `JWT_SECRET`, `NEXIS_DEFAULT_PROVIDER` (default `mock`), `NEXIS_DATABASE_PATH`, `RUST_LOG`. Never commit secrets — pre-commit runs `gitleaks`, `detect-secrets`, fmt, clippy.
+Copy `.env.example` or `deploy/.env.example`. Configure `JWT_SECRET`, `NEXIS_DEFAULT_PROVIDER` (default `mock`), `NEXIS_DATABASE_PATH`, and `RUST_LOG`. When `NEXIS_ENV=production`, the gateway refuses to start if `JWT_SECRET` is missing or blank. Development may use an ephemeral random secret; externally issued tokens require an explicitly configured matching secret. Never commit secrets — pre-commit runs `gitleaks`, `detect-secrets`, fmt, clippy.
 
 ## Gotchas
 

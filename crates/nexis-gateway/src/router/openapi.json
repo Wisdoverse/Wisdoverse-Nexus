@@ -53,7 +53,8 @@
           "101": {
             "description": "WebSocket connection established"
           }
-        }
+        },
+        "description": "First message: auth {token}; then join_room {room_id}. JWT scope and room membership are checked. send_message accepts room_id, content, reply_to and client_message_id. message_accepted acknowledges every accepted retry; new_message is emitted once on commit. Heartbeat timestamps and event timestamps are milliseconds. Reload HTTP history after reconnect. Default single-tenant features only."
       }
     },
     "/v1/rooms": {
@@ -66,13 +67,29 @@
         ],
         "responses": {
           "200": {
-            "description": "Room list"
+            "description": "Authorized rooms only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomList"
+                }
+              }
+            }
           },
           "401": {
-            "$ref": "#/components/responses/Unauthorized"
+            "description": "Missing, invalid, expired, or tenant-scoped credentials"
           },
           "429": {
             "$ref": "#/components/responses/RateLimited"
+          },
+          "403": {
+            "description": "Member is not authorized for this room operation"
+          },
+          "404": {
+            "description": "Room does not exist"
+          },
+          "503": {
+            "description": "Unsupported multi-tenant mode or retry capacity exhausted"
           }
         }
       },
@@ -85,19 +102,42 @@
         ],
         "responses": {
           "201": {
-            "description": "Room created"
+            "description": "Room created with JWT subject as owner",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomCreated"
+                }
+              }
+            }
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "$ref": "#/components/responses/Unauthorized"
+            "description": "Missing, invalid, expired, or tenant-scoped credentials"
           },
           "429": {
             "$ref": "#/components/responses/RateLimited"
           },
           "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
+            "description": "Unsupported multi-tenant mode or retry capacity exhausted"
+          },
+          "403": {
+            "description": "Member is not authorized for this room operation"
+          },
+          "404": {
+            "description": "Room does not exist"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoomCreate"
+              }
+            }
           }
         }
       }
@@ -117,22 +157,32 @@
         ],
         "responses": {
           "200": {
-            "description": "Room details"
+            "description": "Authorized room and history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomDetails"
+                }
+              }
+            }
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "$ref": "#/components/responses/Unauthorized"
+            "description": "Missing, invalid, expired, or tenant-scoped credentials"
           },
           "404": {
-            "$ref": "#/components/responses/NotFound"
+            "description": "Room does not exist"
           },
           "429": {
             "$ref": "#/components/responses/RateLimited"
           },
           "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
+            "description": "Unsupported multi-tenant mode or retry capacity exhausted"
+          },
+          "403": {
+            "description": "Member is not authorized for this room operation"
           }
         }
       },
@@ -151,16 +201,19 @@
             "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "$ref": "#/components/responses/Unauthorized"
+            "description": "Missing, invalid, expired, or tenant-scoped credentials"
           },
           "404": {
-            "$ref": "#/components/responses/NotFound"
+            "description": "Room does not exist"
           },
           "429": {
             "$ref": "#/components/responses/RateLimited"
           },
           "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
+            "description": "Unsupported multi-tenant mode or retry capacity exhausted"
+          },
+          "403": {
+            "description": "Member is not authorized for this room operation"
           }
         }
       }
@@ -186,16 +239,19 @@
             "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "$ref": "#/components/responses/Unauthorized"
+            "description": "Missing, invalid, expired, or tenant-scoped credentials"
           },
           "404": {
-            "$ref": "#/components/responses/NotFound"
+            "description": "Room does not exist"
           },
           "429": {
             "$ref": "#/components/responses/RateLimited"
           },
           "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
+            "description": "Unsupported multi-tenant mode or retry capacity exhausted"
+          },
+          "403": {
+            "description": "Member is not authorized for this room operation"
           }
         }
       }
@@ -210,22 +266,45 @@
         ],
         "responses": {
           "201": {
-            "description": "Message created"
+            "description": "Committed message; same key and payload return the same identity without another broadcast",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
           },
           "400": {
-            "$ref": "#/components/responses/BadRequest"
+            "description": "Blank/oversize text, invalid retry key, or reply outside this room"
           },
           "401": {
-            "$ref": "#/components/responses/Unauthorized"
+            "description": "Missing, invalid, expired, or tenant-scoped credentials"
           },
           "404": {
-            "$ref": "#/components/responses/NotFound"
+            "description": "Room does not exist"
           },
           "429": {
             "$ref": "#/components/responses/RateLimited"
           },
           "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
+            "description": "Unsupported multi-tenant mode or retry capacity exhausted"
+          },
+          "403": {
+            "description": "Member is not authorized for this room operation"
+          },
+          "409": {
+            "description": "Retry key reused with different text or reply reference"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageCreate"
+              }
+            }
           }
         }
       }
@@ -672,6 +751,78 @@
           }
         }
       }
+    },
+    "/v1/auth/session": {
+      "get": {
+        "summary": "Verify externally issued HS256 JWT; no token issuance or refresh",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verified member session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/v1/rooms/{id}/messages": {
+      "get": {
+        "summary": "Full authorized room history in accepted order for this gateway process",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Room messages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Message"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, expired, or tenant-scoped credentials"
+          },
+          "403": {
+            "description": "Member is not authorized for this room operation"
+          },
+          "404": {
+            "description": "Room does not exist"
+          },
+          "503": {
+            "description": "Unsupported multi-tenant mode or retry capacity exhausted"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -741,6 +892,195 @@
       },
       "ServiceUnavailable": {
         "description": "Dependent service unavailable"
+      }
+    },
+    "schemas": {
+      "Session": {
+        "type": "object",
+        "properties": {
+          "memberId": {
+            "type": "string"
+          },
+          "memberType": {
+            "type": "string",
+            "enum": [
+              "human",
+              "ai"
+            ]
+          },
+          "expiresAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "JWT expiry in milliseconds since Unix epoch"
+          },
+          "refreshSupported": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          }
+        },
+        "required": [
+          "memberId",
+          "memberType",
+          "expiresAt",
+          "refreshSupported"
+        ]
+      },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "roomId": {
+            "type": "string"
+          },
+          "sender": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "reply_to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "roomId",
+          "sender",
+          "text"
+        ]
+      },
+      "RoomSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "topic": {
+            "type": "string"
+          },
+          "member_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "RoomCreated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "RoomDetails": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "topic": {
+            "type": "string"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "messages"
+        ]
+      },
+      "RoomList": {
+        "type": "object",
+        "properties": {
+          "rooms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoomSummary"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "rooms",
+          "total"
+        ]
+      },
+      "MessageCreate": {
+        "type": "object",
+        "properties": {
+          "roomId": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Nonblank UTF-8 text, at most 32768 bytes"
+          },
+          "replyTo": {
+            "type": "string",
+            "nullable": true
+          },
+          "sender": {
+            "type": "string",
+            "deprecated": true,
+            "description": "Ignored; JWT subject is authoritative"
+          },
+          "clientMessageId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional retry key (1\u2013128 UTF-8 bytes); scoped to member and room, retained 60 minutes in this process"
+          }
+        },
+        "required": [
+          "roomId",
+          "text"
+        ]
+      },
+      "RoomCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "topic": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "name"
+        ]
       }
     }
   }

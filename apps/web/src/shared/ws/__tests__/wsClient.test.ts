@@ -83,6 +83,9 @@ describe('WebSocketClient', () => {
 
     const firstSocket = MockWebSocket.instances[0]
     firstSocket.triggerOpen()
+    expect(states.at(-1)).toBe('connecting')
+    firstSocket.triggerMessage(JSON.stringify({ type: 'auth_success' }))
+    firstSocket.triggerMessage(JSON.stringify({ type: 'room_joined', room_id: 'room-1' }))
     expect(states.at(-1)).toBe('connected')
 
     firstSocket.triggerClose()
@@ -105,12 +108,27 @@ describe('WebSocketClient', () => {
     client.connect()
     const socket = MockWebSocket.instances[0]
     socket.triggerOpen()
+    socket.triggerMessage(JSON.stringify({ type: 'auth_success' }))
 
     vi.advanceTimersByTime(1000)
-    expect(socket.sent).toHaveLength(1)
+    expect(socket.sent).toHaveLength(2)
 
     vi.advanceTimersByTime(500)
     expect(states).toContain('reconnecting')
+  })
+
+  it('keeps tokens out of URLs and stops reconnecting after auth rejection', () => {
+    const client = new WebSocketClient({ getToken: () => 'sensitive-token' })
+    client.connect('room-1')
+    const socket = MockWebSocket.instances[0]
+    expect(socket.url).not.toContain('sensitive-token')
+    socket.triggerOpen()
+    expect(JSON.parse(socket.sent[0])).toEqual({ type: 'auth', token: 'Bearer sensitive-token' })
+    socket.triggerMessage(JSON.stringify({ type: 'auth_error', code: 'TOKEN_EXPIRED' }))
+    vi.advanceTimersByTime(60000)
+    expect(MockWebSocket.instances).toHaveLength(1)
+    expect(client.state).toBe('disconnected')
+    client.dispose()
   })
 
   it('queues outbound messages while disconnected and flushes on connect', () => {
@@ -123,8 +141,11 @@ describe('WebSocketClient', () => {
 
     const socket = MockWebSocket.instances[0]
     socket.triggerOpen()
+    expect(client.queuedCount).toBe(1)
+    socket.triggerMessage(JSON.stringify({ type: 'auth_success' }))
+    socket.triggerMessage(JSON.stringify({ type: 'room_joined', room_id: 'room-2' }))
 
     expect(client.queuedCount).toBe(0)
-    expect(socket.sent).toHaveLength(1)
+    expect(socket.sent).toHaveLength(3)
   })
 })

@@ -69,6 +69,13 @@ impl Default for RoomApplication {
 
 #[async_trait]
 impl RoomRepository for InMemoryRoomRepository {
+    async fn is_member(&self, room_id: &str, member_id: &str) -> bool {
+        self.room_members
+            .read()
+            .await
+            .get(room_id)
+            .is_some_and(|members| members.iter().any(|member| member == member_id))
+    }
     async fn active_room_count(&self) -> usize {
         self.rooms.read().await.len()
     }
@@ -360,6 +367,16 @@ impl SqlxRoomRepository {
 #[cfg(feature = "persistence-sqlx")]
 #[async_trait]
 impl RoomRepository for SqlxRoomRepository {
+    async fn is_member(&self, room_id: &str, member_id: &str) -> bool {
+        sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND member_id = $2)",
+        )
+        .bind(room_id)
+        .bind(member_id)
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(false)
+    }
     async fn active_room_count(&self) -> usize {
         match sqlx::query("SELECT COUNT(*) AS count FROM rooms")
             .fetch_one(&self.pool)

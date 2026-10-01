@@ -1,12 +1,11 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useState } from 'react'
 import { useAuthStore } from '../../entities/session'
+import { authApi } from '../../shared/api/authApi'
 import styles from './LoginPage.module.css'
 
 interface LoginCredentials {
   token: string
-  memberId: string
-  tenantId?: string
 }
 
 export function LoginPage() {
@@ -15,8 +14,6 @@ export function LoginPage() {
   const { login } = useAuthStore()
   const [credentials, setCredentials] = useState<LoginCredentials>({
     token: '',
-    memberId: '',
-    tenantId: '',
   })
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -31,18 +28,10 @@ export function LoginPage() {
       setError('Token is required')
       return
     }
-    if (!credentials.memberId.trim()) {
-      setError('Member ID is required')
-      return
-    }
 
     setLoading(true)
     try {
-      login({
-        token: credentials.token.trim(),
-        memberId: credentials.memberId.trim(),
-        tenantId: credentials.tenantId?.trim() || undefined,
-      })
+      login(await authApi.authenticate(credentials.token.trim()))
       navigate(from, { replace: true })
     } catch (err) {
       setError('Login failed. Please check your credentials.')
@@ -63,7 +52,7 @@ export function LoginPage() {
         <h1 className={styles.title}>Sign in to Wisdoverse Nexus</h1>
         <p className={styles.subtitle}>Enter your credentials to continue</p>
 
-        {error && <div className={styles.error}>{error}</div>}
+        {error && <div role="alert" className={styles.error}>{error}</div>}
 
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.field}>
@@ -75,30 +64,6 @@ export function LoginPage() {
               onChange={handleChange('token')}
               placeholder="Enter your API token"
               autoComplete="off"
-            />
-          </div>
-
-          <div className={styles.field}>
-            <label htmlFor="memberId">Member ID</label>
-            <input
-              id="memberId"
-              type="text"
-              value={credentials.memberId}
-              onChange={handleChange('memberId')}
-              placeholder="Enter your member ID"
-            />
-          </div>
-
-          <div className={styles.field}>
-            <label htmlFor="tenantId">
-              Tenant ID <span className={styles.optional}>(optional)</span>
-            </label>
-            <input
-              id="tenantId"
-              type="text"
-              value={credentials.tenantId || ''}
-              onChange={handleChange('tenantId')}
-              placeholder="Enter tenant ID"
             />
           </div>
 

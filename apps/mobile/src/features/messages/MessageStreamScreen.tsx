@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { useMessagesStore } from './messagesStore'
-import type { MessageStreamRouteProp } from '../../app/navigation/types'
+import type { MessageStreamRouteProp } from '../../shared/navigation'
 
 interface Props {
   route: MessageStreamRouteProp
@@ -10,12 +10,14 @@ interface Props {
 
 export function MessageStreamScreen({ route }: Props) {
   const { roomId, roomName } = route.params
-  const { messages, loading, sending, error, fetchMessages, sendMessage } = useMessagesStore()
+  const { messages, loading, sending, error, fetchMessages, sendMessage, connect, disconnect, connectionState } = useMessagesStore()
   const [draft, setDraft] = useState('')
 
   useEffect(() => {
+    connect(roomId)
     void fetchMessages(roomId)
-  }, [fetchMessages, roomId])
+    return disconnect
+  }, [fetchMessages, roomId, connect, disconnect])
 
   const onSend = async () => {
     const text = draft.trim()
@@ -29,6 +31,7 @@ export function MessageStreamScreen({ route }: Props) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{roomName}</Text>
+      <Text accessibilityLiveRegion="polite">{connectionState}</Text>
       {loading ? <ActivityIndicator size="small" color="#0b5fff" /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
 

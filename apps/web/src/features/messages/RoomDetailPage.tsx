@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMessagesStore } from './messagesStore'
-import { useRoomsStore } from '../rooms/roomsStore'
+import { useRoomsStore } from '../../entities/room'
 import { ConnectionState } from './ConnectionState'
 import styles from './RoomDetailPage.module.css'
 
@@ -65,7 +65,7 @@ export function RoomDetailPage() {
               <div className={styles.sender}>{msg.sender}</div>
               <div className={styles.text}>{msg.text}</div>
               <div className={styles.meta}>
-                <span className={styles.time}>{new Date(msg.timestamp).toLocaleTimeString()}</span>
+                <span className={styles.time}>{msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ''}</span>
                 <span
                   className={`${styles.status} ${msg.deliveryStatus === 'failed' ? styles.failed : ''} ${
                     msg.deliveryStatus === 'sending' ? styles.sending : ''
