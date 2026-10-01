@@ -10,6 +10,13 @@ versions. Breaking changes must be called out in release notes.
 
 ### Changed
 
+- Reworked the English and Chinese roadmaps using a source-linked comparison
+  of related collaboration/AI projects. Priorities now connect a governed
+  human/AI room pilot, tenant reliability, document/task workflows, and
+  versioned external-agent interoperability to the project vision.
+- Added bilingual roadmap execution standards and a public work-item template:
+  scoped packages, responsibility/dependency tracking, proposed quality and
+  SLO targets, AI evaluation, release/recovery gates, and evidence requirements.
 - Aligned the English and Chinese roadmaps around the implemented baseline,
   prioritized milestones, acceptance criteria, and evidence required before 1.0.
 - Public examples now use local gateway URLs or reserved example domains in

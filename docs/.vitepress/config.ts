@@ -137,6 +137,7 @@ export default defineConfig({
             { text: 'Testing', link: '/en/guides/testing' },
             { text: 'Release Process', link: '/en/guides/release-process' },
             { text: 'Roadmap', link: '/en/roadmap' },
+            { text: 'Roadmap Execution', link: '/en/guides/roadmap-execution' },
             { text: 'License', link: '/en/license' },
             { text: 'Performance', link: '/en/performance/benchmark-report' },
           ],
@@ -157,6 +158,7 @@ export default defineConfig({
             { text: '架构概览', link: '/zh-CN/architecture/' },
             { text: '贡献指南', link: '/zh-CN/development/contributing' },
             { text: '路线图', link: '/zh-CN/roadmap' },
+            { text: '路线图执行标准', link: '/zh-CN/guides/roadmap-execution' },
           ],
         },
         {
