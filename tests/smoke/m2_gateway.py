@@ -261,6 +261,7 @@ async def main():
                             if (await client.get(base + '/health', timeout=1)).text == 'OK':
                                 break
                         except httpx.TransportError:
+                            # Startup is asynchronous; retry only until the bounded readiness deadline.
                             pass
                         await asyncio.sleep(.05)
             room = await evaluate(base, credentials)
