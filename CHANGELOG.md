@@ -28,6 +28,10 @@ versions. Breaking changes must be called out in release notes.
 
 ### Changed
 
+- Shortened the root agent instructions and linked task-specific development and
+  writing guides. The writing guide applies an ASD-STE100-based project profile;
+  simple bounded tasks use Luna when available.
+
 - CI pins the qualified Rust 1.98.1 compiler instead of floating `stable`; compiler
   upgrades require a fresh qualification before changing the strict lint baseline.
 
