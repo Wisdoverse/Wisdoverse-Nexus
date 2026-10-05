@@ -28,6 +28,9 @@ versions. Breaking changes must be called out in release notes.
 
 ### Changed
 
+- Redesigned the English and Chinese READMEs with badges, component icons, a client diagram, and linked development guides.
+  The gateway image now includes curl for the documented Compose health check.
+
 - Updated the repository toolchain and builder images to stable Rust 1.99.0 and integrated Cargo minor and patch updates.
   Updated Web React to 19.3 and Vite to 8.3.2 with matching lockfiles and GitHub Actions pins.
   Both runtime images install the current Bookworm PCRE2 security patch.
