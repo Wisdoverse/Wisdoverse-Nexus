@@ -112,9 +112,9 @@ jobs:
       
       - name: Upload to Codecov
         # SHA-pinned per `actions/unpinned-tag` CodeQL recommendation. The
-        # current tag is `v7.0.0` — refresh both the SHA and the comment when
+        # current tag is `v7.1.1` — refresh both the SHA and the comment when
         # upgrading.
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5  # v7.1.1
         with:
           files: lcov.info
           fail_ci_if_error: false

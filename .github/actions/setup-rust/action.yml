@@ -1,5 +1,5 @@
 name: Setup Rust
-description: Install the qualified Rust 1.98.1 toolchain and restore Cargo build caches.
+description: Install the repository Rust toolchain and restore Cargo build caches.
 
 inputs:
   components:

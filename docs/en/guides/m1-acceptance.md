@@ -73,8 +73,9 @@ The IDs and responsibilities follow the [execution standard](roadmap-execution.m
 Local qualification used Linux x86_64, Rust 1.98.1, Node 24.19.0,
 pnpm 10.30.3 and Python 3.12.14. The live runner builds a locked development
 binary and starts an ephemeral loopback gateway with synthetic users/rooms.
-CI toolchain selection is defined in the workflow: Ubuntu runner, pinned Rust 1.98.1,
-Node 24, Python 3.12 and tracked dependency locks.
+CI uses the repository toolchain version, Rust 1.99.0, with Node 24, Python
+3.12 and tracked dependency locks. The local results above record the
+historical Rust 1.98.1 qualification.
 
 | Check | Observed result | Interpretation |
 | --- | --- | --- |

@@ -74,7 +74,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^4.1.11
-        version: 4.1.11(@types/node@25.9.8)(jsdom@29.1.1)(vite@8.3.1(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))
+        version: 4.1.11(@types/node@25.9.8)(jsdom@29.1.1)(vite@8.3.2(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))
 
   apps/web:
     dependencies:
@@ -85,30 +85,30 @@ importers:
         specifier: ^1.20.0
         version: 1.20.0
       react:
-        specifier: ^19.2.8
+        specifier: ^19.3.0
         version: 19.3.0
       react-dom:
-        specifier: ^19.2.8
+        specifier: ^19.3.0
         version: 19.3.0(react@19.3.0)
       react-router-dom:
         specifier: ^7.18.4
         version: 7.18.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       zustand:
         specifier: ^5.0.14
-        version: 5.0.15(@types/react@19.2.18)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
+        version: 5.0.15(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
     devDependencies:
       '@testing-library/jest-dom':
         specifier: ^6.9.1
         version: 6.9.1
       '@types/react':
-        specifier: ^19.2.18
-        version: 19.2.18
+        specifier: ^19.3.0
+        version: 19.3.0
       '@types/react-dom':
-        specifier: 19.2.4
-        version: 19.2.4(@types/react@19.2.18)
+        specifier: 19.3.0
+        version: 19.3.0(@types/react@19.3.0)
       '@vitejs/plugin-react':
         specifier: ^6.0.5
-        version: 6.1.1(babel-plugin-react-compiler@1.0.0)(vite@8.3.1(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))
+        version: 6.1.1(babel-plugin-react-compiler@1.0.0)(vite@8.3.2(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))
       autoprefixer:
         specifier: ^10.5.4
         version: 10.6.1(postcss@8.5.28)
@@ -125,17 +125,17 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
       vite:
-        specifier: ^8.3.1
-        version: 8.3.1(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1)
+        specifier: ^8.3.2
+        version: 8.3.2(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1)
       vitest:
         specifier: ^4.1.11
-        version: 4.1.11(@types/node@25.9.8)(jsdom@29.1.1)(vite@8.3.1(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))
+        version: 4.1.11(@types/node@25.9.8)(jsdom@29.1.1)(vite@8.3.2(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))
 
   docs:
     dependencies:
       '@vitejs/plugin-vue':
         specifier: ^6.0.7
-        version: 6.0.9(vite@8.3.1(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))(vue@3.5.43(typescript@6.0.3))
+        version: 6.0.9(vite@8.3.2(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))(vue@3.5.43(typescript@6.0.3))
     devDependencies:
       vitepress:
         specifier: ^1.6.4
@@ -1660,16 +1660,19 @@ packages:
   '@types/prop-types@15.7.15':
     resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
 
-  '@types/react-dom@19.2.4':
-    resolution: {integrity: sha512-Bsc+QHgp+P/F02XDzNCY9jnZNCUuLki36KT7VKrTXXLdHf+vHMNZnW1rVu5DNW/rCK+fya3DATySbLM4yhtKUw==}
+  '@types/react-dom@19.3.0':
+    resolution: {integrity: sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==}
     peerDependencies:
-      '@types/react': ^19.2.0
+      '@types/react': ^19.3.0
 
   '@types/react@18.3.28':
     resolution: {integrity: sha512-z9VXpC7MWrhfWipitjNdgCauoMLRdIILQsAEV+ZesIzBq/oUlxk0m3ApZuMFCXdnS4U7KrI+l3WRUEGQ8K1QKw==}
 
   '@types/react@19.2.18':
     resolution: {integrity: sha512-AnzbBERsrLKtk2XSfTbYRLjQPdy116Sty4q+T+Bp3IC4l6jNBvreVPAHmpq9qhXQM7CXZPjLVmGMw9sy+hxQ3w==}
+
+  '@types/react@19.3.0':
+    resolution: {integrity: sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==}
 
   '@types/stack-utils@2.0.3':
     resolution: {integrity: sha512-9aEbYZ3TbYMznPdcdr3SmIrLXwC/AKZXQeCf9Pgao5CKb8CyHuEX5jzWPTkvregvhRJHcpRO6BFoGW9ycaOkYw==}
@@ -3879,8 +3882,8 @@ packages:
       yaml:
         optional: true
 
-  vite@8.3.1:
-    resolution: {integrity: sha512-/bvH9E9tmCXRGp2uXY3WbOldqpTwFkbha/8ANaEQ6VkxhH60KyqLwgZq6lG2y+4uT55x9+9eUHMpQ7uGnOCKjA==}
+  vite@8.3.2:
+    resolution: {integrity: sha512-SQr1x6W5vVSbROg7vsyXIaxK9b0G7zsT68acdWWRmnBUsgDieLCRG+Rep9WdZgcposvv/GSnr4GUUBqB3vXq6w==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -5890,9 +5893,9 @@ snapshots:
   '@types/prop-types@15.7.15':
     optional: true
 
-  '@types/react-dom@19.2.4(@types/react@19.2.18)':
+  '@types/react-dom@19.3.0(@types/react@19.3.0)':
     dependencies:
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
 
   '@types/react@18.3.28':
     dependencies:
@@ -5901,6 +5904,10 @@ snapshots:
     optional: true
 
   '@types/react@19.2.18':
+    dependencies:
+      csstype: 3.2.3
+
+  '@types/react@19.3.0':
     dependencies:
       csstype: 3.2.3
 
@@ -5922,10 +5929,10 @@ snapshots:
 
   '@ungap/structured-clone@1.4.0': {}
 
-  '@vitejs/plugin-react@6.1.1(babel-plugin-react-compiler@1.0.0)(vite@8.3.1(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))':
+  '@vitejs/plugin-react@6.1.1(babel-plugin-react-compiler@1.0.0)(vite@8.3.2(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
-      vite: 8.3.1(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1)
+      vite: 8.3.2(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1)
     optionalDependencies:
       babel-plugin-react-compiler: 1.0.0
 
@@ -5934,10 +5941,10 @@ snapshots:
       vite: 6.4.3(@types/node@25.9.8)(jiti@1.21.7)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.1)
       vue: 3.5.43(typescript@6.0.3)
 
-  '@vitejs/plugin-vue@6.0.9(vite@8.3.1(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))(vue@3.5.43(typescript@6.0.3))':
+  '@vitejs/plugin-vue@6.0.9(vite@8.3.2(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))(vue@3.5.43(typescript@6.0.3))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
-      vite: 8.3.1(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1)
+      vite: 8.3.2(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1)
       vue: 3.5.43(typescript@6.0.3)
 
   '@vitest/expect@4.1.11':
@@ -5949,13 +5956,13 @@ snapshots:
       chai: 6.3.0
       tinyrainbow: 3.2.0
 
-  '@vitest/mocker@4.1.11(vite@8.3.1(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))':
+  '@vitest/mocker@4.1.11(vite@8.3.2(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))':
     dependencies:
       '@vitest/spy': 4.1.11
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 8.3.1(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1)
+      vite: 8.3.2(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1)
 
   '@vitest/pretty-format@4.1.11':
     dependencies:
@@ -8273,7 +8280,7 @@ snapshots:
       terser: 5.51.2
       yaml: 2.9.1
 
-  vite@8.3.1(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1):
+  vite@8.3.2(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.7
@@ -8341,10 +8348,10 @@ snapshots:
       - universal-cookie
       - yaml
 
-  vitest@4.1.11(@types/node@25.9.8)(jsdom@29.1.1)(vite@8.3.1(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1)):
+  vitest@4.1.11(@types/node@25.9.8)(jsdom@29.1.1)(vite@8.3.2(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1)):
     dependencies:
       '@vitest/expect': 4.1.11
-      '@vitest/mocker': 4.1.11(vite@8.3.1(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))
+      '@vitest/mocker': 4.1.11(vite@8.3.2(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))
       '@vitest/pretty-format': 4.1.11
       '@vitest/runner': 4.1.11
       '@vitest/snapshot': 4.1.11
@@ -8361,7 +8368,7 @@ snapshots:
       tinyexec: 1.3.1
       tinyglobby: 0.2.17
       tinyrainbow: 3.2.0
-      vite: 8.3.1(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1)
+      vite: 8.3.2(@types/node@25.9.8)(esbuild@0.25.12)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 25.9.8
@@ -8481,9 +8488,9 @@ snapshots:
       react: 19.2.0
       use-sync-external-store: 1.7.0(react@19.2.0)
 
-  zustand@5.0.15(@types/react@19.2.18)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0)):
+  zustand@5.0.15(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0)):
     optionalDependencies:
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
       react: 19.3.0
       use-sync-external-store: 1.7.0(react@19.3.0)
 

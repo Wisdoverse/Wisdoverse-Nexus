@@ -28,6 +28,10 @@ versions. Breaking changes must be called out in release notes.
 
 ### Changed
 
+- Updated the repository toolchain and builder images to stable Rust 1.99.0 and integrated Cargo minor and patch updates.
+  Updated Web React to 19.3 and Vite to 8.3.2 with matching lockfiles and GitHub Actions pins.
+  Both runtime images install the current Bookworm PCRE2 security patch.
+
 - Shortened the root agent instructions and linked task-specific development and
   writing guides. The writing guide applies an ASD-STE100-based project profile;
   simple bounded tasks use Luna when available.

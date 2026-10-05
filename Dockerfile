@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:1.97-slim-bookworm AS builder
+FROM rust:1.99.0-slim-bookworm AS builder
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ FROM debian:bookworm-slim
 
 # Install runtime dependencies
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates curl libssl3 && \
+    apt-get install -y --no-install-recommends ca-certificates curl libssl3 libpcre2-8-0 && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy binary
