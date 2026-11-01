@@ -13,26 +13,26 @@
   },
   "dependencies": {
     "@expo/dom-webview": "^55.0.6",
-    "@react-navigation/bottom-tabs": "^7.18.3",
+    "@react-navigation/bottom-tabs": "^7.21.0",
     "@react-navigation/native": "^7.3.4",
-    "@react-navigation/native-stack": "^7.17.6",
-    "axios": "^1.20.0",
-    "expo": "~55.0.31",
+    "@react-navigation/native-stack": "^7.21.0",
+    "axios": "^1.21.0",
+    "expo": "~55.0.32",
     "expo-local-authentication": "~55.0.18",
     "expo-secure-store": "~55.0.18",
     "expo-status-bar": "~55.0.6",
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "react-native": "0.83.10",
-    "react-native-safe-area-context": "~5.6.2",
-    "react-native-screens": "~4.23.0",
-    "zustand": "^5.0.14"
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-native": "0.88.1",
+    "react-native-safe-area-context": "~5.11.0",
+    "react-native-screens": "~4.30.1",
+    "zustand": "^5.0.16"
   },
   "devDependencies": {
-    "@types/node": "^25.9.4",
-    "@types/react": "~19.2.10",
+    "@types/node": "^25.9.9",
+    "@types/react": "~19.3.0",
     "typescript": "~5.9.2",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.12"
   },
   "overrides": {
     "postcss": "^8.5.28",
