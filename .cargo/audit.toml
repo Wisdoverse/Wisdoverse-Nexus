@@ -8,7 +8,6 @@ ignore = [
     "RUSTSEC-2023-0071",
     # unmaintained crates (indirect dependencies)
     "RUSTSEC-2024-0436",  # paste - via tokenizers
-    "RUSTSEC-2025-0119",  # number_prefix - via tokenizers
     "RUSTSEC-2025-0134",  # rustls-pemfile - via qdrant-client
     # Maintenance-only advisory: yrs 0.25 requires smallstr 0.3, and even
     # yrs 0.28 still uses it. No patched smallstr version exists. Revisit this
